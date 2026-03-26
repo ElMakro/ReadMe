@@ -1,7 +1,7 @@
 # Инструкция по разворачиванию Docker-контейнера СУБД PostgreSQL
 
 1. Установить пакеты `docker`: 
-   - 'sudo apt update'
+   - `sudo apt update`
    - `sudo apt install docker`
 2. Перейти в каталог `docker`: `cd docker`
 3. Выполнить разворачивание Docker-контейнера при помощи оркестратора Docker Compose: `sudo docker-compose up -d`.
