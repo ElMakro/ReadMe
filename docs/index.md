@@ -10,3 +10,6 @@
 
 ## Инструкции
 [Навигация по инструкциям](instructions/index.md)
+
+## Дизайн макета проекта
+[Дизайн в Figma](https://www.figma.com/design/k1rR5dAW58tptdKubtPauJ/ReadMe?node-id=0-1&t=EtFeyKqjcyregchf-1)
