@@ -1,0 +1,293 @@
+:root {
+    --light-bg-primary: #F8FAFC;
+    --light-bg-secondary: #FFFFFF;
+    --light-text-primary: #0F172A;
+    --light-text-secondary: #64748B;
+    --light-accent: #0EA5E9;
+    --light-accent-hover: #0284C7;
+    --light-border: #E2E8F0;
+}
+
+[data-theme="dark"] {
+    --dark-bg-primary: #0F172A;
+    --dark-bg-secondary: #1E293B;
+    --dark-text-primary: #F1F5F9;
+    --dark-text-secondary: #94A3B8;
+    --dark-accent: #38BDF8;
+    --dark-accent-hover: #7DD3FC;
+    --dark-border: #334155;
+}
+
+/* Глобальные CSS-переменные (зависят от data-theme) */
+:root,
+[data-theme="light"] {
+    --bg-primary: #FFF9EF;
+    --bg-secondary: #FFF4E2;
+    --text-primary: #4D3A2B;
+    --text-secondary: #9B8264;
+    --accent: #DEBA6B;
+    --accent-hover: #E8CB8C;
+    --border-color: #E7DBC2;
+    --bs-primary-rgb: 222, 186, 107;
+}
+
+[data-theme="dark"] {
+    --bg-primary: var(--dark-bg-primary);
+    --bg-secondary: var(--dark-bg-secondary);
+    --text-primary: var(--dark-text-primary);
+    --text-secondary: var(--dark-text-secondary);
+    --accent: var(--dark-accent);
+    --accent-hover: var(--dark-accent-hover);
+    --border-color: var(--dark-border);
+}
+
+:root,
+[data-theme="light"],
+[data-theme="dark"] {
+    --bs-body-bg: var(--bg-primary);
+    --bs-body-color: var(--text-primary);
+    --bs-primary: var(--accent);
+    --bs-primary-rgb: 14, 165, 233;
+    --bs-secondary-color: var(--text-secondary);
+    --bs-border-color: var(--border-color);
+    --bs-link-color: var(--accent);
+    --bs-link-hover-color: var(--accent-hover);
+}
+
+[data-theme="dark"] {
+    --bs-primary-rgb: 56, 189, 248;
+}
+
+/* Базовые стили */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    transition: all 0.3s ease;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* ========== HEADER ========== */
+.header {
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.logo {
+    font-size: 2rem;
+    font-weight: bold;
+    color: var(--text-primary);
+}
+
+.search-box {
+    flex: 0 1 300px;
+}
+
+.search-box input {
+    width: 100%;
+    padding: 10px 40px 10px 15px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: 0.95rem;
+}
+
+.search-box input:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+.search-icon {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+.theme-toggle, .btn-login, .filters-btn, .pagination-btn {
+    padding: 8px 20px;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.theme-toggle {
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.theme-toggle:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.btn-login {
+    background: var(--text-primary);
+    color: var(--bg-primary);
+    border: none;
+    font-weight: 600;
+}
+
+.btn-login:hover {
+    background: var(--accent);
+    color: var(--bg-secondary);
+    transform: translateY(-2px);
+}
+
+/* ========== MAIN ========== */
+.main {
+    flex: 1;
+    padding: 40px 20px;
+}
+
+.section-header {
+    margin-bottom: 30px;
+}
+
+.section-title {
+    font-size: 2rem;
+    color: var(--text-primary);
+}
+
+.filters-btn {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+}
+
+.filters-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+/* ========== КАРТОЧКИ КУРСОВ  ========== */
+.course-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 1.5rem;
+    cursor: pointer;
+    aspect-ratio: 1 / 1.5;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    transition: all 0.3s ease;
+}
+
+.course-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+    border-color: var(--accent);
+}
+
+.course-number {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 20px;
+}
+
+.course-line {
+    height: 3px;
+    background: var(--border-color);
+    margin: 8px 0;
+    border-radius: 2px;
+    transition: all 0.3s ease;
+}
+
+.course-line:first-child {
+    background: var(--accent);
+    opacity: 0.6;
+}
+
+.course-card:hover .course-line {
+    background: var(--accent);
+    opacity: 0.4;
+}
+
+.course-card:hover .course-line:first-child {
+    opacity: 1;
+}
+
+/* ========== ПАГИНАЦИЯ ========== */
+.pagination-btn {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.pagination-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    transform: translateY(-2px);
+}
+
+/* ========== FOOTER ========== */
+.footer {
+    background: var(--bg-secondary);
+    border-top: 1px solid var(--border-color);
+    padding: 40px 0;
+}
+
+.footer h4 {
+    color: var(--text-primary);
+    margin-bottom: 15px;
+    font-size: 1.1rem;
+}
+
+.footer a {
+    display: block;
+    color: var(--text-secondary);
+    text-decoration: none;
+    margin-bottom: 8px;
+    transition: color 0.3s ease;
+}
+
+.footer a:hover {
+    color: var(--accent);
+}
+
+/* ========== АДАПТИВНОСТЬ ========== */
+@media (max-width: 768px) {
+    .header .container-fluid {
+        flex-direction: column;
+        gap: 15px;
+    }
+    .search-box {
+        width: 100%;
+        max-width: 100%;
+    }
+    .section-header {
+        flex-direction: column;
+        gap: 12px;
+        text-align: center;
+    }
+    .pagination {
+        flex-direction: column;
+        align-items: center;
+    }
+    .pagination-btn {
+        width: 100%;
+        max-width: 200px;
+        justify-content: center;
+    }
+}
