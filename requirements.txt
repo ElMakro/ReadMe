@@ -7,3 +7,5 @@ pytest==9.0.2
 pytest-cov==7.0.0
 flake8==7.3.0
 fastapi==0.135.3
+passlib==1.7.4
+bcrypt==4.0.1
