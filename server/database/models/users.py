@@ -10,6 +10,6 @@ from server.enums.role import Role
 
 class Users(IDMixin, TimestampsMixin, Base):
     nickname: Mapped[str] = mapped_column(String(32), unique=True, nullable=False)
-    email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
+    email: Mapped[str] = mapped_column(String(255), unique=True, nullable=True)
     password: Mapped[str] = mapped_column(String(255), unique=False, nullable=False)
     role: Mapped[Role] = mapped_column(PGEnum(Role, native_enum=True), unique=False, nullable=False)
