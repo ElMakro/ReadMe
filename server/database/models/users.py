@@ -1,5 +1,3 @@
-import enum
-
 from sqlalchemy import String
 from sqlalchemy import Enum as PGEnum
 from sqlalchemy.orm import Mapped, mapped_column
@@ -7,12 +5,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from server.database.mixins.id_mixins import IDMixin
 from server.database.mixins.timestamp_mixins import TimestampsMixin
 from server.database.models.base import Base
-
-
-class Role(enum.Enum):
-    ADMIN = "admin"
-    PROFESSOR = "professor"
-    STUDENT = "student"
+from server.enums.role import Role
 
 
 class Users(IDMixin, TimestampsMixin, Base):
