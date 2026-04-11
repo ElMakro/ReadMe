@@ -1,7 +1,7 @@
 services:
     postgres:
         image: postgres:18.3-alpine3.23
-        container_name: postgresdb
+        container_name: readme_postgresdb
         command:
             - "postgres"
             - "-c"
@@ -53,6 +53,24 @@ services:
                 limits:
                     cpus: '1'
                     memory: 4G
+
+    client:
+        build:
+            context: ./client
+            dockerfile: Dockerfile
+        container_name: readme_client
+        networks:
+            - readme-network
+        depends_on:
+            postgres:
+                condition: service_healthy
+        ports:
+            - "8000:8000"
+        restart: unless-stopped
+
+networks:
+    readme-network:
+        driver: bridge
 
 volumes:
     readmedb-data:
