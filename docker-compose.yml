@@ -1,7 +1,7 @@
 services:
-    postgres:
+    postgres-db:
         image: postgres:18.3-alpine3.23
-        container_name: postgresdb
+        container_name: readme_postgres_db
         command:
             - "postgres"
             - "-c"
@@ -38,9 +38,11 @@ services:
             POSTGRES_PASSWORD: "pgpwd4readme"
             PGDATA: "/var/lib/postgresql/data/pgdata"
         volumes:
-            - readmedb-data:/var/lib/postgresql/data
+            - readme-pgdb-data:/var/lib/postgresql/data
         ports:
             - "5432:5432"
+        networks:
+            - readme-network
         healthcheck:
             test: [ "CMD-SHELL", "pg_isready -U readmepguser -d readmedb" ]
             interval: 10s
@@ -54,6 +56,58 @@ services:
                     cpus: '1'
                     memory: 4G
 
+    postgres-backups:
+        image: prodrigestivill/postgres-backup-local:18-alpine-d257e5d
+        container_name: readme_postgres_backups
+        restart: always
+        environment:
+            - POSTGRES_HOST=postgres-db
+            - POSTGRES_DB=readmedb
+            - POSTGRES_USER=readmepguser
+            - POSTGRES_PASSWORD=pgpwd4readme
+            - SCHEDULE=@every 12h00m00s
+            - BACKUP_KEEP_DAYS=7
+        volumes:
+            - readme-pgdb-backups:/backups
+        networks:
+            - readme-network
+        depends_on:
+            postgres-db:
+                condition: service_healthy
+
+    client:
+        build:
+            context: ./client
+            dockerfile: Dockerfile
+        container_name: readme_client
+        networks:
+            - readme-network
+        depends_on:
+            postgres-db:
+                condition: service_healthy
+        ports:
+            - "8000:8000"
+        restart: unless-stopped
+
+    server:
+        build:
+            context: ./server
+            dockerfile: Dockerfile
+        container_name: readme_server
+        networks:
+            - readme-network
+        depends_on:
+            postgres-db:
+                condition: service_healthy
+        ports:
+            -   "8080:8080"
+        restart: unless-stopped
+
+networks:
+    readme-network:
+        driver: bridge
+
 volumes:
-    readmedb-data:
+    readme-pgdb-data:
+    readme-pgdb-backups:
 
