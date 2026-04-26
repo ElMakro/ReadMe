@@ -89,6 +89,20 @@ services:
             - "8000:8000"
         restart: unless-stopped
 
+    server:
+        build:
+            context: ./server
+            dockerfile: Dockerfile
+        container_name: readme_server
+        networks:
+            - readme-network
+        depends_on:
+            postgres-db:
+                condition: service_healthy
+        ports:
+            -   "8080:8080"
+        restart: unless-stopped
+
 networks:
     readme-network:
         driver: bridge
