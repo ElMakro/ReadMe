@@ -40,3 +40,8 @@ class CreatedUserInfo(UserByID, UserByNickname):
 
 class UserInfo(UserByID, NewUser):
     pass
+
+
+class UserVerification(UserByID, UserByNickname):
+    role: Role
+    session_id: uuid.UUID | str | None = None
