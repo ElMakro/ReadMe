@@ -24,6 +24,10 @@ class UserRegistration(UserByNickname, UserByEmail):
     password: Annotated[str, StringConstraints(min_length=8, max_length=64)]
 
 
+class UserAuthentication(UserByNickname):
+    password: Annotated[str, StringConstraints(min_length=8, max_length=64)]
+
+
 class NewUser(UserByNickname, UserByEmail):
     password: str
     role: Role = Role.STUDENT
@@ -32,3 +36,7 @@ class NewUser(UserByNickname, UserByEmail):
 class CreatedUserInfo(UserByID, UserByNickname):
     created_at: datetime.datetime
     updated_at: datetime.datetime
+
+
+class UserInfo(UserByID, NewUser):
+    pass
