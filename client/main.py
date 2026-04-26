@@ -7,9 +7,9 @@ from fastapi.requests import Request
 
 client_app = FastAPI()
 
-client_app.mount("/static", StaticFiles(directory="frontend/static"), name="static")
+client_app.mount("/static", StaticFiles(directory="static"), name="static")
 
-templates = Jinja2Templates(directory="frontend/templates")
+templates = Jinja2Templates(directory="templates")
 
 @client_app.get("/client_healthcheck")
 async def healthcheck():
