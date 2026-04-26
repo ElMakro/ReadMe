@@ -4,7 +4,7 @@ from fastapi.responses import JSONResponse
 from config.settings import settings
 from server.app.service.auth_handler import AuthHandler
 from server.app.service.users_manager import UsersManager
-from server.schemas.users import UserRegistration, CreatedUserInfo, NewUser, UserAuthentication
+from server.schemas.users import UserRegistration, CreatedUserInfo, NewUser, UserAuthentication, UserVerification
 
 
 class UsersService:
@@ -36,4 +36,10 @@ class UsersService:
             httponly=True,
             max_age=settings.token_expire
         )
+        return response
+
+    async def logout_user(self, user: UserVerification) -> JSONResponse:
+        await self.manager.clear_token(user_id=user.id, session_id=user.session_id)
+        response = JSONResponse(content={"message": "Успешный выход"})
+        response.delete_cookie("Authorization")
         return response
