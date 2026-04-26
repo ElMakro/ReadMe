@@ -9,3 +9,5 @@ flake8==7.3.0
 fastapi==0.135.3
 passlib==1.7.4
 bcrypt==4.0.1
+pyjwt==2.12.1
+redis==7.4.0
