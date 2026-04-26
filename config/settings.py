@@ -17,8 +17,15 @@ class DBSettings(BaseSettings):
         return f"postgresql+asyncpg://{self.db_user}:{self.db_password.get_secret_value()}@{self.db_host}:{self.db_port}/{self.db_name}"
 
 
+class UvicornSettings(BaseSettings):
+    server_port: int
+
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf8", extra="ignore")
+
+
 class Settings(BaseSettings):
     db_settings: DBSettings = DBSettings()
+    uvicorn_settings: UvicornSettings = UvicornSettings()
     secret_key: SecretStr
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf8", extra="ignore")
