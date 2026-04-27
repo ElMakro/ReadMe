@@ -1,6 +1,6 @@
 FROM python:3.13-slim
 
-WORKDIR /client
+WORKDIR /content
 
 RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
 
@@ -13,11 +13,15 @@ USER readmeserveruser
 COPY requirements.txt .
 RUN pip install --no-cache-dir --user -r requirements.txt
 
-COPY --chown=readmeserveruser:readmeservergroup . .
+COPY --chown=readmeserveruser:readmeservergroup . ./server/
+
+WORKDIR /content/server
+
+ENV PYTHONPATH=/content
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD curl -f http://localhost:8080/server_healthcheck || exit 1
 
 EXPOSE 8080
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]
+CMD ["uvicorn", "server.main:app", "--host", "0.0.0.0", "--port", "8080"]
