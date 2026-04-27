@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 
 from redis.asyncio import ConnectionPool, Redis
 
-from config.settings import settings
+from server.config.settings import settings
 
 
 class RedisDependency:

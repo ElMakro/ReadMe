@@ -1,8 +1,8 @@
 import uvicorn
 from fastapi import FastAPI, Response, status
 
-from config.settings import settings
 from server.app.api import app_router
+from server.config.settings import settings
 
 app = FastAPI()
 app.include_router(app_router)

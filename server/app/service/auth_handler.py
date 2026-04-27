@@ -5,7 +5,7 @@ from typing import NamedTuple
 import jwt
 from fastapi import HTTPException, status
 from passlib.context import CryptContext
-from config.settings import settings
+from server.config.settings import settings
 from server.enums.role import Role
 
 
