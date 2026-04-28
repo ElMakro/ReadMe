@@ -29,7 +29,7 @@ class UsersManager:
             await session.commit()
 
             user_data = result.scalar_one()
-            return CreatedUserInfo(**user_data.__dict__)
+            return CreatedUserInfo.model_validate(user_data)
 
     async def get_user_by_nickname(self, nickname: str) -> UserInfo | None:
         async with self.db.db_session() as session:
