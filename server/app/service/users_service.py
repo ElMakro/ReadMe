@@ -1,4 +1,4 @@
-from fastapi import HTTPException, status
+from fastapi import HTTPException, status, Depends
 from fastapi.responses import JSONResponse
 
 from server.config.settings import settings
@@ -8,12 +8,13 @@ from server.schemas.users import UserRegistration, CreatedUserInfo, NewUser, Use
 
 
 class UsersService:
-    def __init__(self, manager: UsersManager, auth_handler: AuthHandler) -> None:
+    def __init__(self, manager: UsersManager = Depends(UsersManager), auth_handler: AuthHandler = Depends(AuthHandler))\
+            -> None:
         self.manager = manager
         self.auth_handler = auth_handler
 
     async def register_user(self, user: UserRegistration) -> CreatedUserInfo:
-        hashed_password = self.auth_handler.get_hashed_password(user.password)
+        hashed_password = await self.auth_handler.get_hashed_password(user.password)
         new_user = NewUser(email=user.email, nickname=user.nickname, password=hashed_password)
         return await self.manager.create_user(user=new_user)
 
