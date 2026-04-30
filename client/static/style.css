@@ -337,3 +337,301 @@ body {
 .modal-close:hover {
     color: var(--accent);
 }
+
+/* ========== СТИЛИ ДЛЯ КУРСОВ ========== */
+
+/* ---------- Боковая панель ---------- */
+.course-sidebar {
+    background: var(--bg-secondary);
+    border-right: 1px solid var(--border-color);
+    min-height: 100vh;
+}
+
+.course-sidebar h5 {
+    font-weight: 700;                 /* жирное название курса */
+    text-align: left !important;      /* прижимаем к левому краю */
+    margin-bottom: 1.5rem !important;
+    color: var(--text-primary);
+    font-size: 1.25rem;
+}
+
+/* Элементы разделов */
+.section-item {
+    background: transparent !important;
+    border: none !important;
+    padding: 0.25rem 0 !important;
+}
+
+.section-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 6px;
+    color: var(--text-primary);
+    text-decoration: none;
+    font-weight: 500;
+    transition: background 0.2s;
+}
+
+.section-toggle:hover {
+    background: var(--border-color);
+    color: var(--accent);
+}
+
+.section-toggle.active {
+    background: var(--accent);
+    color: var(--bg-primary);
+    font-weight: 600;
+}
+
+.toggle-icon {
+    font-size: 0.75rem;
+    transition: transform 0.2s;
+}
+
+/* Список тем */
+.section-topics {
+    margin-left: 1.25rem;            /* отступ относительно раздела */
+}
+
+.topic-link {
+    display: block;
+    padding: 0.35rem 0.75rem;
+    border-radius: 4px;
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-size: 0.9rem;
+    transition: background 0.2s, color 0.2s;
+}
+
+.topic-link:hover {
+    background: var(--border-color);
+    color: var(--text-primary);
+}
+
+.topic-link.active {
+    background: var(--accent);
+    color: var(--bg-primary);
+    font-weight: 500;
+}
+
+/* ---------- Основной контент ---------- */
+.main-content {
+    padding: 2rem 2.5rem !important;
+    background: var(--bg-primary);
+}
+
+.section-container h2 {
+    margin-top: 1.5rem;
+    margin-bottom: 1rem;
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+/* Ссылки в тексте */
+a {
+    color: var(--bs-link-color);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+a:hover {
+    color: var(--bs-link-hover-color);
+}
+
+.topic-block {
+    margin-bottom: 2rem;
+}
+
+/* Кнопка "Проверить себя" */
+#checkYourselfBtn {
+    background: var(--accent);
+    color: var(--bg-primary);
+    border: none;
+    padding: 0.75rem 2rem;
+    border-radius: 8px;
+    font-weight: 600;
+    transition: background 0.2s, transform 0.2s;
+}
+#checkYourselfBtn:hover {
+    background: var(--accent-hover);
+    transform: translateY(-2px);
+}
+
+/* ========== ПРИЖАТИЕ ФУТЕРА ========== */
+
+/* 1. Главный контейнер страницы занимает всё окно */
+.main {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;                 /* важно для flex-потомков */
+}
+
+/* Вложенные контейнеры Bootstrap тоже подчиняются flex-вертикали */
+.main .container-fluid {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    padding-left: 0;
+    padding-right: 0;
+}
+
+.main .container-fluid > .row {
+    flex: 1 1 auto;
+    display: flex;
+    min-height: 0;
+    margin-left: 0;
+    margin-right: 0;
+}
+
+/* Боковая панель — скроллится внутри своей высоты */
+.course-sidebar {
+    min-height: 0;                 /* перебиваем ранее заданное 100vh */
+    height: auto;
+    overflow-y: auto;
+}
+
+/* Основная область — тоже скроллится при переполнении */
+.main-content {
+    overflow-y: auto;
+    min-height: 0;
+}
+
+/* ========== ПЛАВАЮЩЕЕ ОКНО (единый блок) ========== */
+.floating-window {
+    position: fixed;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    cursor: default;
+    min-width: 200px;
+    min-height: 150px;
+    overflow: hidden;
+    transition: none;                /* без анимации при перетаскивании/ресайзе */
+}
+
+.window-header {
+    flex-shrink: 0;
+    padding: 12px 15px;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
+    border-radius: 12px 12px 0 0;
+    cursor: move;
+    user-select: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.btn-close-window {
+    background: none;
+    border: none;
+    font-size: 1.2rem;
+    cursor: pointer;
+    color: var(--text-secondary);
+    padding: 0 5px;
+    line-height: 1;
+    transition: 0.2s;
+}
+.btn-close-window:hover {
+    color: var(--accent);
+    transform: scale(1.1);
+}
+
+/* Единственное правило для textarea */
+.conspect-content {
+    flex: 1 1 auto;
+    width: 100%;
+    height: 100%;
+    border: none;
+    border-radius: 0;
+    padding: 0px;
+    margin: 0;
+    resize: none;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 0.95rem;
+    line-height: 1.5;
+    outline: none;
+    box-sizing: border-box;
+}
+
+/* ========== Перетаскиваемая кнопка-язычок ========== */
+.floating-tab-button {
+    position: fixed;
+    right: -30px;
+    top: 50%;
+    width: 60px;
+    height: 60px;
+    background: var(--accent);
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    color: var(--bg-primary);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    z-index: 1100;
+    user-select: none;
+    transition: right 0.2s ease;   /* только выезд кнопки, не ресайз */
+}
+
+.floating-tab-button:hover {
+    right: 0;
+}
+
+.floating-tab-button:active {
+    cursor: grabbing;
+    background: var(--accent-hover);
+}
+
+@media (max-width: 576px) {
+    .floating-tab-button {
+        width: 50px;
+        height: 50px;
+        right: -25px;
+        font-size: 24px;
+    }
+}
+
+/* ========== Ручка изменения размера ========== */
+.resize-handle {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    width: 18px;
+    height: 18px;
+    cursor: nwse-resize;
+    background: linear-gradient(135deg,
+        transparent 50%,
+        var(--border-color) 50%,
+        var(--border-color) 60%,
+        transparent 60%,
+        transparent 70%,
+        var(--border-color) 70%,
+        var(--border-color) 80%,
+        transparent 80%);
+    border-radius: 0 0 12px 0;
+    z-index: 10;
+    transition: none;              /* без анимации */
+}
+
+.resize-handle:hover {
+    background: linear-gradient(135deg,
+        transparent 50%,
+        var(--accent) 50%,
+        var(--accent) 60%,
+        transparent 60%,
+        transparent 70%,
+        var(--accent) 70%,
+        var(--accent) 80%,
+        transparent 80%);
+}
