@@ -1,62 +1,110 @@
 (function() {
-    // ========== ТЕМА (ваш существующий код) ==========
-    const themeToggle = document.getElementById('themeToggle');
-    const themeIcon = document.getElementById('themeIcon');
-    const themeText = document.getElementById('themeText');
-    const htmlElement = document.documentElement;
+    // ========== 1. ПАРАМЕТРЫ КУРСА ==========
+    const totalSections = 3;
+    const topicsPerSection = 2;
 
-    function setTheme(newTheme) {
-        htmlElement.setAttribute('data-theme', newTheme);
-        localStorage.setItem('theme', newTheme);
-        updateThemeButton(newTheme);
-    }
+    // ========== 2. ГЕНЕРАЦИЯ ДАННЫХ КУРСА ==========
+    const demoContent = `
+        <h2>Демо-тема</h2>
+        <ul>
+            <li>Высокий Уровень Вовлечения Представителей Целевой Аудитории Является Четким Доказательством Простого Факта: Синтетическое Тестирование Требует Определения И Уточнения Первоочередных Требований.</li>
+            <li>Имеется Спорная Точка Зрения, Гласящая Примерно Следующее: Сторонники Тоталитаризма В Науке, Превозмогая Сложившуюся Непростую Экономическую Ситуацию, Преданы Социально-Демократической Анафеме.</li>
+        </ul>
+        <p><a href="/">Пример ссылки в контенте (переход на главную страницу)</a></p>
+    `;
 
-    function updateThemeButton(theme) {
-        if (theme === 'dark') {
-            themeIcon.textContent = '☀️';
-            themeText.textContent = 'Свет';
-        } else {
-            themeIcon.textContent = '🌙';
-            themeText.textContent = 'Тьма';
-        }
-    }
-
-    function toggleTheme() {
-        const currentTheme = htmlElement.getAttribute('data-theme');
-        const newTheme = currentTheme === 'light' ? 'dark' : 'light';
-        setTheme(newTheme);
-    }
-
-    const savedTheme = localStorage.getItem('theme') || 'light';
-    setTheme(savedTheme);
-    if (themeToggle) themeToggle.addEventListener('click', toggleTheme);
-
-    // ========== ВХОД ==========
-    const loginBtn = document.getElementById('loginBtn');
-    if (loginBtn) {
-        loginBtn.addEventListener('click', function() {
-            if (window.AuthModal && typeof window.AuthModal.open === 'function') {
-                window.AuthModal.open();
-            } else {
-                console.error('AuthModal не готов');
+    function generateCourseData(sectionsCount, topicsCount) {
+        const sections = [];
+        for (let s = 1; s <= sectionsCount; s++) {
+            const sectionId = `section${s}`;
+            const topics = [];
+            for (let t = 1; t <= topicsCount; t++) {
+                const topicId = `topic${s}-${t}`;
+                topics.push({
+                    id: topicId,
+                    title: `Тема ${s}.${t}`,
+                    content: demoContent
+                });
             }
+            sections.push({
+                id: sectionId,
+                title: `Раздел ${s}`,
+                topics: topics
+            });
+        }
+        return { sections };
+    }
+
+    const courseData = generateCourseData(totalSections, topicsPerSection);
+
+    // ========== 3. ГЕНЕРАЦИЯ МЕНЮ И УПРАВЛЕНИЕ КОНТЕНТОМ ==========
+    const sectionList = document.getElementById('sectionList');
+    const topicContent = document.getElementById('topicContent');
+
+    let activeSectionId = null;
+    let activeTopicId = null;
+
+    function renderMenu() {
+        if (!sectionList) return;
+        sectionList.innerHTML = '';
+
+        courseData.sections.forEach(section => {
+            const sectionItem = document.createElement('li');
+            sectionItem.className = 'list-group-item section-item';
+            sectionItem.dataset.sectionId = section.id;
+
+            const toggleLink = document.createElement('a');
+            toggleLink.href = '#';
+            toggleLink.className = 'section-toggle';
+            toggleLink.dataset.target = section.id;
+            toggleLink.innerHTML = `<span class="toggle-icon">▶</span> ${section.title}`;
+
+            const topicsUl = document.createElement('ul');
+            topicsUl.className = 'list-unstyled ps-4 mt-2 section-topics';
+            topicsUl.id = `topics-${section.id}`;
+            topicsUl.style.display = 'none';
+
+            section.topics.forEach(topic => {
+                const topicLi = document.createElement('li');
+                const topicLink = document.createElement('a');
+                topicLink.href = '#';
+                topicLink.className = 'topic-link';
+                topicLink.dataset.sectionId = section.id;
+                topicLink.dataset.topicId = topic.id;
+                topicLink.textContent = topic.title;
+                topicLi.appendChild(topicLink);
+                topicsUl.appendChild(topicLi);
+            });
+
+            sectionItem.appendChild(toggleLink);
+            sectionItem.appendChild(topicsUl);
+            sectionList.appendChild(sectionItem);
         });
     }
 
-    // ========== АККОРДЕОН И ПЕРЕКЛЮЧЕНИЕ КОНТЕНТА ==========
-    const sectionList = document.getElementById('sectionList');
-    const sectionContainers = document.querySelectorAll('.section-container');
+    function showTopicContent(sectionId, topicId) {
+        const section = courseData.sections.find(s => s.id === sectionId);
+        if (!section) return;
+        const topic = section.topics.find(t => t.id === topicId);
+        if (!topic) return;
 
-    function showSection(sectionId) {
-        sectionContainers.forEach(div => div.style.display = 'none');
-        const target = document.getElementById('content-' + sectionId);
-        if (target) target.style.display = 'block';
+        topicContent.innerHTML = topic.content;
+        activeSectionId = sectionId;
+        activeTopicId = topicId;
+        updateActiveMenuState();
     }
 
-    function scrollToTopic(topicId) {
-        const topicElement = document.getElementById(topicId);
-        if (topicElement) {
-            topicElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    function updateActiveMenuState() {
+        document.querySelectorAll('.section-toggle').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.topic-link').forEach(el => el.classList.remove('active'));
+
+        if (activeSectionId) {
+            const sectionToggle = document.querySelector(`.section-toggle[data-target="${activeSectionId}"]`);
+            if (sectionToggle) sectionToggle.classList.add('active');
+        }
+        if (activeTopicId && activeSectionId) {
+            const topicLink = document.querySelector(`.topic-link[data-section-id="${activeSectionId}"][data-topic-id="${activeTopicId}"]`);
+            if (topicLink) topicLink.classList.add('active');
         }
     }
 
@@ -67,57 +115,51 @@
 
             if (toggle) {
                 e.preventDefault();
-                const targetId = toggle.dataset.target;
-                const topicsUl = document.getElementById('topics-' + targetId);
+                const sectionId = toggle.dataset.target;
+                const topicsUl = document.getElementById(`topics-${sectionId}`);
                 const icon = toggle.querySelector('.toggle-icon');
 
                 if (topicsUl) {
-                    if (topicsUl.style.display === 'none' || topicsUl.style.display === '') {
-                        topicsUl.style.display = 'block';
-                        if (icon) icon.textContent = '▼';
-                    } else {
-                        topicsUl.style.display = 'none';
-                        if (icon) icon.textContent = '▶';
-                    }
+                    const isHidden = topicsUl.style.display === 'none' || topicsUl.style.display === '';
+                    topicsUl.style.display = isHidden ? 'block' : 'none';
+                    if (icon) icon.textContent = isHidden ? '▼' : '▶';
                 }
-                showSection(targetId);
-                document.querySelectorAll('.section-toggle').forEach(el => el.classList.remove('active'));
-                toggle.classList.add('active');
-                document.querySelectorAll('.topic-link').forEach(el => el.classList.remove('active'));
             }
 
             if (topicLink) {
                 e.preventDefault();
-                const contentId = topicLink.dataset.content;
-                const parentSection = topicLink.closest('.section-item').querySelector('.section-toggle');
-                if (parentSection) {
-                    const sectionId = parentSection.dataset.target;
-                    showSection(sectionId);
-                    document.querySelectorAll('.section-toggle').forEach(el => el.classList.remove('active'));
-                    parentSection.classList.add('active');
-                }
-                document.querySelectorAll('.topic-link').forEach(el => el.classList.remove('active'));
-                topicLink.classList.add('active');
-                scrollToTopic(contentId);
+                const sectionId = topicLink.dataset.sectionId;
+                const topicId = topicLink.dataset.topicId;
+                showTopicContent(sectionId, topicId);
             }
         });
     }
 
-    // Начальное состояние
-    const defaultSectionToggle = document.querySelector('.section-toggle[data-target="section1"]');
-    if (defaultSectionToggle) {
-        defaultSectionToggle.classList.add('active');
-        const topicsUl = document.getElementById('topics-section1');
-        if (topicsUl) {
-            topicsUl.style.display = 'block';
-            const icon = defaultSectionToggle.querySelector('.toggle-icon');
-            if (icon) icon.textContent = '▼';
+    function initCourseView() {
+        renderMenu();
+        if (courseData.sections.length > 0) {
+            const firstSection = courseData.sections[0];
+            if (firstSection.topics.length > 0) {
+                const firstTopic = firstSection.topics[0];
+                const topicsUl = document.getElementById(`topics-${firstSection.id}`);
+                if (topicsUl) topicsUl.style.display = 'block';
+                const toggle = document.querySelector(`.section-toggle[data-target="${firstSection.id}"]`);
+                if (toggle) {
+                    const icon = toggle.querySelector('.toggle-icon');
+                    if (icon) icon.textContent = '▼';
+                }
+                showTopicContent(firstSection.id, firstTopic.id);
+            } else {
+                activeSectionId = firstSection.id;
+                updateActiveMenuState();
+            }
         }
-        showSection('section1');
     }
+
+    initCourseView();
 })();
 
-// ========== Плавающий Конспект ==========
+// ========== ПЛАВАЮЩИЙ КОНСПЕКТ ==========
 (function initFloatingFeatures() {
     const win = document.getElementById('floatingWindow');
     const header = document.getElementById('windowHeader');
@@ -126,12 +168,10 @@
 
     if (!win || !header || !tabBtn) return;
 
-    // 1. Открыть окно по клику на кнопку
     tabBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         if (win.style.display === 'none' || win.style.display === '') {
             win.style.display = 'block';
-            // корректируем позицию, чтобы не вылезало
             const rect = win.getBoundingClientRect();
             const maxX = window.innerWidth - rect.width;
             const maxY = window.innerHeight - rect.height;
@@ -144,15 +184,10 @@
         }
     });
 
-    // 2. Закрыть окно
     if (closeBtn) {
-        closeBtn.addEventListener('click', () => {
-            win.style.display = 'none';
-        });
+        closeBtn.addEventListener('click', () => { win.style.display = 'none'; });
     }
 
-    // 3. Перетаскивание окна (если работает старый код - не трогаем, но добавим свой)
-    // Удалим старые события, если они есть, чтобы не было дублей
     let isDraggingWin = false;
     let startX, startY, startLeft, startTop;
     function onMouseDown(e) {
@@ -184,7 +219,6 @@
     }
     header.addEventListener('mousedown', onMouseDown);
 
-    // 4. Перетаскивание кнопки (только вертикаль)
     let isDraggingBtn = false;
     let btnStartY, btnStartTop;
     function getBtnTop() {
@@ -215,7 +249,6 @@
     }
     tabBtn.addEventListener('mousedown', onBtnMouseDown);
 
-    // Touch-события
     function onBtnTouchStart(e) {
         e.preventDefault();
         const touch = e.touches[0];
@@ -242,7 +275,6 @@
     }
     tabBtn.addEventListener('touchstart', onBtnTouchStart);
 
-    // При ресайзе корректируем кнопку
     window.addEventListener('resize', () => {
         let top = getBtnTop();
         const maxTop = window.innerHeight - tabBtn.offsetHeight;
@@ -250,7 +282,6 @@
         if (top < 0) tabBtn.style.top = '0px';
     });
 
-    // 5. Изменение размеров окна (ресайз)
     const resizeHandle = document.getElementById('resizeHandle');
     if (resizeHandle) {
         let isResizing = false;
@@ -274,18 +305,13 @@
             const deltaY = e.clientY - startResizeY;
             let newWidth = startWidth + deltaX;
             let newHeight = startHeight + deltaY;
-
-            // Минимальные размеры
             newWidth = Math.max(200, newWidth);
             newHeight = Math.max(150, newHeight);
-
-            // Чтобы окно не вылезало за правый и нижний края
             const rect = win.getBoundingClientRect();
             const maxWidth = window.innerWidth - rect.left;
             const maxHeight = window.innerHeight - rect.top;
             newWidth = Math.min(newWidth, maxWidth);
             newHeight = Math.min(newHeight, maxHeight);
-
             win.style.width = newWidth + 'px';
             win.style.height = newHeight + 'px';
         }
