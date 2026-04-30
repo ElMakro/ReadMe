@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Плавающее окно + кнопка-язычок</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div id="floatingWindow" class="floating-window" style="display: none;">
+        <div id="windowHeader" class="window-header">
+            <span>Заголовок окна</span>
+            <button id="closeWindowBtn" class="close-btn">✕</button>
+        </div>
+        <div class="window-content">
+            <p>Это окно можно перетаскивать за заголовок.</p>
+            <button>Пример кнопки</button>
+        </div>
+    </div>
+
+    <!-- Кнопка, торчащая наполовину из правого края -->
+    <div id="draggableButton" class="floating-button">
+        🧩
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
