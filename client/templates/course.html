@@ -1,43 +1,140 @@
-{# templates/course.html #}
-{% extends "base.html" %}
-{% block title %}Курс {{ course_id }} — ReadMe{% endblock %}
+<!DOCTYPE html>
+<html lang="ru" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Курс {{ course_id }} — ReadMe</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="../static/style.css">
+</head>
+<body>
 
-{% block content %}
-<div class="container-fluid h-100">
-    <div class="row h-100">
-        <!-- Левая боковая панель -->
-        <nav class="col-md-3 col-lg-2 course-sidebar" id="courseSidebar">
-            <div class="py-4 px-3">
-                <h5 class="mb-4 text-center">Курс {{ course_id }}</h5>
-                <!-- Меню будет заполнено через JS -->
-                <ul class="list-group list-group-flush" id="sectionList"></ul>
+    <header class="header">
+        <div class="container-fluid container-xl d-flex flex-wrap align-items-center justify-content-between py-3">
+            <div class="logo">ReadMe</div>
+            <div class="search-box position-relative">
+                <input type="text" placeholder="Поиск:" id="searchInput">
+                <span class="search-icon">🔍</span>
             </div>
-        </nav>
-
-        <!-- Основной контент -->
-        <article class="col-md-9 col-lg-10 main-content" id="mainContent">
-            <!-- Контейнер для отображения одной темы -->
-            <div id="topicContent" class="topic-content">
-<!--                <p class="text-muted">Выберите тему из меню</p>-->
+            <div class="header-buttons d-flex gap-3">
+                <button class="theme-toggle" id="themeToggle">
+                    <span id="themeIcon">🌙</span>
+                    <span id="themeText">Тьма</span>
+                </button>
+                <button class="btn-login" id="loginBtn">Вход</button>
             </div>
-            <button class="btn btn-accent mt-3" id="checkYourselfBtn">Проверить Себя</button>
-        </article>
+        </div>
+    </header>
+
+    <main class="main p-0">
+        <div class="container-fluid h-100">
+            <div class="row h-100">
+                <!-- Левая боковая панель -->
+                <nav class="col-md-3 col-lg-2 course-sidebar" id="courseSidebar">
+                    <div class="py-4 px-3">
+                        <h5 class="mb-4 text-center">Курс {{ course_id }}</h5>
+                        <ul class="list-group list-group-flush" id="sectionList">
+                            <li class="list-group-item section-item">
+                                <a href="#" class="section-toggle" data-target="section1">
+                                    <span class="toggle-icon">▶</span> Раздел 1
+                                </a>
+                                <ul class="list-unstyled ps-4 mt-2 section-topics" id="topics-section1">
+                                    <li><a href="#" class="topic-link" data-content="topic1">Тема 1</a></li>
+                                    <li><a href="#" class="topic-link" data-content="topic2">Тема 2</a></li>
+                                </ul>
+                            </li>
+                            <li class="list-group-item section-item">
+                                <a href="#" class="section-toggle" data-target="section2">
+                                    <span class="toggle-icon">▶</span> Раздел 2
+                                </a>
+                                <ul class="list-unstyled ps-4 mt-2 section-topics" id="topics-section2" style="display:none;">
+                                    <li><a href="#" class="topic-link" data-content="topic2-1">Тема 2.1</a></li>
+                                </ul>
+                            </li>
+                            <li class="list-group-item section-item">
+                                <a href="#" class="section-toggle" data-target="section3">
+                                    <span class="toggle-icon">▶</span> Раздел 3
+                                </a>
+                                <ul class="list-unstyled ps-4 mt-2 section-topics" id="topics-section3" style="display:none;">
+                                    <!-- пока без тем -->
+                                </ul>
+                            </li>
+                        </ul>
+                    </div>
+                </nav>
+
+                <!-- Основной контент -->
+                <article class="col-md-9 col-lg-10 main-content" id="mainContent">
+                    <!-- Раздел 1 -->
+                    <div class="section-container" id="content-section1" style="display: block;">
+                        <div id="topic1" class="topic-block">
+                            <h2>Раздел 1 – Тема 1</h2>
+                            <ul>
+                                <li>Высокий Уровень Вовлечения Представителей Целевой Аудитории Является Четким Доказательством Простого Факта: Синтетическое Тестирование Требует Определения И Уточнения Первоочередных Требований.</li>
+                                <li>Имеется Спорная Точка Зрения, Гласящая Примерно Следующее: Сторонники Тоталитаризма В Науке, Превозмогая Сложившуюся Непростую Экономическую Ситуацию, Преданы Социально-Демократической Анафеме.</li>
+                            </ul>
+                            <p><a href="#">Пример ссылки в контенте</a></p>
+                        </div>
+                        <div id="topic2" class="topic-block">
+                            <h2>Раздел 1 – Тема 2</h2>
+                            <ul>
+                                <li>Наше Дело Не Так Однозначно, Как Может Показаться: Сложившаяся Структура Организации Играет Важную Роль В Формировании Поставленных Обществом Задач.</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- Раздел 2 -->
+                    <div class="section-container" id="content-section2" style="display: none;">
+                        <div id="topic2-1" class="topic-block">
+                            <h2>Раздел 2 – Тема 2.1</h2>
+                            <p>Здесь подгружается материал по теме 2.1 (демо).</p>
+                        </div>
+                    </div>
+
+                    <!-- Раздел 3 -->
+                    <div class="section-container" id="content-section3" style="display: none;">
+                        <h2>Раздел 3</h2>
+                        <p>Общее описание третьего раздела.</p>
+                    </div>
+
+                    <button class="btn btn-accent mt-3" id="checkYourselfBtn">Проверить Себя</button>
+                </article>
+            </div>
+        </div>
+    </main>
+
+    <!-- Плавающее окно (изначально скрыто) -->
+    <div id="floatingWindow" class="floating-window" style="display: none;">
+        <div id="windowHeader" class="window-header">
+            <span>Конспект</span>
+            <button id="closeWindowBtn" class="btn-close-window">✕</button>
+        </div>
+        <textarea class="conspect-content" placeholder="Напишите здесь свои мысли..."></textarea>
+        <div id="resizeHandle" class="resize-handle"></div>
     </div>
-</div>
 
-<!-- Плавающее окно и кнопка -->
-<div id="floatingWindow" class="floating-window" style="display: none;">
-    <div id="windowHeader" class="window-header">
-        <span>Конспект</span>
-        <button id="closeWindowBtn" class="btn-close-window">✕</button>
+    <!-- ПЕРЕТАСКИВАЕМАЯ КНОПКА -->
+    <div id="floatingTabButton" class="floating-tab-button">
+        📌
     </div>
-    <textarea class="conspect-content" placeholder="Напишите здесь свои мысли..."></textarea>
-    <div id="resizeHandle" class="resize-handle"></div>
-</div>
 
-<div id="floatingTabButton" class="floating-tab-button">📌</div>
-{% endblock %}
+    <footer class="footer">
+        <div class="container-xl">
+            <div class="row text-center text-md-start">
+                <div class="col-md-6 mb-4 mb-md-0">
+                    <h4>ReadMe</h4>
+                    <a href="#">Иконки</a>
+                </div>
+                <div class="col-md-6">
+                    <h4>О Нас</h4>
+                    <a href="#">Контактная Инфо</a>
+                </div>
+            </div>
+        </div>
+    </footer>
 
-{% block scripts %}
-<script src="../static/course.js"></script>
-{% endblock %}
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="../static/auth-modal.js"></script>
+    <script src="../static/course.js"></script>
+</body>
+</html>
