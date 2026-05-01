@@ -1,27 +1,27 @@
-FROM python:3.13-slim
+FROM python:3.13.13-alpine3.23
 
 WORKDIR /content
 
-RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
+RUN apk add --no-cache curl \
+    && addgroup -S readmeservergroup \
+    && adduser -S -G readmeservergroup -h /home/readmeserveruser -s /sbin/nologin readmeserveruser
 
-RUN groupadd readmeservergroup -r && useradd -r -m -g readmeservergroup -s /sbin/nologin readmeserveruser
-
-ENV PYTHONBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 PATH="/home/readmeserveruser/.local/bin:$PATH"
+ENV PYTHONBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PATH="/home/readmeserveruser/.local/bin:$PATH" \
+    PYTHONPATH=/content
 
 USER readmeserveruser
-
-COPY requirements.txt .
-RUN pip install --no-cache-dir --user -r requirements.txt
 
 COPY --chown=readmeserveruser:readmeservergroup . ./server/
 
 WORKDIR /content/server
 
-ENV PYTHONPATH=/content
+RUN pip install --no-cache-dir --user -r requirements.txt
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:8080/server_healthcheck || exit 1
+    CMD curl -f http://localhost:8080/server_healthcheck || exit 1
 
 EXPOSE 8080
 
-CMD ["uvicorn", "server.main:app", "--host", "0.0.0.0", "--port", "8080"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]
