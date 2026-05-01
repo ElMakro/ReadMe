@@ -1,0 +1,361 @@
+#!/bin/sh
+
+export ALEMBIC_CONFIG=/content/alembic.ini
+
+wait_for_db() {
+    echo "Checking database connection..."
+    until pg_isready -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME; do
+        echo "Waiting for PostgreSQL..."
+        sleep 2
+    done
+    echo "✓ Database is ready!"
+}
+
+show_status() {
+    echo ""
+    echo "=== Current Migration Status ==="
+    alembic current 2>&1
+}
+
+auto_migrate() {
+    echo ""
+    echo "=== Auto Migration ==="
+    if alembic upgrade head 2>&1; then
+        echo "✓ Migrations applied successfully!"
+    else
+        echo "✗ Migration failed!"
+    fi
+}
+
+create_migration() {
+    message="$1"
+    if [ -z "$message" ]; then
+        echo "=== Create New Migration ==="
+        echo -n "Enter migration message: "
+        read -r message
+    fi
+    if [ -n "$message" ]; then
+        echo "Creating migration: $message"
+        alembic revision --autogenerate -m "$message" 2>&1
+    else
+        echo "Message cannot be empty!"
+    fi
+}
+
+rollback_migration() {
+    revision="$1"
+    if [ -z "$revision" ]; then
+        echo "=== Rollback Migration ==="
+        echo "Recent migrations:"
+        alembic history 2>&1 | head -10
+        echo ""
+        echo -n "Enter revision to rollback to (or press Enter to cancel): "
+        read -r revision
+    fi
+    if [ -n "$revision" ]; then
+        echo "Rolling back to: $revision"
+        alembic downgrade "$revision" 2>&1
+    fi
+}
+
+show_history() {
+    echo ""
+    echo "=== Migration History ==="
+    alembic history 2>&1
+}
+
+check_migrations() {
+    echo ""
+    echo "=== Check Migration Status ==="
+    CURRENT=$(alembic current 2>&1 | tail -1)
+    HEAD=$(alembic heads 2>&1 | tail -1)
+    if [ "$CURRENT" != "$HEAD" ]; then
+        echo "⚠ Migrations are needed!"
+        echo "Current: $CURRENT"
+        echo "Head:   $HEAD"
+    else
+        echo "✓ Database is up to date"
+    fi
+}
+
+list_backups() {
+    echo ""
+    echo "=== Available Backups ==="
+    if [ -d /backups ]; then
+        FILES=$(find /backups -maxdepth 1 -type f 2>/dev/null | sort)
+        if [ -n "$FILES" ]; then
+            echo "$FILES" | while read -r file; do
+                FILENAME=$(basename "$file")
+                SIZE=$(du -h "$file" | cut -f1)
+                echo "  $FILENAME ($SIZE)"
+            done
+        else
+            echo "No backup files found."
+        fi
+    else
+        echo "Backup directory not mounted."
+    fi
+}
+
+create_backup() {
+    custom_name="$1"
+    if [ -z "$custom_name" ]; then
+        TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+        FILENAME="manual_backup_${TIMESTAMP}.sql.gz"
+    else
+        FILENAME="${custom_name}.sql.gz"
+    fi
+
+    echo ""
+    echo "=== Create Manual Backup ==="
+    echo "Creating backup: $FILENAME"
+
+    pg_dump -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME | gzip > /backups/$FILENAME
+
+    if [ $? -eq 0 ]; then
+        echo "✓ Backup created successfully: $FILENAME"
+    else
+        echo "✗ Backup creation failed!"
+    fi
+}
+
+restore_backup() {
+    filename="$1"
+    if [ -z "$filename" ]; then
+        echo ""
+        echo "=== Restore Backup ==="
+        list_backups
+        echo ""
+        echo -n "Enter backup filename (e.g., backup_2026...sql.gz): "
+        read -r filename
+    fi
+    if [ -z "$filename" ]; then
+        echo "No file selected."
+        return
+    fi
+
+    backup_path="/backups/$filename"
+    if [ ! -f "$backup_path" ]; then
+        echo "File not found: $backup_path"
+        return
+    fi
+
+    echo "WARNING: This will OVERWRITE the current database!"
+    echo "All existing data will be lost."
+    echo -n "Are you sure? (y/N): "
+    read -r confirm
+    if [ "$confirm" != "y" ] && [ "$confirm" != "Y" ]; then
+        echo "Cancelled."
+        return
+    fi
+
+    echo "Dropping all existing tables..."
+    psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME \
+         -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;" 2>&1
+
+    echo "Restoring from $filename ..."
+    if echo "$filename" | grep -qE '\.gz$'; then
+        gunzip -c "$backup_path" | psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME 2>&1
+    else
+        psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME < "$backup_path" 2>&1
+    fi
+
+    if [ $? -eq 0 ]; then
+        echo "✓ Backup restored successfully!"
+    else
+        echo "✗ Restore failed!"
+    fi
+}
+
+connect_to_db() {
+    echo ""
+    echo "=== Connecting to Database ==="
+    echo "Type \\q to exit"
+    echo ""
+    psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME
+}
+
+process_args() {
+    case "$1" in
+        migrate)
+            shift
+            case "$1" in
+                status)
+                    show_status
+                    ;;
+                auto)
+                    auto_migrate
+                    ;;
+                create)
+                    shift
+                    message="$*"
+                    create_migration "$message"
+                    ;;
+                rollback)
+                    shift
+                    rollback_migration "$1"
+                    ;;
+                history)
+                    show_history
+                    ;;
+                check)
+                    check_migrations
+                    ;;
+                *)
+                    echo "Unknown migration command: $1"
+                    echo "Usage: $0 migrate {status|auto|create <msg>|rollback <rev>|history|check}"
+                    exit 1
+                    ;;
+            esac
+            ;;
+        backup)
+            shift
+            case "$1" in
+                list)
+                    list_backups
+                    ;;
+                create)
+                    shift
+                    create_backup "$1"
+                    ;;
+                restore)
+                    shift
+                    restore_backup "$1"
+                    ;;
+                *)
+                    echo "Unknown backup command: $1"
+                    echo "Usage: $0 backup {list|create [name]|restore <filename>}"
+                    exit 1
+                    ;;
+            esac
+            ;;
+        db)
+            shift
+            case "$1" in
+                connect)
+                    connect_to_db
+                    ;;
+                *)
+                    echo "Unknown db command: $1"
+                    echo "Usage: $0 db connect"
+                    exit 1
+                    ;;
+            esac
+            ;;
+        *)
+            echo "Unknown category: $1"
+            echo "Categories: migrate, backup, db"
+            exit 1
+            ;;
+    esac
+    exit 0
+}
+
+show_main_menu() {
+    clear
+    echo ""
+    echo "========================================="
+    echo "     Database Administration Menu"
+    echo "========================================="
+    echo ""
+    echo "  1) Migration Management"
+    echo "  2) Backup Management"
+    echo "  3) Connect to Database"
+    echo "  0) Exit"
+    echo ""
+    echo -n "Select option [0-3]: "
+}
+
+show_migration_menu() {
+    clear
+    echo ""
+    echo "=== Migration Management ==="
+    echo ""
+    echo "  1) Show current status"
+    echo "  2) Apply all pending migrations (upgrade head)"
+    echo "  3) Create new migration (autogenerate)"
+    echo "  4) Rollback to a specific revision"
+    echo "  5) Show migration history"
+    echo "  6) Check if migrations are needed"
+    echo "  0) Return to main menu"
+    echo ""
+    echo -n "Select option [0-6]: "
+}
+
+show_backup_menu() {
+    clear
+    echo ""
+    echo "=== Backup Management ==="
+    echo ""
+    echo "  1) List available backups"
+    echo "  2) Restore a backup"
+    echo "  3) Create a backup now"
+    echo "  0) Return to main menu"
+    echo ""
+    echo -n "Select option [0-3]: "
+}
+
+interactive_loop() {
+    while true; do
+        show_main_menu
+        read -r main_choice
+
+        case "$main_choice" in
+            1)
+                while true; do
+                    show_migration_menu
+                    read -r mig_choice
+
+                    case "$mig_choice" in
+                        1) show_status; echo ""; echo "Press Enter to continue..."; read -r dummy ;;
+                        2) auto_migrate; echo ""; echo "Press Enter to continue..."; read -r dummy ;;
+                        3) create_migration ""; echo ""; echo "Press Enter to continue..."; read -r dummy ;;
+                        4) rollback_migration ""; echo ""; echo "Press Enter to continue..."; read -r dummy ;;
+                        5) show_history; echo ""; echo "Press Enter to continue..."; read -r dummy ;;
+                        6) check_migrations; echo ""; echo "Press Enter to continue..."; read -r dummy ;;
+                        0) break ;;
+                        *) echo "Invalid option!"; sleep 1 ;;
+                    esac
+                done
+                ;;
+            2)
+                while true; do
+                    show_backup_menu
+                    read -r bak_choice
+
+                    case "$bak_choice" in
+                        1) list_backups; echo ""; echo "Press Enter to continue..."; read -r dummy ;;
+                        2) restore_backup ""; echo ""; echo "Press Enter to continue..."; read -r dummy ;;
+                        3) create_backup ""; echo ""; echo "Press Enter to continue..."; read -r dummy ;;
+                        0) break ;;
+                        *) echo "Invalid option!"; sleep 1 ;;
+                    esac
+                done
+                ;;
+            3) connect_to_db ;;
+            0|q|Q)
+                echo ""
+                echo "Goodbye!"
+                exit 0
+                ;;
+            *)
+                echo "Invalid option!"
+                sleep 1
+                ;;
+        esac
+    done
+}
+
+main() {
+    wait_for_db
+
+    if [ $# -gt 0 ]; then
+        process_args "$@"
+    else
+        interactive_loop
+    fi
+}
+
+trap 'echo ""; echo "Goodbye!"; exit 0' INT TERM
+
+main "$@"
