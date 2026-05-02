@@ -1,7 +1,7 @@
 services:
     database:
         image: postgres:18.3-alpine3.23
-        container_name: readme_postgres_db
+        container_name: readme-database
         command:
             - "postgres"
             - "-c"
@@ -38,7 +38,7 @@ services:
             POSTGRES_PASSWORD: "pgpwd4readme"
             PGDATA: "/var/lib/postgresql/data/pgdata"
         volumes:
-            - readme-pgdb-data:/var/lib/postgresql/data
+            - readme-database-data:/var/lib/postgresql/data
         ports:
             - "5432:5432"
         networks:
@@ -56,9 +56,9 @@ services:
                     cpus: '1'
                     memory: 4G
 
-    postgres-backups:
+    database-backups:
         image: prodrigestivill/postgres-backup-local:18-alpine-d257e5d
-        container_name: readme_postgres_backups
+        container_name: readme-database-backups
         restart: always
         environment:
             - POSTGRES_HOST=postgres-db
@@ -68,7 +68,7 @@ services:
             - SCHEDULE=@every 12h00m00s
             - BACKUP_KEEP_DAYS=7
         volumes:
-            - readme-pgdb-backups:/backups
+            - readme-database-backups:/backups
         networks:
             - readme-network
         depends_on:
@@ -76,11 +76,10 @@ services:
                 condition: service_healthy
 
     database-manager:
-        image: database-manager
         build:
             context: .
             dockerfile: database_manager/Dockerfile
-        container_name: readme_migrations_manager
+        container_name: readme-database-manager
         environment:
             - DB_HOST=database
             - DB_PORT=5432
@@ -92,16 +91,26 @@ services:
         stdin_open: true
         tty: true
         volumes:
-            - readme-pgdb-backups:/backups
+            - readme-database-backups:/backups
         networks:
             - readme-network
+        healthcheck:
+            test: [ "CMD", "/content/scripts/healthcheck" ]
+            interval: 30s
+            timeout: 10s
+            retries: 3
+            start_period: 15s
         depends_on:
             database:
                 condition: service_healthy
+            auto-migrations:
+                condition: service_completed_successfully
 
     auto-migrations:
-        image: database-manager
-        container_name: readme_migrations_auto
+        build:
+            context: .
+            dockerfile: database_manager/Dockerfile
+        container_name: readme-migrations-auto
         environment:
             - DB_HOST=database
             - DB_PORT=5432
@@ -122,7 +131,7 @@ services:
         build:
             context: client
             dockerfile: Dockerfile
-        container_name: readme_client
+        container_name: readme-client
         networks:
             - readme-network
         ports:
@@ -133,7 +142,7 @@ services:
         build:
             context: server
             dockerfile: Dockerfile
-        container_name: readme_server
+        container_name: readme-server
         networks:
             - readme-network
         depends_on:
@@ -150,5 +159,5 @@ networks:
         driver: bridge
 
 volumes:
-    readme-pgdb-data:
-    readme-pgdb-backups:
+    readme-database-data:
+    readme-database-backups:
