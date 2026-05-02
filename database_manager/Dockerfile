@@ -15,7 +15,8 @@ ENV PYTHONPATH=/content \
     PATH="/content/scripts:$PATH"
 
 COPY database_manager/scripts /content/scripts
-RUN chmod +x /content/scripts/*
+RUN chmod +x /content/scripts/* && \
+    dos2unix /content/scripts/* 2>/dev/null || true
 
 COPY alembic.ini /content/
 
