@@ -19,7 +19,7 @@ class UsersService:
         return await self.manager.create_user(user=new_user)
 
     async def login_user(self, user: UserAuthentication) -> JSONResponse:
-        existing_user = self.manager.get_user_by_nickname(user.nickname)
+        existing_user = await self.manager.get_user_by_nickname(user.nickname)
         if existing_user is None or not await self.auth_handler.verify_password(
                 entered_password=user.password, hashed_password=existing_user.password
         ):

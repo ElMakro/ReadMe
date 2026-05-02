@@ -25,11 +25,11 @@ class AuthHandler:
         return self.pwd_context.verify(entered_password, hashed_password)
 
     async def create_token(self, user_id: uuid.UUID, user_role: Role) -> CreatedTokenTuple:
-        expire = datetime.datetime.now(datetime.UTC) + datetime.timedelta(seconds=settings.access_token_expire)
+        expire = datetime.datetime.now(datetime.UTC) + datetime.timedelta(seconds=settings.token_expire)
         session_id = str(uuid.uuid4())
         payload = {
-            "user_id": user_id,
-            "role": user_role,
+            "user_id": str(user_id),
+            "role": str(user_role),
             "session_id": session_id,
             "exp": expire
         }
