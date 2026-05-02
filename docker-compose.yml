@@ -1,7 +1,7 @@
 services:
-    database:
+    postgres-database:
         image: postgres:18.3-alpine3.23
-        container_name: readme-database
+        container_name: readme-postgres-database
         command:
             - "postgres"
             - "-c"
@@ -38,7 +38,7 @@ services:
             POSTGRES_PASSWORD: "pgpwd4readme"
             PGDATA: "/var/lib/postgresql/data/pgdata"
         volumes:
-            - readme-database-data:/var/lib/postgresql/data
+            - readme-postgres-database-data:/var/lib/postgresql/data
         ports:
             - "5432:5432"
         networks:
@@ -54,11 +54,35 @@ services:
             resources:
                 limits:
                     cpus: '1'
-                    memory: 4G
+                    memory: 1G
 
-    database-backups:
+    redis-database:
+        image: redis:7.4.8-alpine3.21
+        container_name: readme-redis-database
+        command: ["redis-server", "/usr/local/etc/redis/redis.conf", "--requirepass", "${REDIS_PASSWORD:-redispwd4readme}"]
+        volumes:
+            - readme-redis-database-data:/data
+            - ./server/config/redis.conf:/usr/local/etc/redis/redis.conf:ro
+        ports:
+            - "6379:6379"
+        networks:
+            - readme-network
+        healthcheck:
+            test: [ "CMD", "redis-cli", "--pass", "${REDIS_PASSWORD:-redispwd4readme}", "ping" ]
+            interval: 10s
+            timeout: 5s
+            retries: 5
+            start_period: 10s
+        restart: unless-stopped
+        deploy:
+            resources:
+                limits:
+                    cpus: "0.5"
+                    memory: 512M
+
+    postgres-database-backups:
         image: prodrigestivill/postgres-backup-local:18-alpine-d257e5d
-        container_name: readme-database-backups
+        container_name: readme-postgres-database-backups
         restart: always
         environment:
             - POSTGRES_HOST=postgres-db
@@ -68,11 +92,11 @@ services:
             - SCHEDULE=@every 12h00m00s
             - BACKUP_KEEP_DAYS=7
         volumes:
-            - readme-database-backups:/backups
+            - readme-postgres-database-backups:/backups
         networks:
             - readme-network
         depends_on:
-            database:
+            postgres-database:
                 condition: service_healthy
 
     database-manager:
@@ -91,26 +115,20 @@ services:
         stdin_open: true
         tty: true
         volumes:
-            - readme-database-backups:/backups
+            - readme-postgres-database-backups:/backups
         networks:
             - readme-network
-        healthcheck:
-            test: [ "CMD", "/content/scripts/healthcheck" ]
-            interval: 30s
-            timeout: 10s
-            retries: 3
-            start_period: 15s
         depends_on:
-            database:
+            postgres-database:
                 condition: service_healthy
-            auto-migrations:
-                condition: service_completed_successfully
+            redis-database:
+                condition: service_healthy
 
     auto-migrations:
         build:
             context: .
             dockerfile: database_manager/Dockerfile
-        container_name: readme-migrations-auto
+        container_name: readme-auto-migrations
         environment:
             - DB_HOST=database
             - DB_PORT=5432
@@ -123,7 +141,7 @@ services:
         networks:
             - readme-network
         depends_on:
-            database:
+            postgres-database:
                 condition: service_healthy
         restart: "no"
 
@@ -146,12 +164,14 @@ services:
         networks:
             - readme-network
         depends_on:
-            database:
+            postgres-database:
+                condition: service_healthy
+            redis-database:
                 condition: service_healthy
             auto-migrations:
                 condition: service_completed_successfully
         ports:
-            -   "8080:8080"
+            - "8080:8080"
         restart: unless-stopped
 
 networks:
@@ -159,5 +179,6 @@ networks:
         driver: bridge
 
 volumes:
-    readme-database-data:
-    readme-database-backups:
+    readme-postgres-database-data:
+    readme-postgres-database-backups:
+    readme-redis-database-data:
