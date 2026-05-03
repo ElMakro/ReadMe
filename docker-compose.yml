@@ -105,12 +105,12 @@ services:
             dockerfile: database_manager/Dockerfile
         container_name: readme-database-manager
         environment:
-            - DB_HOST=database
+            - DB_HOST=readme-postgres-database
             - DB_PORT=5432
             - DB_NAME=readmedb
             - DB_USER=readmepguser
             - DB_PASSWORD=pgpwd4readme
-            - DATABASE_URL=postgresql://readmepguser:pgpwd4readme@database5432/readmedb
+            - DATABASE_URL=postgresql://readmepguser:pgpwd4readme@readme-postgres-database:5432/readmedb
             - PGPASSWORD=pgpwd4readme
         stdin_open: true
         tty: true
@@ -130,12 +130,12 @@ services:
             dockerfile: database_manager/Dockerfile
         container_name: readme-auto-migrations
         environment:
-            - DB_HOST=database
+            - DB_HOST=readme-postgres-database
             - DB_PORT=5432
             - DB_NAME=readmedb
             - DB_USER=readmepguser
             - DB_PASSWORD=pgpwd4readme
-            - DATABASE_URL=postgresql://readmepguser:pgpwd4readme@database:5432/readmedb
+            - DATABASE_URL=postgresql://readmepguser:pgpwd4readme@readme-postgres-database:5432/readmedb
             - PGPASSWORD=pgpwd4readme
         command: [ "migrate", "auto" ]
         networks:
