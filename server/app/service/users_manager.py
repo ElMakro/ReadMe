@@ -7,7 +7,7 @@ from sqlalchemy.exc import IntegrityError
 from server.config.db_dependency import DBDependency
 from server.config.redis_dependency import RedisDependency
 from server.database.models import Users
-from server.schemas.users import NewUser, CreatedUserInfo, UserInfo
+from server.schemas.users import NewUser, CreatedUserInfo, UserInfo, UserVerification
 
 
 class UsersManager:
@@ -44,7 +44,7 @@ class UsersManager:
             user = result.mappings().first()
             return UserInfo(**user) if user else None
 
-    async def get_user_by_id(self, user_id: uuid.UUID) -> UserInfo | None:
+    async def get_user_by_id(self, user_id: uuid.UUID) -> UserVerification | None:
         async with self.db.db_session() as session:
             query = select(
                 self.model.id,
@@ -54,7 +54,7 @@ class UsersManager:
 
             result = await session.execute(query)
             user = result.mappings().one_or_none()
-            return UserInfo(**user) if user else None
+            return UserVerification(**user) if user else None
 
     async def store_token(self, token: str, user_id: uuid.UUID, session_id: str) -> None:
         async with self.redis.get_client() as client:
