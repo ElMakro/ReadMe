@@ -27,7 +27,7 @@ async def login(user: UserAuthentication, user_service: UsersService = Depends(U
     return await user_service.login_user(user=user)
 
 
-@auth_router.post(
+@auth_router.get(
     path="/logout",
     status_code=status.HTTP_200_OK
 )
