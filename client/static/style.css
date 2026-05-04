@@ -18,7 +18,6 @@
     --dark-border: #334155;
 }
 
-/* Глобальные CSS-переменные (зависят от data-theme) */
 :root,
 [data-theme="light"] {
     --bg-primary: #FFF9EF;
@@ -58,7 +57,6 @@
     --bs-primary-rgb: 56, 189, 248;
 }
 
-/* Базовые стили */
 * {
     margin: 0;
     padding: 0;
@@ -73,16 +71,16 @@ body {
     min-height: 100vh;
     display: flex;
     flex-direction: column;
+    font-size: clamp(0.9rem, 1vw, 1rem);
 }
 
-/* ========== HEADER ========== */
 .header {
     background: var(--bg-secondary);
     border-bottom: 1px solid var(--border-color);
 }
 
 .logo {
-    font-size: 2rem;
+    font-size: clamp(1.5rem, 2.5vw, 2.2rem);
     font-weight: bold;
     color: var(--text-primary);
 }
@@ -93,12 +91,12 @@ body {
 
 .search-box input {
     width: 100%;
-    padding: 10px 40px 10px 15px;
+    padding: clamp(8px, 0.8vw, 12px) clamp(12px, 1.5vw, 18px);
     border: 1px solid var(--border-color);
     border-radius: 8px;
     background: var(--bg-primary);
     color: var(--text-primary);
-    font-size: 0.95rem;
+    font-size: clamp(0.85rem, 1vw, 1rem);
 }
 
 .search-box input:focus {
@@ -115,10 +113,13 @@ body {
     pointer-events: none;
 }
 
-.theme-toggle, .btn-login, .filters-btn, .pagination-btn {
-    padding: 8px 20px;
+.theme-toggle,
+.btn-login,
+.filters-btn,
+.pagination-btn {
+    padding: clamp(6px, 0.8vw, 10px) clamp(14px, 1.5vw, 22px);
     border-radius: 8px;
-    font-size: 0.95rem;
+    font-size: clamp(0.8rem, 1vw, 1rem);
     cursor: pointer;
     transition: all 0.3s ease;
 }
@@ -150,7 +151,6 @@ body {
     transform: translateY(-2px);
 }
 
-/* ========== MAIN ========== */
 .main {
     flex: 1;
     padding: 40px 20px;
@@ -161,7 +161,7 @@ body {
 }
 
 .section-title {
-    font-size: 2rem;
+    font-size: clamp(1.6rem, 2.5vw, 2.4rem);
     color: var(--text-primary);
 }
 
@@ -176,18 +176,25 @@ body {
     color: var(--accent);
 }
 
-/* ========== КАРТОЧКИ КУРСОВ  ========== */
+.courses-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: clamp(1rem, 2vw, 2rem);
+}
+
 .course-card {
     background: var(--bg-secondary);
     border: 1px solid var(--border-color);
     border-radius: 12px;
-    padding: 1.5rem;
+    padding: clamp(0.8rem, 1.5vw, 1.5rem);
     cursor: pointer;
-    aspect-ratio: 1 / 1.5;
+    aspect-ratio: 1 / 1.4;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
     transition: all 0.3s ease;
+    width: clamp(260px, 30vw, 320px);
+    height: auto;
 }
 
 .course-card:hover {
@@ -197,7 +204,7 @@ body {
 }
 
 .course-number {
-    font-size: 1.2rem;
+    font-size: clamp(0.9rem, 1.2vw, 1.3rem);
     font-weight: 600;
     color: var(--text-primary);
     margin-bottom: 20px;
@@ -225,7 +232,6 @@ body {
     opacity: 1;
 }
 
-/* ========== ПАГИНАЦИЯ ========== */
 .pagination-btn {
     background: var(--bg-secondary);
     border: 1px solid var(--border-color);
@@ -241,7 +247,6 @@ body {
     transform: translateY(-2px);
 }
 
-/* ========== FOOTER ========== */
 .footer {
     background: var(--bg-secondary);
     border-top: 1px solid var(--border-color);
@@ -266,7 +271,6 @@ body {
     color: var(--accent);
 }
 
-/* ========== АДАПТИВНОСТЬ ========== */
 @media (max-width: 768px) {
     .header .container-fluid {
         flex-direction: column;
@@ -292,7 +296,6 @@ body {
     }
 }
 
-/* ========== МОДАЛЬНОЕ ОКНО ========== */
 .modal-overlay {
     position: fixed;
     top: 0;
@@ -338,24 +341,21 @@ body {
     color: var(--accent);
 }
 
-/* ========== СТИЛИ ДЛЯ КУРСОВ ========== */
-
-/* ---------- Боковая панель ---------- */
 .course-sidebar {
     background: var(--bg-secondary);
     border-right: 1px solid var(--border-color);
     min-height: 100vh;
+    max-width: 280px;
 }
 
 .course-sidebar h5 {
-    font-weight: 700;                 /* жирное название курса */
-    text-align: left !important;      /* прижимаем к левому краю */
+    font-weight: 700;
+    text-align: left !important;
     margin-bottom: 1.5rem !important;
     color: var(--text-primary);
-    font-size: 1.25rem;
+    font-size: clamp(1rem, 1.5vw, 1.35rem);
 }
 
-/* Элементы разделов */
 .section-item {
     background: transparent !important;
     border: none !important;
@@ -372,6 +372,7 @@ body {
     text-decoration: none;
     font-weight: 500;
     transition: background 0.2s;
+    font-size: clamp(0.85rem, 1vw, 1rem);
 }
 
 .section-toggle:hover {
@@ -390,9 +391,8 @@ body {
     transition: transform 0.2s;
 }
 
-/* Список тем */
 .section-topics {
-    margin-left: 1.25rem;            /* отступ относительно раздела */
+    margin-left: 1.25rem;
 }
 
 .topic-link {
@@ -401,7 +401,7 @@ body {
     border-radius: 4px;
     color: var(--text-secondary);
     text-decoration: none;
-    font-size: 0.9rem;
+    font-size: clamp(0.85rem, 1vw, 1rem);
     transition: background 0.2s, color 0.2s;
 }
 
@@ -416,9 +416,8 @@ body {
     font-weight: 500;
 }
 
-/* ---------- Основной контент ---------- */
 .main-content {
-    padding: 2rem 2.5rem !important;
+    padding: clamp(1rem, 2vw, 2.5rem) !important;
     background: var(--bg-primary);
 }
 
@@ -429,7 +428,6 @@ body {
     font-weight: 600;
 }
 
-/* Ссылки в тексте */
 a {
     color: var(--bs-link-color);
     text-decoration: underline;
@@ -443,7 +441,6 @@ a:hover {
     margin-bottom: 2rem;
 }
 
-/* Кнопка "Проверить себя" */
 #checkYourselfBtn {
     background: var(--accent);
     color: var(--bg-primary);
@@ -458,17 +455,13 @@ a:hover {
     transform: translateY(-2px);
 }
 
-/* ========== ПРИЖАТИЕ ФУТЕРА ========== */
-
-/* 1. Главный контейнер страницы занимает всё окно */
 .main {
     flex: 1 1 auto;
     display: flex;
     flex-direction: column;
-    min-height: 0;                 /* важно для flex-потомков */
+    min-height: 0;
 }
 
-/* Вложенные контейнеры Bootstrap тоже подчиняются flex-вертикали */
 .main .container-fluid {
     flex: 1 1 auto;
     display: flex;
@@ -486,20 +479,17 @@ a:hover {
     margin-right: 0;
 }
 
-/* Боковая панель — скроллится внутри своей высоты */
 .course-sidebar {
-    min-height: 0;                 /* перебиваем ранее заданное 100vh */
+    min-height: 0;
     height: auto;
     overflow-y: auto;
 }
 
-/* Основная область — тоже скроллится при переполнении */
 .main-content {
     overflow-y: auto;
     min-height: 0;
 }
 
-/* ========== ПЛАВАЮЩЕЕ ОКНО (единый блок) ========== */
 .floating-window {
     position: fixed;
     display: flex;
@@ -511,7 +501,7 @@ a:hover {
     min-width: 200px;
     min-height: 150px;
     overflow: hidden;
-    transition: none;                /* без анимации при перетаскивании/ресайзе */
+    transition: none;
 }
 
 .window-header {
@@ -544,7 +534,6 @@ a:hover {
     transform: scale(1.1);
 }
 
-/* Единственное правило для textarea */
 .conspect-content {
     flex: 1 1 auto;
     width: 100%;
@@ -563,7 +552,6 @@ a:hover {
     box-sizing: border-box;
 }
 
-/* ========== Перетаскиваемая кнопка-язычок ========== */
 .floating-tab-button {
     position: fixed;
     right: -30px;
@@ -581,7 +569,7 @@ a:hover {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
     z-index: 1100;
     user-select: none;
-    transition: right 0.2s ease;   /* только выезд кнопки, не ресайз */
+    transition: right 0.2s ease;
 }
 
 .floating-tab-button:hover {
@@ -602,7 +590,6 @@ a:hover {
     }
 }
 
-/* ========== Ручка изменения размера ========== */
 .resize-handle {
     position: absolute;
     right: 0;
@@ -621,7 +608,7 @@ a:hover {
         transparent 80%);
     border-radius: 0 0 12px 0;
     z-index: 10;
-    transition: none;              /* без анимации */
+    transition: none;
 }
 
 .resize-handle:hover {
