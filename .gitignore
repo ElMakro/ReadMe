@@ -52,6 +52,7 @@ coverage.xml
 .hypothesis/
 .pytest_cache/
 cover/
+reports
 
 # Translations
 *.mo
@@ -150,7 +151,7 @@ activemq-data/
 *.sage.py
 
 # Environments
-server/.env
+.env
 .env
 .envrc
 .venv

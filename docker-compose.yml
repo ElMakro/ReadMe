@@ -33,9 +33,9 @@ services:
             - "-c"
             - "pg_stat_statements.track=all"
         environment:
-            POSTGRES_DB: "readmedb"
-            POSTGRES_USER: "readmepguser"
-            POSTGRES_PASSWORD: "pgpwd4readme"
+            POSTGRES_DB: ${DB_NAME}
+            POSTGRES_USER: ${DB_USER}
+            POSTGRES_PASSWORD: ${DB_PASSWORD}
             PGDATA: "/var/lib/postgresql/data/pgdata"
         volumes:
             - readme-postgres-database-data:/var/lib/postgresql/data
@@ -59,7 +59,7 @@ services:
     redis-database:
         image: redis:7.4.8-alpine3.21
         container_name: readme-redis-database
-        command: ["redis-server", "/usr/local/etc/redis/redis.conf", "--requirepass", "${REDIS_PASSWORD:-redispwd4readme}"]
+        command: ["redis-server", "/usr/local/etc/redis/redis.conf", "--requirepass", "${REDIS_PASSWORD}"]
         volumes:
             - readme-redis-database-data:/data
             - ./server/config/redis.conf:/usr/local/etc/redis/redis.conf:ro
@@ -68,7 +68,7 @@ services:
         networks:
             - readme-network
         healthcheck:
-            test: [ "CMD", "redis-cli", "--pass", "${REDIS_PASSWORD:-redispwd4readme}", "ping" ]
+            test: [ "CMD", "redis-cli", "--pass", "${REDIS_PASSWORD}", "ping" ]
             interval: 10s
             timeout: 5s
             retries: 5
@@ -85,10 +85,10 @@ services:
         container_name: readme-postgres-database-backups
         restart: always
         environment:
-            - POSTGRES_HOST=postgres-db
-            - POSTGRES_DB=readmedb
-            - POSTGRES_USER=readmepguser
-            - POSTGRES_PASSWORD=pgpwd4readme
+            - POSTGRES_HOST=${DB_HOST}
+            - POSTGRES_DB=${DB_NAME}
+            - POSTGRES_USER=${DB_USER}
+            - POSTGRES_PASSWORD=${DB_PASSWORD}
             - SCHEDULE=@every 12h00m00s
             - BACKUP_KEEP_DAYS=7
         volumes:
@@ -105,13 +105,11 @@ services:
             dockerfile: database_manager/Dockerfile
         container_name: readme-database-manager
         environment:
-            - DB_HOST=readme-postgres-database
-            - DB_PORT=5432
-            - DB_NAME=readmedb
-            - DB_USER=readmepguser
-            - DB_PASSWORD=pgpwd4readme
-            - DATABASE_URL=postgresql://readmepguser:pgpwd4readme@readme-postgres-database:5432/readmedb
-            - PGPASSWORD=pgpwd4readme
+            - DB_HOST=${DB_HOST}
+            - DB_PORT=${DB_PORT}
+            - DB_NAME=${DB_NAME}
+            - DB_USER=${DB_USER}
+            - DB_PASSWORD=${DB_PASSWORD}
         stdin_open: true
         tty: true
         volumes:
@@ -130,13 +128,19 @@ services:
             dockerfile: database_manager/Dockerfile
         container_name: readme-auto-migrations
         environment:
-            - DB_HOST=readme-postgres-database
-            - DB_PORT=5432
-            - DB_NAME=readmedb
-            - DB_USER=readmepguser
-            - DB_PASSWORD=pgpwd4readme
-            - DATABASE_URL=postgresql://readmepguser:pgpwd4readme@readme-postgres-database:5432/readmedb
-            - PGPASSWORD=pgpwd4readme
+            - DB_NAME=${DB_NAME}
+            - DB_USER=${DB_USER}
+            - DB_PASSWORD=${DB_PASSWORD}
+            - DB_HOST=${DB_HOST}
+            - DB_PORT=${DB_PORT}
+            - DB_ECHO=${DB_ECHO}
+            - REDIS_HOST=${REDIS_HOST}
+            - REDIS_PORT=${REDIS_PORT}
+            - REDIS_DB=${REDIS_DB}
+            - REDIS_PASSWORD=${REDIS_PASSWORD}
+            - SERVER_PORT=${SERVER_PORT}
+            - TOKEN_EXPIRE=${TOKEN_EXPIRE}
+            - SECRET_KEY=${SECRET_KEY}
         command: [ "migrate", "auto" ]
         networks:
             - readme-network
@@ -150,10 +154,12 @@ services:
             context: client
             dockerfile: Dockerfile
         container_name: readme-client
+        environment:
+            - CLIENT_PORT=${CLIENT_PORT}
         networks:
             - readme-network
         ports:
-            - "8000:8000"
+            - "${CLIENT_PORT}:${CLIENT_PORT}"
         restart: unless-stopped
 
     server:
@@ -161,6 +167,20 @@ services:
             context: server
             dockerfile: Dockerfile
         container_name: readme-server
+        environment:
+            - DB_NAME=${DB_NAME}
+            - DB_USER=${DB_USER}
+            - DB_PASSWORD=${DB_PASSWORD}
+            - DB_HOST=${DB_HOST}
+            - DB_PORT=${DB_PORT}
+            - DB_ECHO=${DB_ECHO}
+            - REDIS_HOST=${REDIS_HOST}
+            - REDIS_PORT=${REDIS_PORT}
+            - REDIS_DB=${REDIS_DB}
+            - REDIS_PASSWORD=${REDIS_PASSWORD}
+            - SERVER_PORT=${SERVER_PORT}
+            - TOKEN_EXPIRE=${TOKEN_EXPIRE}
+            - SECRET_KEY=${SECRET_KEY}
         networks:
             - readme-network
         depends_on:
@@ -171,7 +191,7 @@ services:
             auto-migrations:
                 condition: service_completed_successfully
         ports:
-            - "8080:8080"
+            - "${SERVER_PORT}:${SERVER_PORT}"
         restart: unless-stopped
 
 networks:

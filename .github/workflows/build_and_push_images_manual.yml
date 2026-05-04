@@ -1,0 +1,73 @@
+name: Build and push Docker images manually from specific reference
+
+on:
+    workflow_dispatch:
+        inputs:
+            ref:
+                description: 'Целевая метка репозитория для сборки (тег, название ветки)'
+                required: true
+                type: string
+
+            tag:
+                description: 'Тег образа (например, 1.0.0)'
+                required: true
+                type: string
+
+            server:
+                description: 'Собрать readme-server'
+                required: false
+                type: boolean
+                default: true
+
+            client:
+                description: 'Собрать readme-client'
+                required: false
+                type: boolean
+                default: true
+
+            database-manager:
+                description: 'Собрать readme-database-manager'
+                required: false
+                type: boolean
+                default: true
+
+jobs:
+    clean-ref-name:
+        runs-on: ubuntu-latest
+        outputs:
+            safe_ref: ${{ steps.generate-safe-ref.outputs.safe_ref }}
+        steps:
+            -   name: Generate safe reference name
+                id: generate-safe-ref
+                run: |
+                    REF="${{ github.event.inputs.ref }}"
+                    SAFE_REF=$(echo "$REF" | sed 's/\//-/g')
+                    echo "safe_ref=$SAFE_REF" >> $GITHUB_OUTPUT
+
+    prepare-services:
+        runs-on: ubuntu-latest
+        outputs:
+            services: ${{ steps.services.outputs.list }}
+        steps:
+            -   name: Build services list
+                id: services
+                run: |
+                    SERVICES="[]"
+                    if [ "${{ github.event.inputs.server }}" = "true" ]; then
+                      SERVICES=$(echo "$SERVICES" | jq '. + ["readme-server"]')
+                    fi
+                    if [ "${{ github.event.inputs.client }}" = "true" ]; then
+                      SERVICES=$(echo "$SERVICES" | jq '. + ["readme-client"]')
+                    fi
+                    if [ "${{ github.event.inputs.database-manager }}" = "true" ]; then
+                      SERVICES=$(echo "$SERVICES" | jq '. + ["readme-database-manager"]')
+                    fi
+                    echo "list=$SERVICES" >> $GITHUB_OUTPUT
+
+    call-build-images:
+        needs: [ clean-ref-name, prepare-services ]
+        uses: ./.github/workflows/_build_and_push_images.yml
+        with:
+            ref: ${{ github.event.inputs.ref }}
+            tags: dev-${{ needs.clean-ref-name.outputs.safe_ref }}-${{ github.event.inputs.tag }}
+            services: ${{ needs.prepare-services.outputs.services }}

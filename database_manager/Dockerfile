@@ -22,7 +22,6 @@ COPY alembic.ini /content/
 
 WORKDIR /content/server
 
-COPY server/.env .env
 COPY server/database database
 COPY server/config config
 COPY server/enums enums

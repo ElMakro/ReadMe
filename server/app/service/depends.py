@@ -11,9 +11,9 @@ from server.schemas.users import UserVerification
 
 
 async def get_current_user(
-    token: Annotated[str, Depends(get_token_from_cookies)],
-    handler: AuthHandler = Depends(AuthHandler),
-    manager: UsersManager = Depends(UsersManager),
+        token: Annotated[str, Depends(get_token_from_cookies)],
+        handler: AuthHandler = Depends(AuthHandler),
+        manager: UsersManager = Depends(UsersManager),
 ) -> UserVerification:
     decoded_token = await handler.decode_token(token=token)
     user_id = decoded_token.get("user_id")
@@ -25,9 +25,10 @@ async def get_current_user(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Пользователь не найден.")
     return UserVerification(id=user_id, role=user.role, nickname=user.nickname, session_id=session_id)
 
+
 async def check_role(
-    allowed_roles: list[Role],
-    user: UserVerification = Depends(get_current_user)
+        allowed_roles: list[Role],
+        user: UserVerification = Depends(get_current_user)
 ):
     if user.role not in allowed_roles:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Недостаточно прав")
