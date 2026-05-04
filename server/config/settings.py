@@ -3,7 +3,6 @@ import os.path
 from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-
 DOTENV = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env")
 
 
@@ -19,7 +18,8 @@ class DBSettings(BaseSettings):
 
     @property
     def db_url(self):
-        return f"postgresql+asyncpg://{self.db_user}:{self.db_password.get_secret_value()}@{self.db_host}:{self.db_port}/{self.db_name}"
+        return (f"postgresql+asyncpg://{self.db_user}:{self.db_password.get_secret_value()}@"
+                f"{self.db_host}:{self.db_port}/{self.db_name}")
 
 
 class RedisSettings(BaseSettings):
