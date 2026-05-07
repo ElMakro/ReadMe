@@ -49,7 +49,6 @@
   let currentMode = 'login';
   document.body.insertAdjacentHTML('beforeend', template);
 
-  // Получаем элементы
   const overlay = document.getElementById(`${PREFIX}overlay`);
   const closeBtn = document.getElementById(`${PREFIX}close`);
   const loginFields = document.getElementById(`${PREFIX}loginFields`);
@@ -77,24 +76,20 @@
     form.reset();
   }
 
-  // Закрытие по оверлею и кнопке
   overlay.addEventListener('click', (e) => {
     if (e.target === overlay) closeModal();
   });
   closeBtn.addEventListener('click', closeModal);
 
   function switchToLogin() {
-    // Показываем поля входа, скрываем регистрацию
     loginFields.style.display = 'block';
     regFields.style.display = 'none';
 
-    // Включаем поля входа
     loginNickname.required = true;
     loginPassword.required = true;
     loginNickname.disabled = false;
     loginPassword.disabled = false;
 
-    // Отключаем и снимаем required с полей регистрации
     regNickname.required = false;
     regPassword.required = false;
     regConfirm.required = false;
@@ -109,17 +104,14 @@
   }
 
   function switchToReg() {
-    // Скрываем вход, показываем регистрацию
     loginFields.style.display = 'none';
     regFields.style.display = 'block';
 
-    // Отключаем поля входа
     loginNickname.required = false;
     loginPassword.required = false;
     loginNickname.disabled = true;
     loginPassword.disabled = true;
 
-    // Включаем поля регистрации
     regNickname.required = true;
     regPassword.required = true;
     regConfirm.required = true;
@@ -136,32 +128,91 @@
   showLoginBtn.addEventListener('click', switchToLogin);
   showRegBtn.addEventListener('click', switchToReg);
 
-  form.addEventListener('submit', (e) => {
-    e.preventDefault();
+  form.addEventListener('submit', async (e) => {
+      e.preventDefault();
 
-    if (currentMode === 'login') {
-      // Достаточно, что поля входа уже enabled и required
-      if (loginNickname.value.trim() === '' || loginPassword.value.trim() === '') {
-        alert('Заполните никнейм и пароль');
-        return;
-      }
-      alert(`Привет, ${loginNickname.value}!`);
-    } else {
-      // Проверки для регистрации
-      if (regNickname.value.trim() === '' || regPassword.value.trim() === '') {
-        alert('Заполните обязательные поля');
-        return;
-      }
-      if (regPassword.value !== regConfirm.value) {
-        alert('Пароли не совпадают!');
-        return;
-      }
-      alert(`Пользователь ${regNickname.value} создан!`);
-    }
+      submitBtn.disabled = true;
 
-    closeModal();
-  });
+      const existingError = document.getElementById(`${PREFIX}error`);
+      if (existingError) existingError.remove();
 
-  // Экспорт API
+      let url, payload;
+      main_auth_url = 'http://localhost:8080/readme/v1/'
+      if (currentMode === 'login') {
+        if (loginNickname.value.trim() === '' || loginPassword.value.trim() === '') {
+          showError('Заполните никнейм и пароль');
+          resetButton();
+          return;
+        }
+        url = `${main_auth_url}auth/login`;
+        payload = {
+          nickname: loginNickname.value.trim(),
+          password: loginPassword.value
+        };
+      } else {
+        if (regNickname.value.trim() === '' || regPassword.value.trim() === '') {
+          showError('Заполните обязательные поля');
+          resetButton();
+          return;
+        }
+        if (regPassword.value !== regConfirm.value) {
+          showError('Пароли не совпадают');
+          resetButton();
+          return;
+        }
+        url = `${main_auth_url}auth/reg`;
+        payload = {
+          nickname: regNickname.value.trim(),
+          email: regEmail.value.trim() || undefined,
+          password: regPassword.value
+        };
+      }
+
+      try {
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify(payload)
+        });
+
+        const data = await response.json().catch(() => null);
+
+        if (!response.ok) {
+          const errorMessage = data?.detail
+            ? (Array.isArray(data.detail)
+                ? data.detail.map(e => e.msg).join(', ')
+                : data.detail)
+            : `Ошибка сервера (${response.status})`;
+          throw new Error(errorMessage);
+        }
+
+        if (currentMode === 'login') {
+          console.log('Вход выполнен:', data);
+          closeModal();
+          window.dispatchEvent(new CustomEvent('auth-changed', { detail: { loggedIn: true, user: data } }));
+        } else {
+          console.log('Регистрация успешна:', data);
+          switchToLogin();
+          loginNickname.value = regNickname.value;
+          showError('Регистрация прошла успешно! Теперь войдите.', 'success');
+          form.reset();
+        }
+      } catch (error) {
+        console.error('Ошибка:', error);
+        showError(error.message);
+      }
+
+      function showError(message, type = 'danger') {
+        const old = document.getElementById(`${PREFIX}error`);
+        if (old) old.remove();
+        const div = document.createElement('div');
+        div.id = `${PREFIX}error`;
+        div.className = `alert alert-${type} mt-2`;
+        div.textContent = message;
+        form.appendChild(div);
+      }
+    });
+
   window.AuthModal = { open: openModal, close: closeModal };
 })();

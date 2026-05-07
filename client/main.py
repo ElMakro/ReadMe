@@ -1,5 +1,7 @@
 import os
+import httpx
 
+from fastapi.responses import JSONResponse
 from fastapi import FastAPI
 from fastapi import Response
 from fastapi import status
@@ -14,6 +16,8 @@ client_app.mount("/static", StaticFiles(directory=STATIC_PATH), name="static")
 
 templates = Jinja2Templates(directory="templates")
 
+SERVER_AUTH_URL = "http://localhost:8080/readme/v1/"
+
 
 @client_app.get("/client_healthcheck")
 async def healthcheck() -> Response:
@@ -27,8 +31,20 @@ async def main_page(request: Request):
 
 @client_app.get("/course/{course_id}")
 async def course_page(request: Request, course_id: int):
-    # Пока можно игнорировать course_id, но передадим его в шаблон
     return templates.TemplateResponse(request, "course.html", {
         "request": request,
         "course_id": course_id
     })
+
+
+@client_app.post("/auth/login")
+async def proxy_login(request: Request):
+    try:
+        body = await request.json()
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(f"{SERVER_AUTH_URL}/auth/login", json=body)
+            resp.raise_for_status()
+            return JSONResponse(content=resp.json(), status_code=resp.status_code)
+    except Exception as e:
+        print(f"Ошибка: {e}")
+        return JSONResponse({"detail": f"Внутренняя ошибка сервера: {str(e)}"}, status_code=500)
