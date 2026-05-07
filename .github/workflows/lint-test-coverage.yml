@@ -70,7 +70,7 @@ jobs:
                     name: client-reports
                     path: reports/client/
 
-    combined-check:
+    combined-check-coverage:
         runs-on: ubuntu-latest
         steps:
             -   name: Checkout repository
@@ -85,11 +85,6 @@ jobs:
                 run: |
                     pip install -r server/requirements.txt
                     pip install -r client/requirements.txt
-
-            -   name: Lint all with Flake8
-                run: |
-                    flake8 server/ --config=.flake8 --count --show-source --statistics
-                    flake8 client/ --config=.flake8 --count --show-source --statistics
 
             -   name: Run all tests with combined coverage
                 run: |

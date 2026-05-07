@@ -24,6 +24,7 @@ async def healthcheck() -> Response:
 async def main_page(request: Request):
     return templates.TemplateResponse(request, "index.html", {"request": request})
 
+
 @client_app.get("/course/{course_id}")
 async def course_page(request: Request, course_id: int):
     # Пока можно игнорировать course_id, но передадим его в шаблон
