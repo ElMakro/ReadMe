@@ -56,13 +56,13 @@ jobs:
                 run: |
                     SERVICES="[]"
                     if [ "${{ github.event.inputs.server }}" = "true" ]; then
-                      SERVICES=$(echo "$SERVICES" | jq '. + ["readme-server"]')
+                      SERVICES=$(echo "$SERVICES" | jq -c '. + ["readme-server"]')
                     fi
                     if [ "${{ github.event.inputs.client }}" = "true" ]; then
-                      SERVICES=$(echo "$SERVICES" | jq '. + ["readme-client"]')
+                      SERVICES=$(echo "$SERVICES" | jq -c '. + ["readme-client"]')
                     fi
                     if [ "${{ github.event.inputs.database-manager }}" = "true" ]; then
-                      SERVICES=$(echo "$SERVICES" | jq '. + ["readme-database-manager"]')
+                      SERVICES=$(echo "$SERVICES" | jq -c '. + ["readme-database-manager"]')
                     fi
                     echo "list=$SERVICES" >> $GITHUB_OUTPUT
 
