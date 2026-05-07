@@ -49,6 +49,16 @@ jobs:
                       echo "build=false" >> $GITHUB_OUTPUT
                     fi
 
+            -   name: Debug secrets availability
+                run: |
+                    if [ -z "${{ secrets.DOCKERHUB_TOKEN }}" ]; then
+                      echo "DOCKERHUB_TOKEN is empty or not accessible"
+                    else
+                      echo "DOCKERHUB_TOKEN is accessible (length: ${#DOCKERHUB_TOKEN})"
+                    fi
+                env:
+                    DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+
             -   name: Checkout repository
                 if: steps.check.outputs.build == 'true'
                 uses: actions/checkout@v6
