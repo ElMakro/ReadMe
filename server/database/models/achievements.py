@@ -8,6 +8,6 @@ from server.database.models.base import Base
 
 
 class Achievements(IDMixin, Base):
-    course: Mapped[uuid.UUID] = mapped_column(ForeignKey("courses.id"))
+    course_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("courses.id"))
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str] = mapped_column(String(255), nullable=True)
