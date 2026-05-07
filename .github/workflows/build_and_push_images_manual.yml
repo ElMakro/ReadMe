@@ -66,6 +66,16 @@ jobs:
                     fi
                     echo "list=$SERVICES" >> $GITHUB_OUTPUT
 
+            -   name: Debug secrets availability
+                run: |
+                    if [ -z "${{ secrets.DOCKERHUB_TOKEN }}" ]; then
+                      echo "DOCKERHUB_TOKEN is empty or not accessible"
+                    else
+                      echo "DOCKERHUB_TOKEN is accessible (length: ${#DOCKERHUB_TOKEN})"
+                    fi
+                env:
+                    DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+
     call-build-images:
         needs: [ clean-ref-name, prepare-services ]
         uses: ./.github/workflows/_build_and_push_images.yml
