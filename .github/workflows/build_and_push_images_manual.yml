@@ -4,14 +4,16 @@ on:
     workflow_dispatch:
         inputs:
             ref:
-                description: 'Целевая метка репозитория для сборки (тег, название ветки)'
+                description: 'Целевая метка репозитория для сборки (тег, название ветки) (по умолчанию - main)'
                 required: true
                 type: string
+                default: 'main'
 
             tag:
-                description: 'Тег образа (например, 1.0.0)'
+                description: 'Тег образа (по умолчанию - 1.0.0)'
                 required: true
                 type: string
+                default: '1.0.0'
 
             server:
                 description: 'Собрать readme-server'

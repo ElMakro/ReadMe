@@ -7,7 +7,6 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.requests import Request
 
-
 STATIC_PATH = os.path.join(str(os.path.dirname(__file__)), "static")
 client_app = FastAPI()
 
