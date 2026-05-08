@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import ForeignKey, UniqueConstraint
+from sqlalchemy import ForeignKey, PrimaryKeyConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from server.database.models.base import Base
@@ -13,5 +13,5 @@ class CoursesForStudents(Base):
     course_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("courses.id", ondelete="CASCADE"))
 
     __table_args__ = (
-        UniqueConstraint("student_id", "course_id", name="uq_student_course")
+        PrimaryKeyConstraint("student_id", "course_id", name="pq_student_course"),
     )
