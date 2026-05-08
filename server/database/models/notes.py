@@ -17,7 +17,7 @@ class Notes(IDMixin, TimestampsMixin, Base):
 
     __table_args__ = (
         CheckConstraint(
-    f"length(content) <= {MAX_NOTE_LENGTH}",
+            f"length(content) <= {MAX_NOTE_LENGTH}",
             name="length_check"
         ),
     )
