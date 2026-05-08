@@ -1,9 +1,5 @@
-import os.path
-
 from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
-
-DOTENV = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env")
 
 
 class DBSettings(BaseSettings):
@@ -14,7 +10,7 @@ class DBSettings(BaseSettings):
     db_port: int
     db_echo: bool
 
-    model_config = SettingsConfigDict(env_file=DOTENV, env_file_encoding="utf8", extra="ignore")
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf8", extra="ignore")
 
     @property
     def db_url(self):
@@ -28,7 +24,7 @@ class RedisSettings(BaseSettings):
     redis_db: int
     redis_password: str
 
-    model_config = SettingsConfigDict(env_file=DOTENV, env_file_encoding="utf8", extra="ignore")
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf8", extra="ignore")
 
     @property
     def redis_url(self):
@@ -38,7 +34,7 @@ class RedisSettings(BaseSettings):
 class UvicornSettings(BaseSettings):
     server_port: int
 
-    model_config = SettingsConfigDict(env_file=DOTENV, env_file_encoding="utf8", extra="ignore")
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf8", extra="ignore")
 
 
 class Settings(BaseSettings):
@@ -48,7 +44,7 @@ class Settings(BaseSettings):
     secret_key: SecretStr
     token_expire: int
 
-    model_config = SettingsConfigDict(env_file=DOTENV, env_file_encoding="utf8", extra="ignore")
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf8", extra="ignore")
 
 
 settings = Settings()
