@@ -1,8 +1,8 @@
-import uuid
 import datetime
-from typing import Annotated, Optional
+import uuid
+from typing import Annotated
 
-from pydantic import BaseModel, EmailStr, StringConstraints, ConfigDict
+from pydantic import BaseModel, ConfigDict, EmailStr, StringConstraints
 
 from server.enums.role import Role
 
@@ -16,7 +16,7 @@ class UserByID(BaseModel):
 class UserByEmail(BaseModel):
     model_config = ConfigDict(from_attributes=True, extra='ignore')
 
-    email: Optional[EmailStr] = None
+    email: EmailStr | None = None
 
 
 class UserByNickname(BaseModel):

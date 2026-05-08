@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import String, ForeignKey, Integer
+from sqlalchemy import ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from server.database.mixins.id_mixins import IDMixin

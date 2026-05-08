@@ -5,7 +5,7 @@ from fastapi.responses import JSONResponse
 
 from server.app.service.depends import get_current_user
 from server.app.service.users_service import UsersService
-from server.schemas.users import UserRegistration, CreatedUserInfo, UserAuthentication, UserVerification
+from server.schemas.users import CreatedUserInfo, UserAuthentication, UserRegistration, UserVerification
 
 auth_router = APIRouter(prefix="/auth", tags=["auth"])
 

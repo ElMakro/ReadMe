@@ -1,5 +1,5 @@
-from sqlalchemy import String
 from sqlalchemy import Enum as PGEnum
+from sqlalchemy import String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from server.database.mixins.id_mixins import IDMixin
