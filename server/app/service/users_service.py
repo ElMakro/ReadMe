@@ -1,10 +1,10 @@
-from fastapi import HTTPException, status, Depends
+from fastapi import Depends, HTTPException, status
 from fastapi.responses import JSONResponse
 
-from server.config.settings import settings
 from server.app.service.auth_handler import AuthHandler
 from server.app.service.users_manager import UsersManager
-from server.schemas.users import UserRegistration, CreatedUserInfo, NewUser, UserAuthentication, UserVerification
+from server.config.settings import settings
+from server.schemas.users import CreatedUserInfo, NewUser, UserAuthentication, UserRegistration, UserVerification
 
 
 class UsersService:
