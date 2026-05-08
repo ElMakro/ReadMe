@@ -19,7 +19,7 @@ jobs:
                 run: |
                     pip install -r server/requirements.txt
 
-            -   name: Lint with Flake8
+            -   name: Lint with Ruff
                 run: |
                     ruff check server
 
@@ -52,7 +52,7 @@ jobs:
                 run: |
                     pip install -r client/requirements.txt
 
-            -   name: Lint with Flake8
+            -   name: Lint with Ruff
                 run: |
                     ruff check client
 
