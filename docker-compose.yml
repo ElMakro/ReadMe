@@ -40,7 +40,7 @@ services:
         volumes:
             - readme-postgres-database-data:/var/lib/postgresql/data
         ports:
-            - "5432:5432"
+            - "${DB_PORT}:${DB_PORT}"
         networks:
             - readme-network
         healthcheck:
@@ -64,7 +64,7 @@ services:
             - readme-redis-database-data:/data
             - ./server/config/redis.conf:/usr/local/etc/redis/redis.conf:ro
         ports:
-            - "6379:6379"
+            - "${REDIS_PORT}:${REDIS_PORT}"
         networks:
             - readme-network
         healthcheck:

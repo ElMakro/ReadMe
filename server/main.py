@@ -1,6 +1,5 @@
 import uvicorn
 from fastapi import FastAPI, Response, status
-
 from fastapi.middleware.cors import CORSMiddleware
 
 from server.app.api import app_router
