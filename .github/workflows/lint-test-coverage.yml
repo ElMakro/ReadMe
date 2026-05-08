@@ -1,4 +1,4 @@
-name: Lint and Test
+name: Lint, test and check coverage
 
 on:
     push:
@@ -10,18 +10,18 @@ jobs:
             -   name: Checkout repository
                 uses: actions/checkout@v6
 
-            -   name: Set up Python 3.13.13
+            -   name: Set up Python 3.13
                 uses: actions/setup-python@v6
                 with:
-                    python-version: '3.13.13'
+                    python-version: '3.13'
 
             -   name: Install dependencies
                 run: |
                     pip install -r server/requirements.txt
 
-            -   name: Lint with Flake8
+            -   name: Lint with Ruff
                 run: |
-                    flake8 server/ --config=.flake8 --count --show-source --statistics
+                    ruff check server
 
             -   name: Run tests with coverage
                 run: |
@@ -43,18 +43,18 @@ jobs:
             -   name: Checkout repository
                 uses: actions/checkout@v6
 
-            -   name: Set up Python 3.13.13
+            -   name: Set up Python 3.13
                 uses: actions/setup-python@v6
                 with:
-                    python-version: '3.13.13'
+                    python-version: '3.13'
 
             -   name: Install dependencies
                 run: |
                     pip install -r client/requirements.txt
 
-            -   name: Lint with Flake8
+            -   name: Lint with Ruff
                 run: |
-                    flake8 client/ --config=.flake8 --count --show-source --statistics
+                    ruff check client
 
             -   name: Run tests with coverage
                 run: |

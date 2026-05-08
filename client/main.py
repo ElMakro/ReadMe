@@ -1,13 +1,11 @@
 import os
-import httpx
 
+import httpx
+from fastapi import FastAPI, Response, status
+from fastapi.requests import Request
 from fastapi.responses import JSONResponse
-from fastapi import FastAPI
-from fastapi import Response
-from fastapi import status
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from fastapi.requests import Request
 
 STATIC_PATH = os.path.join(str(os.path.dirname(__file__)), "static")
 client_app = FastAPI()
