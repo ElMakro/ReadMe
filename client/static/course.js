@@ -1,4 +1,16 @@
 (function() {
+    const courseId = window.COURSE_ID;
+    const courseTitle = window.COURSE_TITLE;
+
+    // Если переменные не заданы (например, при открытии без сервера), пробуем взять из URL
+    if (!courseId) {
+        const pathParts = window.location.pathname.split('/');
+        const idFromPath = parseInt(pathParts[pathParts.length - 1], 10);
+        if (!isNaN(idFromPath)) {
+            window.COURSE_ID = idFromPath;
+            window.COURSE_TITLE = `Курс ${idFromPath}`; // заглушка
+        }
+    }
     // ========== 1. ПАРАМЕТРЫ КУРСА ==========
     const totalSections = 3;
     const topicsPerSection = 2;
