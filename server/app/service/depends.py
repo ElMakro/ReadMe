@@ -29,7 +29,7 @@ async def get_current_user(
 async def check_role(
         allowed_roles: list[Role],
         user: UserVerification = Depends(get_current_user)
-):
+) -> UserVerification:
     if user.role not in allowed_roles:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Недостаточно прав")
     return user
