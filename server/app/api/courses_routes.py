@@ -89,7 +89,7 @@ async def get_course_by_name_part(
     pass
 
 
-@courses_router.put(
+@courses_router.get(
     "/my_courses",
     summary="Получить курсы текущего пользователя",
     status_code=status.HTTP_200_OK,
