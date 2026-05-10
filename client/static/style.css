@@ -203,26 +203,37 @@ body {
     margin-bottom: 20px;
 }
 
-.course-line {
-    height: 3px;
-    background: var(--border-color);
-    margin: 8px 0;
-    border-radius: 2px;
-    transition: all 0.3s ease;
-}
 
-.course-line:first-child {
-    background: var(--accent);
-    opacity: 0.6;
-}
-
-.course-card:hover .course-line {
+.course-card:hover {
     background: var(--accent);
     opacity: 0.4;
 }
 
-.course-card:hover .course-line:first-child {
+.course-card:hover {
     opacity: 1;
+}
+
+.course-title {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+}
+
+.course-instructor {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.75rem;
+}
+
+.course-description {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    display: -webkit-box;
+    -webkit-line-clamp: 3;       /* обрезаем после трёх строк */
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 /* ========== ПАГИНАЦИЯ ========== */
@@ -634,4 +645,62 @@ a:hover {
         var(--accent) 70%,
         var(--accent) 80%,
         transparent 80%);
+}
+
+/* ========== СТРАНИЦА ПРОФИЛЯ ========== */
+
+/* Фото профиля */
+.profile-photo-wrapper {
+    width: 150px;
+    height: 150px;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 3px solid var(--accent);
+}
+
+.profile-photo {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* Элементы данных */
+.data-item span {
+    color: var(--text-primary);
+}
+
+/* Карточки достижений */
+.achievement-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    color: var(--text-primary);
+    transition: all 0.3s ease;
+}
+
+.achievement-card:hover {
+    border-color: var(--accent);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.achievement-icon {
+    font-size: 1.2rem;
+}
+
+/* Кнопка-ссылка в стиле акцента */
+.btn-outline-accent {
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    background: transparent;
+    padding: 0.5rem 1.5rem;
+    border-radius: 8px;
+    text-decoration: none;
+    display: inline-block;
+    transition: all 0.3s ease;
+}
+
+.btn-outline-accent:hover {
+    background: var(--accent);
+    color: var(--bg-primary);
 }

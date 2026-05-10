@@ -74,6 +74,9 @@
   function closeModal() {
     overlay.classList.remove('active');
     form.reset();
+    // Сбрасываем ошибки и состояние кнопки
+    removeError();
+    submitBtn.disabled = false;
   }
 
   overlay.addEventListener('click', (e) => {
@@ -103,6 +106,10 @@
     modalTitle.textContent = 'Вход';
     submitBtn.textContent = 'Войти';
     currentMode = 'login';
+
+    // Сброс блокировки кнопки и ошибок
+    submitBtn.disabled = false;
+    removeError();
   }
 
   function switchToReg() {
@@ -127,6 +134,10 @@
     modalTitle.textContent = 'Регистрация';
     submitBtn.textContent = 'Зарегистрироваться';
     currentMode = 'reg';
+
+    // Сброс блокировки кнопки и ошибок
+    submitBtn.disabled = false;
+    removeError();
   }
 
   showLoginBtn.addEventListener('click', switchToLogin);
@@ -141,14 +152,20 @@
       if (existingError) existingError.remove();
 
       let url, payload;
-      main_auth_url = 'http://localhost:8080/readme/v1/'
+      const main_url = 'http://localhost:8080/readme/v1/'; // добавил const
       if (currentMode === 'login') {
         if (loginNickname.value.trim() === '' || loginPassword.value.trim() === '') {
           showError('Заполните никнейм и пароль');
-          resetButton();
+          submitBtn.disabled = false;  // вместо resetButton()
           return;
         }
-        url = `${main_auth_url}auth/login`;
+        // Проверка длины пароля для входа
+        if (loginPassword.value.trim().length < 8) {
+          showError('Длина пароля должна быть не менее 8 символов');
+          submitBtn.disabled = false;
+          return;
+        }
+        url = `${main_url}auth/login`;
         payload = {
           nickname: loginNickname.value.trim(),
           password: loginPassword.value
@@ -156,22 +173,20 @@
       } else {
         if (regNickname.value.trim() === '' || regPassword.value.trim() === '') {
           showError('Заполните обязательные поля');
-          resetButton();
+          submitBtn.disabled = false;
           return;
         }
         if (regPassword.value !== regConfirm.value) {
           showError('Пароли не совпадают');
-          resetButton();
+          submitBtn.disabled = false;
           return;
         }
-        if (loginPassword.value.trim().length < 8 ||
-            regPassword.value.trim().length < 8 ||
-            regConfirm.value.trim().length < 8) {
-            showError('Длина пароля должна быть не менее 8 символов')
-            resetButton();
-            return;
+        if (regPassword.value.trim().length < 8 || regConfirm.value.trim().length < 8) {
+          showError('Длина пароля должна быть не менее 8 символов');
+          submitBtn.disabled = false;
+          return;
         }
-        url = `${main_auth_url}auth/reg`;
+        url = `${main_url}auth/reg`;
         payload = {
           nickname: regNickname.value.trim(),
           email: regEmail.value.trim() || undefined,
@@ -179,8 +194,50 @@
         };
       }
 
+//      try {
+//        const response = await fetch(url, {
+//          method: 'POST',
+//          headers: { 'Content-Type': 'application/json' },
+//          credentials: 'include',
+//          body: JSON.stringify(payload)
+//        });
+//
+//        const data = await response.json().catch(() => null);
+//
+//        if (!response.ok) {
+//          const errorMessage = data?.detail
+//            ? (Array.isArray(data.detail)
+//                ? data.detail.map(e => e.msg).join(', ')
+//                : data.detail)
+//            : `Ошибка сервера (${response.status})`;
+//          throw new Error(errorMessage);
+//        }
+//
+//        if (currentMode === 'login') {
+//          console.log('Вход выполнен:', data);
+//          if (!data.id && !data.user_id) {
+//                data.nickname = nickname;
+//                data.id = nickname;
+//            }
+//          closeModal();
+//          window.dispatchEvent(new CustomEvent('auth-changed', { detail: { loggedIn: true, user: data } }));
+//        } else {
+//          console.log('Регистрация успешна:', data);
+//          switchToLogin();
+//          loginNickname.value = regNickname.value;
+//          showError('Регистрация прошла успешно! Теперь войдите.', 'success');
+//          form.reset();  // очищаем поля регистрации, оставляя nickname
+//        }
+//      } catch (error) {
+//        console.error('Ошибка:', error);
+//        showError(error.message);
+//      } finally {
+//        // Всегда разблокируем кнопку после завершения запроса
+//        submitBtn.disabled = false;
+//      }
+
       try {
-        const response = await fetch(url, {
+          const response = await fetch(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
@@ -200,8 +257,17 @@
 
         if (currentMode === 'login') {
           console.log('Вход выполнен:', data);
+          // 👇 Объявляем nickname здесь (прямо внутри блока login)
+          const nickname = loginNickname.value.trim();
+          // Временно, пока сервер не возвращает ID
+          if (!data.id && !data.user_id) {
+            data.nickname = nickname;
+            data.id = nickname;      // чтобы header.js нашёл идентификатор
+          }
           closeModal();
-          window.dispatchEvent(new CustomEvent('auth-changed', { detail: { loggedIn: true, user: data } }));
+          window.dispatchEvent(new CustomEvent('auth-changed', {
+            detail: { loggedIn: true, user: data }
+          }));
         } else {
           console.log('Регистрация успешна:', data);
           switchToLogin();
@@ -212,18 +278,25 @@
       } catch (error) {
         console.error('Ошибка:', error);
         showError(error.message);
+      } finally {
+        submitBtn.disabled = false;
       }
+  });
 
-      function showError(message, type = 'danger') {
-        const old = document.getElementById(`${PREFIX}error`);
-        if (old) old.remove();
-        const div = document.createElement('div');
-        div.id = `${PREFIX}error`;
-        div.className = `alert alert-${type} mt-2`;
-        div.textContent = message;
-        form.appendChild(div);
-      }
-    });
+  function showError(message, type = 'danger') {
+    const old = document.getElementById(`${PREFIX}error`);
+    if (old) old.remove();
+    const div = document.createElement('div');
+    div.id = `${PREFIX}error`;
+    div.className = `alert alert-${type} mt-2`;
+    div.textContent = message;
+    form.appendChild(div);
+  }
+
+  function removeError() {
+    const err = document.getElementById(`${PREFIX}error`);
+    if (err) err.remove();
+  }
 
   window.AuthModal = { open: openModal, close: closeModal };
 })();

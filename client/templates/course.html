@@ -1,6 +1,6 @@
 {# templates/course.html #}
 {% extends "base.html" %}
-{% block title %}Курс {{ course_id }} — ReadMe{% endblock %}
+{% block title %}Курс «{{ course_title }}» — ReadMe{% endblock %}
 
 {% block content %}
 <div class="container-fluid h-100">
@@ -8,8 +8,7 @@
         <!-- Левая боковая панель -->
         <nav class="col-md-3 col-lg-2 course-sidebar" id="courseSidebar">
             <div class="py-4 px-3">
-                <h5 class="mb-4 text-center">Курс {{ course_id }}</h5>
-                <!-- Меню будет заполнено через JS -->
+                <h5 class="mb-4 text-center">{{ course_title }}</h5>
                 <ul class="list-group list-group-flush" id="sectionList"></ul>
             </div>
         </nav>
