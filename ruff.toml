@@ -1,5 +1,6 @@
 target-version = "py313"
 line-length = 120
+indent-width = 4
 exclude = ["alembic"]
 
 [lint]
@@ -8,11 +9,17 @@ select = [
     "W",
     "F",
     "I",
+    "B",
     "N",
-    "UP"
+    "UP",
+    "ARG",
+    "SIM"
 ]
-ignore = ["N805"]
+ignore = ["N805", "B008", "B904", "ARG002"]
+
 
 [format]
 quote-style = "double"
 indent-style = "space"
+line-ending = "auto"
+skip-magic-trailing-comma = false
