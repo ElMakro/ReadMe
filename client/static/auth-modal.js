@@ -36,8 +36,8 @@
             </div>
 
             <div class="d-flex gap-2 mb-3">
-              <button type="button" class="btn btn-outline-secondary flex-fill" id="${PREFIX}showLoginBtn">Вход</button>
-              <button type="button" class="btn btn-outline-secondary flex-fill" id="${PREFIX}showRegBtn">Регистрация</button>
+              <button type="button" class="btn btn-outline-secondary flex-fill" id="${PREFIX}showLoginBtn"  style="display: none;">Ко входу</button>
+              <button type="button" class="btn btn-outline-secondary flex-fill" id="${PREFIX}showRegBtn">К регистрации</button>
             </div>
             <button type="submit" class="btn-login w-100" id="${PREFIX}submitBtn">Войти</button>
           </form>
@@ -84,6 +84,8 @@
   function switchToLogin() {
     loginFields.style.display = 'block';
     regFields.style.display = 'none';
+    showLoginBtn.style.display = 'none';
+    showRegBtn.style.display = 'block'
 
     loginNickname.required = true;
     loginPassword.required = true;
@@ -106,6 +108,8 @@
   function switchToReg() {
     loginFields.style.display = 'none';
     regFields.style.display = 'block';
+    showRegBtn.style.display = 'none';
+    showLoginBtn.style.display = 'block';
 
     loginNickname.required = false;
     loginPassword.required = false;
@@ -159,6 +163,13 @@
           showError('Пароли не совпадают');
           resetButton();
           return;
+        }
+        if (loginPassword.value.trim().length < 8 ||
+            regPassword.value.trim().length < 8 ||
+            regConfirm.value.trim().length < 8) {
+            showError('Длина пароля должна быть не менее 8 символов')
+            resetButton();
+            return;
         }
         url = `${main_auth_url}auth/reg`;
         payload = {
