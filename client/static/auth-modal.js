@@ -152,11 +152,11 @@
       if (existingError) existingError.remove();
 
       let url, payload;
-      const main_url = 'http://localhost:8080/readme/v1/'; // добавил const
+      const main_url = 'http://localhost:8080/readme/v1/';
       if (currentMode === 'login') {
         if (loginNickname.value.trim() === '' || loginPassword.value.trim() === '') {
           showError('Заполните никнейм и пароль');
-          submitBtn.disabled = false;  // вместо resetButton()
+          submitBtn.disabled = false;
           return;
         }
         // Проверка длины пароля для входа
@@ -256,12 +256,9 @@
         }
 
         if (currentMode === 'login') {
-          console.log('Вход выполнен:', data);
-          // 👇 Объявляем nickname здесь (прямо внутри блока login)
           const nickname = loginNickname.value.trim();
           // Временно, пока сервер не возвращает ID
           if (!data.id && !data.user_id) {
-            data.nickname = nickname;
             data.id = nickname;      // чтобы header.js нашёл идентификатор
           }
           closeModal();
@@ -269,7 +266,6 @@
             detail: { loggedIn: true, user: data }
           }));
         } else {
-          console.log('Регистрация успешна:', data);
           switchToLogin();
           loginNickname.value = regNickname.value;
           showError('Регистрация прошла успешно! Теперь войдите.', 'success');

@@ -109,12 +109,10 @@
         filtersBtn.addEventListener('click', () => alert('Фильтры курсов (демо)'));
     }
 
-    // Реакция на авторизацию (можно оставить)
+    // Реакция на авторизацию
     window.addEventListener('auth-changed', function(e) {
-        console.log('auth-changed, обновляем список курсов');
         fetchCourses(currentPage, currentSearch);
     });
 
-    // Первоначальная загрузка
     fetchCourses(1);
 })();
