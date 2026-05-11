@@ -2,13 +2,10 @@ import uuid
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from server.config.constants import MAX_COURSE_DESCRIPTION_LENGTH
 from server.schemas.common import TimestampsMixin
 
 
-class SectionIDMixin(
-    BaseModel,
-):
+class SectionIDMixin(BaseModel):
     """Универсальная схема для необязательного поля уникального идентификатора раздела курса"""
     model_config = ConfigDict(
         from_attributes=True,
@@ -36,12 +33,6 @@ class SectionBase(
         min_length=1,
         max_length=255,
         examples=["Название раздела"],
-    ),
-    description: str = Field(
-        ...,
-        description="Описание раздела",
-        max_length=MAX_COURSE_DESCRIPTION_LENGTH,
-        examples=["Описание раздела"],
     )
     order_number: int = Field(
         ...,
@@ -80,11 +71,6 @@ class SectionUpdate(
         min_length=1,
         max_length=255,
         examples=["Название раздела"],
-    )
-    description: str | None = Field(
-        None,
-        description="Описание раздела",
-        examples=["Описание раздела"],
     )
     order_number: int | None = Field(
         None,

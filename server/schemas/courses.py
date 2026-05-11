@@ -1,81 +1,143 @@
 import uuid
-from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, RootModel
 
+from server.schemas.common import TimestampsMixin
 
-class CourseByID(
+
+class CourseIDMixin(
     BaseModel,
 ):
+    """Универсальная схема для необязательного поля уникального идентификатора курса"""
     model_config = ConfigDict(
         from_attributes=True,
         extra="ignore",
     )
 
-    course_id: uuid.UUID = Field(
+    id: uuid.UUID = Field(
         description="Уникальный идентификатор курса",
         examples=[uuid.uuid4()],
     )
 
 
-class CourseByName(
+class CourseBase(
     BaseModel,
 ):
+    """Базовая схема курса"""
     model_config = ConfigDict(
         from_attributes=True,
         extra="ignore",
     )
 
-    course_name: str = Field(
+    name: str = Field(
+        ...,
         description="Название курса",
-        examples=["Название курса"],
         min_length=1,
         max_length=255,
+        examples=["Название курса"],
     )
-
-
-class CourseCreation(
-    CourseByID,
-    CourseByName,
-):
-    model_config = ConfigDict(
-        from_attributes=True,
-        extra="ignore",
+    description: str = Field(
+        "",
+        description="Описание курса",
+        examples=["Описание курса"],
     )
-
     is_open: bool = Field(
-        description="Открыт ли курс для записи (по умолчанию - открыт)",
         default=True,
+        description="Открыт ли курс для записи",
         examples=[True, False],
     )
 
 
-class CourseInformation(
-    CourseCreation,
+class CourseCreation(
+    CourseBase,
 ):
-    model_config = ConfigDict(
-        from_attributes=True,
-        extra="ignore",
-    )
-
-    path_to_directory: str = Field(
-        description="Путь к директории, содержащей контент курса",
-        examples=["/course"],
-    )
-
-
-class CreatedCourseInformation(
-    CourseByID,
-):
+    """Схема запроса на создание курса"""
     model_config = ConfigDict(
         from_attributes=True,
         extra="ignore",
     )
 
 
-class CourseByNamePart(
-    CourseByID,
-    CourseByName,
+class CourseUpdate(
+    BaseModel,
+):
+    """Схема запроса на изменение данных о курсе (все поля опциональны)"""
+    model_config = ConfigDict(
+        from_attributes=True,
+        extra="ignore",
+    )
+
+    name: str | None = Field(
+        None,
+        description="Название курса",
+        min_length=1,
+        max_length=255,
+        examples=["Название курса"],
+    )
+    description: str = Field(
+        None,
+        description="Описание курса",
+        examples=["Описание курса"],
+    )
+    is_open: bool | None = Field(
+        None,
+        description="Открыт ли курс для записи",
+        examples=[True, False],
+    )
+
+
+class CourseChangeOwner(
+    BaseModel,
+):
+    """Схема запроса на смену владельца курса"""
+    model_config = ConfigDict(
+        from_attributes=True,
+        extra="ignore",
+    )
+
+    new_professor_id: uuid.UUID = Field(
+        ...,
+        description="Уникальный идентификатор нового преподавателя",
+    )
+
+
+class CourseResponse(
+    CourseBase,
+    CourseIDMixin,
+    TimestampsMixin,
+):
+    """Схема ответа с полной информацией о курсе"""
+    model_config = ConfigDict(
+        from_attributes=True,
+        extra="ignore",
+    )
+
+    professor_id: uuid.UUID = Field(
+        ...,
+        description="ID преподавателя",
+    )
+
+
+class CourseFullListResponse(
+    BaseModel,
+):
+    """Схема ответа со списком полных информаций о курсах"""
+    model_config = ConfigDict(
+        from_attributes=True,
+        extra="ignore",
+    )
+
+    courses: list[CourseResponse]
+    total: int = Field(
+        ...,
+        ge=0,
+        description="Количество курсов",
+        examples=[1],
+    )
+
+
+class CourseByName(
+    BaseModel,
 ):
     model_config = ConfigDict(
         from_attributes=True,
@@ -90,22 +152,8 @@ class CourseByNamePart(
     )
 
 
-class PaginationParameters(
-    BaseModel,
-):
-    page: int = Field(
-        description="Номер страницы",
-        examples=[1, 2, 3],
-        default=1,
-    )
-    records_per_page: Literal[5, 10, 15, 20, 30] = Field(
-        description="Количество записей на странице",
-        default=10,
-    )
-
-
 class CourseInfo(
-    CourseByID,
+    CourseIDMixin,
     CourseByName,
 ):
     model_config = ConfigDict(
@@ -115,38 +163,6 @@ class CourseInfo(
 
     description: str = Field(
         description="Описание курса",
-    )
-
-
-class CoursesByNamePart(
-    BaseModel,
-):
-    model_config = ConfigDict(
-        from_attributes=True,
-        extra="ignore",
-    )
-
-    courses_ids: list[CourseByNamePart] = Field(
-        description="Список курсов",
-        examples=[[CourseByNamePart(
-            course_id=uuid.uuid4(),
-            course_name="Название курса",
-        )]],
-    )
-
-
-class UserCourses(
-    BaseModel,
-):
-    model_config = ConfigDict(
-        from_attributes=True,
-        extra="ignore",
-    )
-
-    courses_list: list[CourseByID] = Field(
-        description="Список ID курсов пользователя",
-        examples=[[CourseByID(
-            course_id=uuid.uuid4(), )]],
     )
 
 
