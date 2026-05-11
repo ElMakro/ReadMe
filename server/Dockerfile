@@ -13,11 +13,13 @@ ENV PYTHONBUFFERED=1 \
 
 USER readmeserveruser
 
+COPY --chown=readmeserveruser:readmeservergroup requirements.txt .
+
+RUN pip install --no-cache-dir --user -r requirements.txt
+
 COPY --chown=readmeserveruser:readmeservergroup . ./server/
 
 WORKDIR /content/server
-
-RUN pip install --no-cache-dir --user -r requirements.txt
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8080/server_healthcheck || exit 1

@@ -4,9 +4,11 @@ WORKDIR /content
 
 RUN apk add --no-cache \
     postgresql-client \
-    curl
+    curl \
+    dos2unix
 
 COPY database_manager/requirements.txt .
+
 RUN pip install --no-cache-dir -r requirements.txt
 
 ENV PYTHONPATH=/content \
@@ -21,7 +23,6 @@ RUN chmod +x /content/scripts/* && \
 COPY alembic.ini /content/
 
 WORKDIR /content/server
-
 COPY server/database database
 COPY server/config config
 COPY server/enums enums
