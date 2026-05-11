@@ -8,10 +8,8 @@
     <div class="row mb-5">
         <div class="col-lg-4 text-center mb-4 mb-lg-0">
             <div class="profile-photo-wrapper mx-auto mb-3">
-                <img src="{{ user.photo_url or 'https://via.placeholder.com/150' }}" alt="Фото профиля" class="profile-photo" width="150" height="150">
+                <img src="{{ user.photo_url or 'https://via.placeholder.com/150' }}" alt="Фото профиля" class="profile-photo" width="200" height="200">
             </div>
-            <h2>{{ user.name or 'Пользователь' }}</h2>
-            <p class="text-secondary">@{{ user.nickname }}</p>
         </div>
 
         <div class="col-lg-8">
@@ -29,6 +27,7 @@
                 <span id="passwordDisplay">••••••••</span>
                 <span id="togglePassword" class="ms-2" style="cursor: pointer;" title="Показать пароль">👁️</span>
             </div>
+            <button class="btn btn-outline-accent" id="logoutBtn">Выход</button>
         </div>
     </div>
 
@@ -42,5 +41,5 @@
 {% endblock %}
 
 {% block scripts %}
-
+<script src="../static/profile.js"></script>
 {% endblock %}

@@ -4,7 +4,7 @@ from uuid import UUID
 import httpx
 from fastapi import FastAPI, Response, status, Query
 from fastapi.requests import Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse,  RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from math import ceil
@@ -115,31 +115,53 @@ async def proxy_reg(request: Request):
         return JSONResponse({"detail": f"Внутренняя ошибка сервера: {str(e)}"}, status_code=500)
 
 
-# @client_app.get("/me/{id}")
-# async def profile(request: Request, user_id: UUID):
-#     try:
-#         async with httpx.AsyncClient() as client:
-#             resp = await client.get(f"{SERVER_URL}/me/{user_id}")
-#             resp.raise_for_status()
-#             user_data = resp.json()
-#         return templates.TemplateResponse(request, "profile.html", {
-#             "request": request,
-#             "user": user_data    # теперь в шаблоне доступна переменная user
-#         })
-#     except Exception as e:
-#         print(f"Ошибка: {e}")
-#         # В случае ошибки можно отрендерить страницу с сообщением
-#         return templates.TemplateResponse(request, "profile.html", {
-#             "request": request,
-#             "error": "Не удалось загрузить профиль"
-#         })
-
-@client_app.get("/me/{identifier}")
-async def profile(request: Request, identifier: str):
-    # пробуем как UUID, потом как никнейм, иначе заглушка
-    from uuid import UUID
+@client_app.get("/me")
+async def profile_redirect(request: Request):
+    """
+    Проксируем запрос к бэкенду, передавая куки браузера.
+    Если получен текущий пользователь — редиректим на /me/{id}.
+    Иначе показываем страницу профиля с заглушкой и ошибкой.
+    """
     try:
-        UUID(identifier)
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(
+                f"{SERVER_URL}/me",
+                cookies=request.cookies
+            )
+            resp.raise_for_status()
+            user_data = resp.json()
+            user_id = user_data.get("id") or user_data.get("nickname")
+            if user_id:
+                return RedirectResponse(f"/me/{user_id}")
+            else:
+                # Бэкенд вернул пустой ответ
+                return templates.TemplateResponse(request, "profile.html", {
+                    "request": request,
+                    "user": {
+                        "nickname": "unknown",
+                        "email": "",
+                        "photo_url": "https://via.placeholder.com/150"
+                    },
+                    "error": "Не удалось определить пользователя"
+                })
+    except Exception as e:
+        print(f"Ошибка получения текущего пользователя: {e}")
+        # Бэкенд недоступен или ошибка — показываем профиль с заглушкой
+        return templates.TemplateResponse(request, "profile.html", {
+            "request": request,
+            "user": {
+                "nickname": "",
+                "email": "",
+                "photo_url": "https://via.placeholder.com/150"
+            },
+            "error": "Сервер временно недоступен. Попробуйте позже."
+        })
+
+@client_app.get("/me/{id}")
+async def profile(request: Request, id: str):
+    # пробуем как UUID, потом как никнейм, иначе заглушка
+    try:
+        UUID(id)
         is_uuid = True
     except ValueError:
         is_uuid = False
@@ -147,22 +169,21 @@ async def profile(request: Request, identifier: str):
     try:
         if is_uuid:
             async with httpx.AsyncClient() as client:
-                resp = await client.get(f"{SERVER_URL}/me/{identifier}")
+                resp = await client.get(f"{SERVER_URL}/me/{id}")
                 resp.raise_for_status()
                 user_data = resp.json()
         else:
             # Запрос профиля по никнейму (если есть такой эндпоинт)
             async with httpx.AsyncClient() as client:
-                resp = await client.get(f"{SERVER_URL}/users/nickname/{identifier}")
+                resp = await client.get(f"{SERVER_URL}/users/nickname/{id}")
                 resp.raise_for_status()
                 user_data = resp.json()
     except Exception as e:
         print(f"Ошибка получения профиля: {e}")
         # Заглушка, пока сервер не реализован
         user_data = {
-            "nickname": identifier,
-            "name": identifier.capitalize(),
-            "email": f"{identifier}@example.com",
+            "nickname": id,
+            "email": f"{id}@example.com",
             "photo_url": "https://via.placeholder.com/150"
         }
 
