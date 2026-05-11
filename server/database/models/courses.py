@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import Boolean, ForeignKey, String, Text, CheckConstraint
+from sqlalchemy import Boolean, CheckConstraint, ForeignKey, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, validates
 
 from server.config.constants import MAX_COURSE_DESCRIPTION_LENGTH
