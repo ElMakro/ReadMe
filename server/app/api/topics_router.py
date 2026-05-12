@@ -10,10 +10,12 @@ from server.schemas.common import UNPROCESSABLE_ENTITY_ERROR_TEXT
 from server.schemas.topics import (
     TopicCreation,
     TopicIDMixin,
+    TopicRawContent,
+    TopicRenderedContent,
     TopicResponse,
     TopicsFullListResponse,
     TopicsListResponse,
-    TopicUpdate, TopicRawContent, TopicRenderedContent,
+    TopicUpdate,
 )
 from server.schemas.users import UserVerification
 
