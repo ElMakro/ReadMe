@@ -1,8 +1,11 @@
+from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Path, status
 
+from server.app.api.openapi_docs import openapi_extra_authorization_cookie
 from server.app.service.courses_service import CoursesService
+from server.app.service.depends import get_current_user
 from server.schemas.common import UNPROCESSABLE_ENTITY_ERROR_TEXT, PaginationParameters
 from server.schemas.courses import (
     CourseChangeOwner,
@@ -11,6 +14,7 @@ from server.schemas.courses import (
     CourseIDMixin,
     CourseResponse,
 )
+from server.schemas.users import UserVerification
 
 courses_router = APIRouter(
     prefix="/courses",
@@ -32,8 +36,12 @@ courses_router = APIRouter(
             "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
         },
     },
+    openapi_extra=openapi_extra_authorization_cookie,
 )
 async def create_course(
+        user: Annotated[UserVerification, Depends(
+            get_current_user,
+        )],
         course_data: CourseCreation,
         courses_service: CoursesService = Depends(
             CoursesService,
@@ -63,8 +71,12 @@ async def create_course(
             "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
         },
     },
+    openapi_extra=openapi_extra_authorization_cookie,
 )
 async def get_course_by_id(
+        user: Annotated[UserVerification, Depends(
+            get_current_user,
+        )],
         course_id: UUID = Path(
             ...,
             description="Уникальный идентификатор курса",
@@ -88,8 +100,12 @@ async def get_course_by_id(
             "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
         },
     },
+    openapi_extra=openapi_extra_authorization_cookie,
 )
 async def search_courses_by_name(
+        user: Annotated[UserVerification, Depends(
+            get_current_user,
+        )],
         pagination_parameters: PaginationParameters = Depends(),
         course_name_part: str = Path(
             ...,
@@ -118,8 +134,12 @@ async def search_courses_by_name(
             "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
         },
     },
+    openapi_extra=openapi_extra_authorization_cookie,
 )
 async def get_followed_courses(
+        user: Annotated[UserVerification, Depends(
+            get_current_user,
+        )],
         pagination_parameters: PaginationParameters = Depends(),
         courses_service: CoursesService = Depends(
             CoursesService,
@@ -142,8 +162,12 @@ async def get_followed_courses(
             "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
         },
     },
+    openapi_extra=openapi_extra_authorization_cookie,
 )
 async def get_controlled_courses(
+        user: Annotated[UserVerification, Depends(
+            get_current_user,
+        )],
         pagination_parameters: PaginationParameters = Depends(),
         courses_service: CoursesService = Depends(
             CoursesService,
@@ -172,8 +196,12 @@ async def get_controlled_courses(
             "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
         },
     },
+    openapi_extra=openapi_extra_authorization_cookie,
 )
 async def update_course(
+        user: Annotated[UserVerification, Depends(
+            get_current_user,
+        )],
         course_id: UUID = Path(
             ...,
             description="Уникальный идентификатор курса",
@@ -205,8 +233,12 @@ async def update_course(
             "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
         },
     },
+    openapi_extra=openapi_extra_authorization_cookie,
 )
 async def change_course_owner(
+        user: Annotated[UserVerification, Depends(
+            get_current_user,
+        )],
         owner_data: CourseChangeOwner,
         course_id: UUID = Path(
             ...,
@@ -233,14 +265,18 @@ async def change_course_owner(
             "description": "Пользователь не имеет прав на удаление курса",
         },
         status.HTTP_404_NOT_FOUND            : {
-            "description": "Курса с таким ID не существует",
+            "description": "Курса с таким идентификатором не существует",
         },
         status.HTTP_422_UNPROCESSABLE_CONTENT: {
             "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
         },
     },
+    openapi_extra=openapi_extra_authorization_cookie,
 )
 async def delete_course(
+        user: Annotated[UserVerification, Depends(
+            get_current_user,
+        )],
         course_id: UUID = Path(
             ...,
             description="Уникальный идентификатор курса",
@@ -253,4 +289,105 @@ async def delete_course(
     Удалить курс и все связанные с ним данные (разделы, темы, заметки студентов).
     Только преподаватель курса или администратор системы могут его удалить.
     """
+    pass
+
+
+@courses_router.put(
+    "/put-content/{course_id}",
+    summary="Установить контент оглавления курса",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={
+        status.HTTP_403_FORBIDDEN            : {
+            "description": "Пользователь не имеет прав на установление контента",
+        },
+        status.HTTP_404_NOT_FOUND            : {
+            "description": "Курса с таким идентификатором не существует",
+        },
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {
+            "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
+        },
+    },
+    deprecated=True,
+    openapi_extra=openapi_extra_authorization_cookie,
+)
+async def put_course_content(
+        user: Annotated[UserVerification, Depends(
+            get_current_user,
+        )],
+        course_id: UUID = Path(
+            ...,
+            description="Уникальный идентификатор курса",
+        ),
+        courses_service: CoursesService = Depends(
+            CoursesService,
+        ),
+):
+    pass
+
+
+@courses_router.post(
+    "/enroll/{course_id}",
+    summary="Записаться на курс",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_description="Текущий пользователь успешно записан на курс",
+    responses={
+        status.HTTP_403_FORBIDDEN            : {
+            "description": "Пользователь не имеет прав на запись на данный курс",
+        },
+        status.HTTP_404_NOT_FOUND            : {
+            "description": "Курса с таким идентификатором не существует",
+        },
+        status.HTTP_409_CONFLICT             : {
+            "description": "Пользователь уже записан на данный курс",
+        },
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {
+            "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
+        },
+    },
+    openapi_extra=openapi_extra_authorization_cookie,
+)
+async def enroll_course(
+        user: Annotated[UserVerification, Depends(
+            get_current_user,
+        )],
+        course_id: UUID = Path(
+            ...,
+            description="Уникальный идентификатор курса",
+        ),
+        courses_service: CoursesService = Depends(
+            CoursesService,
+        ),
+):
+    """Записать текущего пользователя на курс"""
+    pass
+
+
+@courses_router.post(
+    "/unenroll/{course_id}",
+    summary="Отписаться от курса",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_description="Текущий пользователь успешно отписан от курса",
+    responses={
+        status.HTTP_404_NOT_FOUND            : {
+            "description": "Курса с таким идентификатором не существует",
+        },
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {
+            "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
+        },
+    },
+    openapi_extra=openapi_extra_authorization_cookie,
+)
+async def unenroll_course(
+        user: Annotated[UserVerification, Depends(
+            get_current_user,
+        )],
+        course_id: UUID = Path(
+            ...,
+            description="Уникальный идентификатор курса",
+        ),
+        courses_service: CoursesService = Depends(
+            CoursesService,
+        ),
+):
+    """Отписать текущего пользователя от курса"""
     pass

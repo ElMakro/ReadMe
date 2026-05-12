@@ -1,7 +1,10 @@
+from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Path, status
 
+from server.app.api.openapi_docs import openapi_extra_authorization_cookie
+from server.app.service.depends import get_current_user
 from server.app.service.sections_service import SectionsService
 from server.schemas.common import UNPROCESSABLE_ENTITY_ERROR_TEXT
 from server.schemas.sections import (
@@ -12,6 +15,7 @@ from server.schemas.sections import (
     SectionsListResponse,
     SectionUpdate,
 )
+from server.schemas.users import UserVerification
 
 sections_router = APIRouter(
     prefix="/sections",
@@ -39,8 +43,12 @@ sections_router = APIRouter(
             "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
         },
     },
+    openapi_extra=openapi_extra_authorization_cookie,
 )
 async def create_section(
+        user: Annotated[UserVerification, Depends(
+            get_current_user,
+        )],
         section_data: SectionCreation,
         sections_service: SectionsService = Depends(
             SectionsService,
@@ -70,8 +78,12 @@ async def create_section(
             "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
         },
     },
+    openapi_extra=openapi_extra_authorization_cookie,
 )
 async def get_section_by_id(
+        user: Annotated[UserVerification, Depends(
+            get_current_user,
+        )],
         section_id: UUID = Path(
             ...,
             description="Уникальный идентификатор раздела",
@@ -101,8 +113,12 @@ async def get_section_by_id(
             "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
         },
     },
+    openapi_extra=openapi_extra_authorization_cookie,
 )
 async def get_sections_by_course(
+        user: Annotated[UserVerification, Depends(
+            get_current_user,
+        )],
         course_id: UUID = Path(
             ...,
             description="Уникальный идентификатор курса",
@@ -135,8 +151,12 @@ async def get_sections_by_course(
             "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
         },
     },
+    openapi_extra=openapi_extra_authorization_cookie,
 )
 async def get_section_ids_by_course(
+        user: Annotated[UserVerification, Depends(
+            get_current_user,
+        )],
         course_id: UUID = Path(
             ...,
             description="Уникальный идентификатор курса",
@@ -172,8 +192,12 @@ async def get_section_ids_by_course(
             "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
         },
     },
+    openapi_extra=openapi_extra_authorization_cookie,
 )
 async def update_section(
+        user: Annotated[UserVerification, Depends(
+            get_current_user,
+        )],
         section_data: SectionUpdate,
         section_id: UUID = Path(
             ...,
@@ -203,8 +227,12 @@ async def update_section(
             "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
         },
     },
+    openapi_extra=openapi_extra_authorization_cookie,
 )
 async def delete_section(
+        user: Annotated[UserVerification, Depends(
+            get_current_user,
+        )],
         section_id: UUID = Path(
             ...,
             description="Уникальный идентификатор раздела",
@@ -217,4 +245,37 @@ async def delete_section(
     Удалить раздел и все связанные с ним темы.
     Только преподаватель курса может удалить раздел.
     """
+    pass
+
+
+@sections_router.put(
+    "/put-content/{section_id}",
+    summary="Установить контент оглавления раздела",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={
+        status.HTTP_403_FORBIDDEN            : {
+            "description": "Пользователь не имеет прав на установление контента",
+        },
+        status.HTTP_404_NOT_FOUND            : {
+            "description": "Раздела с таким идентификатором не существует",
+        },
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {
+            "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
+        },
+    },
+    deprecated=True,
+    openapi_extra=openapi_extra_authorization_cookie,
+)
+async def put_section_content(
+        user: Annotated[UserVerification, Depends(
+            get_current_user,
+        )],
+        section_id: UUID = Path(
+            ...,
+            description="Уникальный идентификатор раздела",
+        ),
+        sections_service: SectionsService = Depends(
+            SectionsService,
+        ),
+):
     pass

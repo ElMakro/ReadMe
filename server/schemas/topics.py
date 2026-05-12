@@ -1,4 +1,5 @@
 import uuid
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -133,4 +134,76 @@ class TopicsFullListResponse(
         ge=0,
         description="Количество тем",
         examples=[1],
+    )
+
+
+class TopicBlockRawContent(
+    BaseModel,
+):
+    """Модель строкового представления блока контента в теме"""
+    model_config = ConfigDict(
+        from_attributes=True,
+        extra="ignore",
+    )
+
+    type: Literal["markdown", "uml", "latex"] = Field(
+        ...,
+        description="Тип контента в блоке",
+        examples=["latex"],
+    )
+    raw_content: str = Field(
+        ...,
+        description="Строковое представление контента в блоке",
+        examples=[r"E \equals mc^2"],
+    )
+
+
+class TopicRawContent(
+    BaseModel,
+):
+    """Модель строкового представления контента в теме"""
+    model_config = ConfigDict(
+        from_attributes=True,
+        extra="ignore",
+    )
+
+    blocks: list[TopicBlockRawContent] = Field(
+        ...,
+        description="Упорядоченные блоки темы",
+    )
+
+
+class TopicBlockRenderedContent(
+    BaseModel,
+):
+    """Модель блока готового к отображению контента в теме"""
+    model_config = ConfigDict(
+        from_attributes=True,
+        extra="ignore",
+    )
+
+    type: Literal["markdown", "uml", "latex"] = Field(
+        ...,
+        description="Тип контента в блоке",
+        examples=["latex"],
+    )
+    rendered_content: str = Field(
+        ...,
+        description="Представление контента в блоке",
+        examples=["..."],
+    )
+
+
+class TopicRenderedContent(
+    BaseModel,
+):
+    """Модель готового к отображению контента в теме"""
+    model_config = ConfigDict(
+        from_attributes=True,
+        extra="ignore",
+    )
+
+    blocks: list[TopicBlockRenderedContent] = Field(
+        ...,
+        description="Упорядоченные блоки темы",
     )
