@@ -14,7 +14,6 @@ class Courses(IDMixin, TimestampsMixin, Base):
     description: Mapped[str] = mapped_column(Text, nullable=True)
     professor_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
     is_open: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-    path_to_directory: Mapped[str] = mapped_column(String(255), nullable=False)
 
     __table_args__ = (
         CheckConstraint(
