@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import ForeignKey, Integer, String, Text, CheckConstraint
+from sqlalchemy import CheckConstraint, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, validates
 
 from server.config.constants import MAX_SECTION_DESCRIPTION_LENGTH
@@ -25,6 +25,6 @@ class Sections(IDMixin, TimestampsMixin, Base):
     @validates("description")
     def validate_description_length(self, key, value):
         if value is not None and (length := len(value)) > MAX_SECTION_DESCRIPTION_LENGTH:
-            raise ValueError(f"The length of the section description should not exceed {MAX_SECTION_DESCRIPTION_LENGTH} "
-                             f"(actual length: {length}).")
+            raise ValueError(f"The length of the section description should not exceed "
+                             f"{MAX_SECTION_DESCRIPTION_LENGTH} (actual length: {length}).")
         return value
