@@ -5,7 +5,9 @@ from pydantic import BaseModel, ConfigDict, Field
 from server.schemas.common import TimestampsMixin
 
 
-class CourseIDMixin(BaseModel):
+class CourseIDMixin(
+    BaseModel,
+):
     """Универсальная схема для необязательного поля уникального идентификатора курса"""
     model_config = ConfigDict(
         from_attributes=True,
@@ -33,6 +35,11 @@ class CourseBase(
         min_length=1,
         max_length=255,
         examples=["Название курса"],
+    )
+    description: str = Field(
+        "",
+        description="Описание курса",
+        examples=["Описание курса"],
     )
     is_open: bool = Field(
         default=True,
@@ -66,6 +73,11 @@ class CourseUpdate(
         min_length=1,
         max_length=255,
         examples=["Название курса"],
+    )
+    description: str = Field(
+        None,
+        description="Описание курса",
+        examples=["Описание курса"],
     )
     is_open: bool | None = Field(
         None,
