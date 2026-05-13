@@ -12,5 +12,7 @@ class CoursesService:
         self.courses_manager = manager
         self.auth_handler = auth_handler
 
-    async def get_courses_for_user(self, user: UserVerification) -> CoursesList:
-        return await self.courses_manager.get_courses_of_user(user.id)
+    async def get_courses_for_user(self, user: UserVerification, page: int, size: int) -> CoursesList:
+        offset = (page - 1) * size
+        limit = size
+        return await self.courses_manager.get_courses_of_user(user.id, offset, limit)

@@ -14,13 +14,16 @@ class CoursesManager:
         self.courses_model = Courses
         self.courses_for_students_model = CoursesForStudents
 
-    async def get_courses_of_user(self, user_id: uuid.UUID) -> CoursesList:
+    async def get_courses_of_user(self, user_id: uuid.UUID, offset: int, limit: int) -> CoursesList:
         async with self.db.db_session() as session:
             query = select(
                 self.courses_model.name, self.courses_model.description
                            ).join(
                 self.courses_for_students_model, self.courses_model.id == self.courses_for_students_model.course_id
-            ).where(self.courses_for_students_model.student_id == user_id)
+            ).where(self.courses_for_students_model.student_id == user_id
+                    ).order_by(self.courses_model.id
+                               ).offset(offset
+                                        ).limit(limit)
             result = await session.execute(query)
             courses = result.mappings().all()
             return CoursesList.model_validate(courses)
