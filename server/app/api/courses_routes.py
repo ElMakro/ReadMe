@@ -14,7 +14,16 @@ courses_router = APIRouter(prefix="/courses", tags=["courses"])
 @courses_router.get(
     path="/my-courses",
     response_model=CoursesList,
-    status_code=status.HTTP_200_OK
+    status_code=status.HTTP_200_OK,
+    response_description="Курсы пользователя получены",
+    responses={
+        status.HTTP_401_UNAUTHORIZED: {
+            "description": "Пользователь не произвёл вход"
+        },
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {
+            "description": "Некорректно переданы параметры"
+        }
+    }
 )
 async def get_my_courses(user: Annotated[UserVerification, Depends(get_current_user)],
                          page: int = Query(1, ge=1),
