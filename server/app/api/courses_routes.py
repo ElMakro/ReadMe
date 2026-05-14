@@ -12,7 +12,7 @@ from server.schemas.courses import (
     CourseCreation,
     CourseFullListResponse,
     CourseIDMixin,
-    CourseResponse,
+    CourseResponse, CourseUpdate,
 )
 from server.schemas.users import UserVerification
 
@@ -183,8 +183,7 @@ async def get_controlled_courses(
     "/{course_id}",
     summary="Обновить данные о курсе",
     response_description="Данные курса успешно обновлены",
-    status_code=status.HTTP_200_OK,
-    response_model=CourseResponse,
+    status_code=status.HTTP_204_NO_CONTENT,
     responses={
         status.HTTP_403_FORBIDDEN            : {
             "description": "Пользователь не имеет прав на редактирование курса",
@@ -199,6 +198,7 @@ async def get_controlled_courses(
     openapi_extra=openapi_extra_authorization_cookie,
 )
 async def update_course(
+        course_update: CourseUpdate,
         user: Annotated[UserVerification, Depends(
             get_current_user,
         )],
@@ -209,8 +209,8 @@ async def update_course(
         courses_service: CoursesService = Depends(
             CoursesService,
         ),
-) -> CourseResponse:
-    """Обновить информацию о курсе (только для преподавателя курса ил администратора системы)."""
+):
+    """Обновить информацию о курсе (только для преподавателя курса или администратора системы)."""
     pass
 
 
