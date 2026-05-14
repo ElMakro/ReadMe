@@ -59,7 +59,7 @@ services:
     redis-database:
         image: redis:7.4.8-alpine3.21
         container_name: readme-redis-database
-        command: ["redis-server", "/usr/local/etc/redis/redis.conf", "--requirepass", "${REDIS_PASSWORD}"]
+        command: [ "redis-server", "/usr/local/etc/redis/redis.conf", "--requirepass", "${REDIS_PASSWORD}" ]
         volumes:
             - readme-redis-database-data:/data
             - ./server/config/redis.conf:/usr/local/etc/redis/redis.conf:ro
@@ -100,9 +100,10 @@ services:
                 condition: service_healthy
 
     database-manager:
-        build:
-            context: .
-            dockerfile: database_manager/Dockerfile
+        image: readmeivtyarsu/readme-database-manager:dev-main-1.1.0
+        #        build:
+        #            context: .
+        #            dockerfile: database_manager/Dockerfile
         container_name: readme-database-manager
         environment:
             - DB_HOST=${DB_HOST}
@@ -123,9 +124,10 @@ services:
                 condition: service_healthy
 
     auto-migrations:
-        build:
-            context: .
-            dockerfile: database_manager/Dockerfile
+        image: readmeivtyarsu/readme-database-manager:dev-main-1.1.0
+        #        build:
+        #            context: .
+        #            dockerfile: database_manager/Dockerfile
         container_name: readme-auto-migrations
         environment:
             - DB_NAME=${DB_NAME}
@@ -150,9 +152,10 @@ services:
         restart: "no"
 
     client:
-        build:
-            context: client
-            dockerfile: Dockerfile
+        image: readmeivtyarsu/readme-client:dev-main-1.1.0
+        #        build:
+        #            context: client
+        #            dockerfile: Dockerfile
         container_name: readme-client
         environment:
             - CLIENT_PORT=${CLIENT_PORT}
