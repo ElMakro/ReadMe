@@ -15,7 +15,7 @@ class CourseByName(BaseModel):
     name: str = Field(description="Название курса", examples=["Название курса"], min_length=1, max_length=255)
 
 
-class CourseInfo(CourseByName):
+class CourseInfo(CourseByID, CourseByName):
     model_config = ConfigDict(from_attributes=True, extra="ignore")
 
     description: str = Field(description="Описание курса")
