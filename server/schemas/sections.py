@@ -2,6 +2,7 @@ import uuid
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from server.config.constants import MAX_COURSE_DESCRIPTION_LENGTH
 from server.schemas.common import TimestampsMixin
 
 
@@ -39,6 +40,7 @@ class SectionBase(
     description: str = Field(
         ...,
         description="Описание раздела",
+        max_length=MAX_COURSE_DESCRIPTION_LENGTH,
         examples=["Описание раздела"],
     )
     order_number: int = Field(
