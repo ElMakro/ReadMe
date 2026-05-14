@@ -1,4 +1,5 @@
 import uuid
+
 from pydantic import BaseModel, ConfigDict, Field, RootModel
 
 from server.schemas.common import TimestampsMixin

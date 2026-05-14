@@ -1,7 +1,7 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Path, status, Query
+from fastapi import APIRouter, Depends, Path, status
 
 from server.app.api.openapi_docs import openapi_extra_authorization_cookie
 from server.app.service.courses_service import CoursesService
@@ -13,7 +13,8 @@ from server.schemas.courses import (
     CourseFullListResponse,
     CourseIDMixin,
     CourseResponse,
-    CourseUpdate, CoursesList,
+    CoursesList,
+    CourseUpdate,
 )
 from server.schemas.users import UserVerification
 
