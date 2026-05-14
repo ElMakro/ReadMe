@@ -12,7 +12,7 @@ courses_router = APIRouter(prefix="/courses", tags=["courses"])
 
 
 @courses_router.get(
-    path="/my-courses",
+    path="/followed-courses",
     response_model=CoursesList,
     status_code=status.HTTP_200_OK,
     response_description="Курсы пользователя получены",
@@ -25,7 +25,7 @@ courses_router = APIRouter(prefix="/courses", tags=["courses"])
         }
     }
 )
-async def get_my_courses(user: Annotated[UserVerification, Depends(get_current_user)],
+async def get_followed_courses(user: Annotated[UserVerification, Depends(get_current_user)],
                          page: int = Query(1, ge=1),
                          size: int = Query(10, ge=1, le=20),
                          courses_service: CoursesService = Depends(CoursesService)) -> CoursesList:
