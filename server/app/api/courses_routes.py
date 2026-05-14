@@ -1,7 +1,7 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Path, status
+from fastapi import APIRouter, Depends, Path, status, Query
 
 from server.app.api.openapi_docs import openapi_extra_authorization_cookie
 from server.app.service.courses_service import CoursesService
@@ -13,7 +13,7 @@ from server.schemas.courses import (
     CourseFullListResponse,
     CourseIDMixin,
     CourseResponse,
-    CourseUpdate,
+    CourseUpdate, CoursesList,
 )
 from server.schemas.users import UserVerification
 
@@ -130,23 +130,33 @@ async def search_courses_by_name(
     status_code=status.HTTP_200_OK,
     response_description="Курсы пользователя получены",
     responses={
-        status.HTTP_401_UNAUTHORIZED: {
-            "description": "Пользователь не произвёл вход"
+        status.HTTP_401_UNAUTHORIZED         : {
+            "description": "Пользователь не произвёл вход",
         },
         status.HTTP_422_UNPROCESSABLE_CONTENT: {
-            "description": "Некорректно переданы параметры"
-        }
-    }
+            "description": "Некорректно переданы параметры",
+        },
+    },
 )
-async def get_followed_courses(user: Annotated[UserVerification, Depends(get_current_user)],
-                         page: int = Query(1, ge=1),
-                         size: int = Query(10, ge=1, le=20),
-                         courses_service: CoursesService = Depends(CoursesService)) -> CoursesList:
+async def get_followed_courses(
+        user: Annotated[UserVerification, Depends(
+            get_current_user,
+        )],
+        pagination_parameters: PaginationParameters = Depends(),
+        courses_service: CoursesService = Depends(
+            CoursesService,
+        ),
+) -> CoursesList:
     """
     Получить пагинированный список курсов, на которых обучается текущий пользователь.
     """
-    result = await courses_service.get_courses_for_user(user=user, page=page, size=size)
+    result = await courses_service.get_courses_for_user(
+        user=user,
+        page=pagination_parameters.page,
+        size=pagination_parameters.records_per_page,
+    )
     return result
+
 
 @courses_router.get(
     "/controlled-courses",
