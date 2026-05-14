@@ -125,32 +125,28 @@ async def search_courses_by_name(
 
 
 @courses_router.get(
-    "/followed-courses",
-    summary="Получить курсы, на которых обучается текущий пользователь",
-    response_description="Список курсов, на которых обучается пользователь",
+    path="/followed-courses",
+    response_model=CoursesList,
     status_code=status.HTTP_200_OK,
-    response_model=CourseFullListResponse,
+    response_description="Курсы пользователя получены",
     responses={
-        status.HTTP_422_UNPROCESSABLE_CONTENT: {
-            "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
+        status.HTTP_401_UNAUTHORIZED: {
+            "description": "Пользователь не произвёл вход"
         },
-    },
-    openapi_extra=openapi_extra_authorization_cookie,
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {
+            "description": "Некорректно переданы параметры"
+        }
+    }
 )
-async def get_followed_courses(
-        user: Annotated[UserVerification, Depends(
-            get_current_user,
-        )],
-        pagination_parameters: PaginationParameters = Depends(),
-        courses_service: CoursesService = Depends(
-            CoursesService,
-        ),
-) -> CourseFullListResponse:
+async def get_followed_courses(user: Annotated[UserVerification, Depends(get_current_user)],
+                         page: int = Query(1, ge=1),
+                         size: int = Query(10, ge=1, le=20),
+                         courses_service: CoursesService = Depends(CoursesService)) -> CoursesList:
     """
     Получить пагинированный список курсов, на которых обучается текущий пользователь.
     """
-    pass
-
+    result = await courses_service.get_courses_for_user(user=user, page=page, size=size)
+    return result
 
 @courses_router.get(
     "/controlled-courses",

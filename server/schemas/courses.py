@@ -1,5 +1,4 @@
 import uuid
-
 from pydantic import BaseModel, ConfigDict, Field
 
 from server.schemas.common import TimestampsMixin
@@ -134,3 +133,13 @@ class CourseFullListResponse(
         description="Количество курсов",
         examples=[1],
     )
+
+
+class CourseInfo(CourseByID, CourseByName):
+    model_config = ConfigDict(from_attributes=True, extra="ignore")
+
+    description: str = Field(description="Описание курса")
+
+
+class CoursesList(RootModel[list[CourseInfo]]):
+    pass
