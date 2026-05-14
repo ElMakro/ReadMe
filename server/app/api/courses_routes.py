@@ -12,7 +12,8 @@ from server.schemas.courses import (
     CourseCreation,
     CourseFullListResponse,
     CourseIDMixin,
-    CourseResponse, CourseUpdate,
+    CourseResponse,
+    CourseUpdate,
 )
 from server.schemas.users import UserVerification
 

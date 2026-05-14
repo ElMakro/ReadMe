@@ -1,4 +1,4 @@
-from fastapi import APIRouter, status
+from fastapi import APIRouter
 
 notes_router = APIRouter(
     prefix="/notes",
