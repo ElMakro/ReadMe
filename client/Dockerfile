@@ -13,7 +13,7 @@ ENV PYTHONBUFFERED=1 \
 
 USER readmeclientuser
 
-COPY requirements.txt .
+COPY --chown=readmeclientuser:readmeclientgroup requirements.txt .
 RUN pip install --no-cache-dir --user -r requirements.txt
 
 COPY --chown=readmeclientuser:readmeclientgroup . ./client/
