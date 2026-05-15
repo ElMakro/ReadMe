@@ -41,7 +41,8 @@ class CoursesService:
             user: UserVerification,
             name: str,
             description: str,
-            is_open: bool,
+            is_public: bool,
+            is_content_public: bool,
     ) -> CourseIDMixin:
         if user.role == Role.STUDENT:
             raise HTTPException(
@@ -51,7 +52,8 @@ class CoursesService:
             name=name,
             description=description,
             professor_id=user.id,
-            is_open=is_open,
+            is_public=is_public,
+            is_content_public=is_content_public,
         )
 
     async def get_course_by_id(

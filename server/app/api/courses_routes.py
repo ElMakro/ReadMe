@@ -57,7 +57,8 @@ async def create_course(
         user,
         course_data.name,
         course_data.description,
-        course_data.is_open,
+        course_data.is_public,
+        course_data.is_content_public,
     )
 
 

@@ -57,7 +57,8 @@ class CoursesManager:
             name: str,
             description: str,
             professor_id: uuid.UUID,
-            is_open: bool,
+            is_public: bool,
+            is_content_public: bool,
     ) -> CourseIDMixin:
         async with self.db.db_session() as session:
             query = insert(
@@ -66,7 +67,8 @@ class CoursesManager:
                 name=name,
                 description=description,
                 professor_id=professor_id,
-                is_open=is_open,
+                is_public=is_public,
+                is_content_public=is_content_public,
             ).returning(
                 self.courses_model.id,
             )
