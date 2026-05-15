@@ -63,41 +63,6 @@ async def create_course(
 
 
 @courses_router.get(
-    "/{course_id}",
-    summary="Получить курс по его идентификатору",
-    response_description="Курс успешно найден",
-    status_code=status.HTTP_200_OK,
-    response_model=CourseResponse,
-    responses={
-        status.HTTP_403_FORBIDDEN            : {
-            "description": "Пользователь не имеет прав на просмотр данного курса",
-        },
-        status.HTTP_404_NOT_FOUND            : {
-            "description": "Курса с таким идентификатором не существует",
-        },
-        status.HTTP_422_UNPROCESSABLE_CONTENT: {
-            "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
-        },
-    },
-    openapi_extra=openapi_extra_authorization_cookie,
-)
-async def get_course_by_id(
-        user: Annotated[UserVerification, Depends(
-            get_current_user,
-        )],
-        course_id: UUID = Path(
-            ...,
-            description="Уникальный идентификатор курса",
-        ),
-        courses_service: CoursesService = Depends(
-            CoursesService,
-        ),
-) -> CourseResponse:
-    """Получить полную информацию о курсе по его идентификатору."""
-    pass
-
-
-@courses_router.get(
     "/search/{course_name_part}",
     summary="Поиск курсов по названию",
     response_description="Список курсов, соответствующих критериям поиска",
@@ -371,9 +336,12 @@ async def self_enroll_on_course(
         courses_service: CoursesService = Depends(
             CoursesService,
         ),
-):
+) -> None:
     """Записать текущего пользователя на курс"""
-    pass
+    await courses_service.self_enroll_on_course(
+        user,
+        course_id,
+    )
 
 
 @courses_router.post(
@@ -405,3 +373,41 @@ async def self_unenroll_from_course(
 ):
     """Отписать текущего пользователя от курса"""
     pass
+
+
+@courses_router.get(
+    "/{course_id}",
+    summary="Получить курс по его идентификатору",
+    response_description="Курс успешно найден",
+    status_code=status.HTTP_200_OK,
+    response_model=CourseResponse,
+    responses={
+        status.HTTP_403_FORBIDDEN            : {
+            "description": "Пользователь не имеет прав на просмотр данного курса",
+        },
+        status.HTTP_404_NOT_FOUND            : {
+            "description": "Курса с таким идентификатором не существует",
+        },
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {
+            "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
+        },
+    },
+    openapi_extra=openapi_extra_authorization_cookie,
+)
+async def get_course_by_id(
+        user: Annotated[UserVerification, Depends(
+            get_current_user,
+        )],
+        course_id: UUID = Path(
+            ...,
+            description="Уникальный идентификатор курса",
+        ),
+        courses_service: CoursesService = Depends(
+            CoursesService,
+        ),
+) -> CourseResponse:
+    """Получить полную информацию о курсе по его идентификатору."""
+    return await courses_service.get_course_by_id(
+        user,
+        course_id,
+    )

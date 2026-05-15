@@ -3,11 +3,24 @@ from uuid import UUID
 
 from fastapi import Depends
 from sqlalchemy import insert, select
+from sqlalchemy.exc import IntegrityError
 
 from server.config.db_dependency import DBDependency
 from server.database.models import Courses, CoursesForStudents
 from server.schemas.courses import CourseIDMixin, CourseResponse, CoursesList
 from server.schemas.users import UserVerification
+
+
+class UserAlreadyEnrolledError(
+    ValueError,
+):
+    pass
+
+
+class CourseAccessPermissionError(
+    ValueError,
+):
+    pass
 
 
 class CoursesManager:
@@ -75,7 +88,7 @@ class CoursesManager:
             result = await session.execute(
                 query,
             )
-            created_course = result.mappings().one()
+            created_course = result.scalars().one()
 
             await session.commit()
             return CourseIDMixin.model_validate(
@@ -97,16 +110,55 @@ class CoursesManager:
             result = await session.execute(
                 query,
             )
-            course = result.mappings().one_or_none()
-            print(
-                course,
-            )
+            course = result.scalars().one_or_none()
 
-        return CourseResponse.model_validate(
+        if course is None:
+            return None
+
+        course = CourseResponse.model_validate(
             course,
-        ) if course else None
+        )
+
+        if course.is_public:
+            return course
+
+        if course.professor_id == user.id:
+            return course
+
+        async with self.db.db_session() as session:
+            query = select(
+                self.courses_for_students_model,
+            ).where(
+                self.courses_for_students_model.student_id == user.id,
+                self.courses_for_students_model.course_id == course_id,
+            )
+            result = await session.execute(
+                query,
+            )
+            record = result.one_or_none()
+
+        if record:
+            return course
+
+        raise CourseAccessPermissionError()
 
     async def self_enroll_on_course(
             self,
-    ):
-        pass
+            user: UserVerification,
+            course_id: UUID,
+    ) -> None:
+        async with self.db.db_session() as session:
+            query = insert(
+                self.courses_for_students_model,
+            ).values(
+                student_id=user.id,
+                course_id=course_id,
+            )
+
+            try:
+                await session.execute(
+                    query,
+                )
+                await session.commit()
+            except IntegrityError:
+                raise UserAlreadyEnrolledError()
