@@ -1,10 +1,20 @@
+from typing import NamedTuple
+
 from fastapi import Depends, HTTPException, Response, status
 
 from server.app.service.auth_handler import AuthHandler
 from server.app.service.users_manager import UsersManager
 from server.config.settings import settings
+from server.enums.role import Role
 from server.schemas.common import MessageResponse
 from server.schemas.users import CreatedUserInfo, NewUser, UserAuthentication, UserRegistration, UserVerification
+
+
+class StoredUserInfo(NamedTuple):
+    token: str
+    nickname: str
+    email: str | None
+    role: Role
 
 
 class UsersService:
@@ -55,10 +65,12 @@ class UsersService:
             )
         token, session_id = await self.auth_handler.create_token(
             existing_user.id,
-            existing_user.role,
         )
         await self.manager.store_token(
-            token=token,
+            user_info=StoredUserInfo(token=token,
+                                     nickname=existing_user.nickname,
+                                     email=existing_user.email,
+                                     role=existing_user.role,),
             user_id=existing_user.id,
             session_id=session_id,
         )

@@ -18,12 +18,12 @@ async def get_current_user(
     decoded_token = await handler.decode_token(token=token)
     user_id = decoded_token.get("user_id")
     session_id = decoded_token.get("session_id")
-    if not await manager.get_token(user_id=user_id, session_id=session_id):
+    if not (token, user := await manager.get_user_info(user_id=user_id, session_id=session_id)):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Токен недействителен.")
-    user = await manager.get_user_by_id(user_id=uuid.UUID(user_id))
-    if user is None:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Пользователь не найден.")
-    return UserVerification(id=user_id, role=user.role, nickname=user.nickname, session_id=session_id)
+    # user = await manager.get_user_by_id(user_id=uuid.UUID(user_id))
+    # if user is None:
+    #     raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Пользователь не найден.")
+    return UserVerification(id=user_id, role=user.role, email=user.email, nickname=user.nickname, session_id=session_id)
 
 
 async def check_role(

@@ -4,6 +4,7 @@ from fastapi import Depends, HTTPException
 from sqlalchemy import insert, select
 from sqlalchemy.exc import IntegrityError
 
+from server.app.service.users_service import StoredUserInfo
 from server.config.db_dependency import DBDependency
 from server.config.redis_dependency import RedisDependency
 from server.database.models import Users
@@ -36,6 +37,7 @@ class UsersManager:
             query = select(
                 self.model.id,
                 self.model.nickname,
+                self.model.email,
                 self.model.role,
                 self.model.password
             ).where(self.model.nickname == nickname)
@@ -49,18 +51,17 @@ class UsersManager:
             query = select(
                 self.model.id,
                 self.model.nickname,
-                self.model.role
             ).where(self.model.id == user_id)
 
             result = await session.execute(query)
             user = result.mappings().one_or_none()
             return UserVerification(**user) if user else None
 
-    async def store_token(self, token: str, user_id: uuid.UUID, session_id: str) -> None:
+    async def store_token(self, user_info: StoredUserInfo, user_id: uuid.UUID, session_id: str) -> None:
         async with self.redis.get_client() as client:
-            await client.set(f"{user_id}:{session_id}", token)
+            await client.set(f"{user_id}:{session_id}", user_info)
 
-    async def get_token(self, user_id: uuid.UUID, session_id: str) -> str | None:
+    async def get_user_info(self, user_id: uuid.UUID, session_id: str) -> StoredUserInfo | None:
         async with self.redis.get_client() as client:
             return await client.get(f"{user_id}:{session_id}")
 
