@@ -160,41 +160,6 @@ async def get_controlled_courses(
 
 
 @courses_router.put(
-    "/{course_id}",
-    summary="Обновить данные о курсе",
-    response_description="Данные курса успешно обновлены",
-    status_code=status.HTTP_204_NO_CONTENT,
-    responses={
-        status.HTTP_403_FORBIDDEN            : {
-            "description": "Пользователь не имеет прав на редактирование курса",
-        },
-        status.HTTP_404_NOT_FOUND            : {
-            "description": "Курса с таким ID не существует",
-        },
-        status.HTTP_422_UNPROCESSABLE_CONTENT: {
-            "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
-        },
-    },
-    openapi_extra=openapi_extra_authorization_cookie,
-)
-async def update_course(
-        course_update: CourseUpdate,
-        user: Annotated[UserVerification, Depends(
-            get_current_user,
-        )],
-        course_id: UUID = Path(
-            ...,
-            description="Уникальный идентификатор курса",
-        ),
-        courses_service: CoursesService = Depends(
-            CoursesService,
-        ),
-):
-    """Обновить информацию о курсе (только для преподавателя курса или администратора системы)."""
-    pass
-
-
-@courses_router.put(
     "/{course_id}/change_owner",
     summary="Сменить владельца курса",
     response_description="Владелец курса успешно изменён",
@@ -235,45 +200,8 @@ async def change_course_owner(
     pass
 
 
-@courses_router.delete(
-    "/{course_id}",
-    summary="Удалить курс",
-    response_description="Курс успешно удалён",
-    status_code=status.HTTP_204_NO_CONTENT,
-    responses={
-        status.HTTP_403_FORBIDDEN            : {
-            "description": "Пользователь не имеет прав на удаление курса",
-        },
-        status.HTTP_404_NOT_FOUND            : {
-            "description": "Курса с таким идентификатором не существует",
-        },
-        status.HTTP_422_UNPROCESSABLE_CONTENT: {
-            "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
-        },
-    },
-    openapi_extra=openapi_extra_authorization_cookie,
-)
-async def delete_course(
-        user: Annotated[UserVerification, Depends(
-            get_current_user,
-        )],
-        course_id: UUID = Path(
-            ...,
-            description="Уникальный идентификатор курса",
-        ),
-        courses_service: CoursesService = Depends(
-            CoursesService,
-        ),
-) -> None:
-    """
-    Удалить курс и все связанные с ним данные (разделы, темы, заметки студентов).
-    Только преподаватель курса или администратор системы могут его удалить.
-    """
-    pass
-
-
 @courses_router.put(
-    "/put-content/{course_id}",
+    "/{course_id}/put-content",
     summary="Установить контент оглавления курса",
     status_code=status.HTTP_204_NO_CONTENT,
     responses={
@@ -306,7 +234,7 @@ async def put_course_content(
 
 
 @courses_router.post(
-    "/enroll/{course_id}",
+    "/{course_id}/enroll",
     summary="Записаться на курс",
     status_code=status.HTTP_204_NO_CONTENT,
     response_description="Текущий пользователь успешно записан на курс",
@@ -318,7 +246,7 @@ async def put_course_content(
             "description": "Курса с таким идентификатором не существует",
         },
         status.HTTP_409_CONFLICT             : {
-            "description": "Пользователь уже записан на данный курс",
+            "description": "Пользователь уже записан на данный курс или является преподавателем данного курса",
         },
         status.HTTP_422_UNPROCESSABLE_CONTENT: {
             "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
@@ -346,7 +274,7 @@ async def self_enroll_on_course(
 
 
 @courses_router.post(
-    "/unenroll/{course_id}",
+    "/{course_id}/unenroll",
     summary="Отписаться от курса",
     status_code=status.HTTP_204_NO_CONTENT,
     response_description="Текущий пользователь успешно отписан от курса",
@@ -412,3 +340,75 @@ async def get_course_by_id(
         user,
         course_id,
     )
+
+
+@courses_router.put(
+    "/{course_id}",
+    summary="Обновить данные о курсе",
+    response_description="Данные курса успешно обновлены",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={
+        status.HTTP_403_FORBIDDEN            : {
+            "description": "Пользователь не имеет прав на редактирование курса",
+        },
+        status.HTTP_404_NOT_FOUND            : {
+            "description": "Курса с таким ID не существует",
+        },
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {
+            "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
+        },
+    },
+    openapi_extra=openapi_extra_authorization_cookie,
+)
+async def update_course(
+        course_update: CourseUpdate,
+        user: Annotated[UserVerification, Depends(
+            get_current_user,
+        )],
+        course_id: UUID = Path(
+            ...,
+            description="Уникальный идентификатор курса",
+        ),
+        courses_service: CoursesService = Depends(
+            CoursesService,
+        ),
+):
+    """Обновить информацию о курсе (только для преподавателя курса или администратора системы)."""
+    pass
+
+
+@courses_router.delete(
+    "/{course_id}",
+    summary="Удалить курс",
+    response_description="Курс успешно удалён",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={
+        status.HTTP_403_FORBIDDEN            : {
+            "description": "Пользователь не имеет прав на удаление курса",
+        },
+        status.HTTP_404_NOT_FOUND            : {
+            "description": "Курса с таким идентификатором не существует",
+        },
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {
+            "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
+        },
+    },
+    openapi_extra=openapi_extra_authorization_cookie,
+)
+async def delete_course(
+        user: Annotated[UserVerification, Depends(
+            get_current_user,
+        )],
+        course_id: UUID = Path(
+            ...,
+            description="Уникальный идентификатор курса",
+        ),
+        courses_service: CoursesService = Depends(
+            CoursesService,
+        ),
+) -> None:
+    """
+    Удалить курс и все связанные с ним данные (разделы, темы, заметки студентов).
+    Только преподаватель курса или администратор системы могут его удалить.
+    """
+    pass
