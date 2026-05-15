@@ -1,8 +1,8 @@
 from datetime import datetime
-from typing import Literal
+from typing import Annotated, Literal
 
 from fastapi import Query
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, BeforeValidator, ConfigDict, Field
 
 FORBIDDEN_ERROR_TEXT = "Недостаточно прав для выполнения операции"
 NOT_FOUND_ERROR_TEXT = "Запрашиваемый ресурс не найден"
@@ -47,6 +47,27 @@ class MessageResponse(
     )
 
 
+def convert_to_int(
+        value,
+):
+    if isinstance(
+            value,
+            str,
+    ):
+        return int(
+            value,
+        )
+    return value
+
+
+RecordsPerPageType = Annotated[
+    Literal[5, 10, 15, 20, 30],
+    BeforeValidator(
+        convert_to_int,
+    ),
+]
+
+
 class PaginationParameters(
     BaseModel,
 ):
@@ -61,7 +82,7 @@ class PaginationParameters(
         examples=[1, 2, 3],
         default=1,
     )
-    records_per_page: Literal[5, 10, 15, 20, 30] = Query(
+    records_per_page: RecordsPerPageType = Query(
         description="Количество записей на странице",
         default=10,
     )
