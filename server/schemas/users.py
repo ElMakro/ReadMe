@@ -141,6 +141,7 @@ class UserInfo(
 class UserVerification(
     UserByID,
     UserByNickname,
+    UserByEmail,
 ):
     model_config = ConfigDict(
         from_attributes=True,
