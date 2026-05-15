@@ -1,14 +1,13 @@
 import os
+from math import ceil
 from uuid import UUID
 
 import httpx
-from fastapi import FastAPI, Response, status, Query
+from fastapi import FastAPI, Query, Response, status
 from fastapi.requests import Request
-from fastapi.responses import JSONResponse,  RedirectResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from math import ceil
-
 
 STATIC_PATH = os.path.join(str(os.path.dirname(__file__)), "static")
 client_app = FastAPI()
