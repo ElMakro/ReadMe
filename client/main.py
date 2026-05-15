@@ -35,8 +35,8 @@ def search_courses(query: str, courses: list) -> list:
     return [
         c for c in courses
         if q in c["title"].lower()
-        or q in c["instructor"].lower()
-        or q in c["description"].lower()
+           or q in c["instructor"].lower()
+           or q in c["description"].lower()
     ]
 
 
@@ -52,9 +52,9 @@ async def main_page(request: Request):
 
 @client_app.get("/courses")
 async def get_courses(
-    page: int = Query(1, ge=1),
-    limit: int = Query(8, ge=1, le=100),
-    search: str = Query("", max_length=200)
+        page: int = Query(1, ge=1),
+        limit: int = Query(8, ge=1, le=100),
+        search: str = Query("", max_length=200)
 ):
     filtered = search_courses(search, ALL_COURSES)
     total = len(filtered)
@@ -156,6 +156,7 @@ async def profile_redirect(request: Request):
             },
             "error": "Сервер временно недоступен. Попробуйте позже."
         })
+
 
 @client_app.get("/me/{id}")
 async def profile(request: Request, id: str):
