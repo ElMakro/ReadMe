@@ -1,20 +1,11 @@
-from typing import NamedTuple
-
 from fastapi import Depends, HTTPException, Response, status
 
 from server.app.service.auth_handler import AuthHandler
 from server.app.service.users_manager import UsersManager
 from server.config.settings import settings
-from server.enums.role import Role
 from server.schemas.common import MessageResponse
-from server.schemas.users import CreatedUserInfo, NewUser, UserAuthentication, UserRegistration, UserVerification
-
-
-class StoredUserInfo(NamedTuple):
-    token: str
-    nickname: str
-    email: str | None
-    role: Role
+from server.schemas.users import CreatedUserInfo, NewUser, UserAuthentication, UserRegistration, UserVerification, \
+    StoredUserInfo
 
 
 class UsersService:

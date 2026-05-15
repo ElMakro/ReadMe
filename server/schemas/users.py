@@ -150,3 +150,29 @@ class UserVerification(
 
     role: Role
     session_id: uuid.UUID | str | None = None
+
+
+class UserProfile(
+    UserByID,
+    UserByNickname,
+    UserByEmail
+):
+    model_config = ConfigDict(
+        from_attributes=True,
+        extra='ignore',
+    )
+
+    role: Role
+
+
+class StoredUserInfo(
+    UserByNickname,
+    UserByEmail,
+):
+    model_config = ConfigDict(
+        from_attributes=True,
+        extra='ignore',
+    )
+
+    token: str
+    role: Role
