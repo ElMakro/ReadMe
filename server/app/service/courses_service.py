@@ -3,7 +3,12 @@ from uuid import UUID
 from fastapi import Depends, HTTPException, status
 
 from server.app.service.auth_handler import AuthHandler
-from server.app.service.courses_manager import CourseAccessPermissionError, CoursesManager, UserAlreadyEnrolledError
+from server.app.service.courses_manager import (
+    CourseAccessPermissionError,
+    CourseExistenceError,
+    CoursesManager,
+    UserEnrollmentError,
+)
 from server.enums.role import Role
 from server.schemas.courses import CourseIDMixin, CourseResponse, CoursesList
 from server.schemas.users import UserVerification
@@ -61,16 +66,19 @@ class CoursesService:
             user: UserVerification,
             course_id: UUID,
     ) -> CourseResponse:
-        course = await self.courses_manager.get_course_by_id(
-            user,
-            course_id,
-        )
-
-        if course:
+        try:
+            course = await self.courses_manager.get_course_by_id(
+                user,
+                course_id,
+            )
             return CourseResponse.model_validate(
                 course,
             )
-        else:
+        except CourseAccessPermissionError:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+            )
+        except CourseExistenceError:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
             )
@@ -89,7 +97,11 @@ class CoursesService:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
             )
-        except UserAlreadyEnrolledError:
+        except CourseExistenceError:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+            )
+        except UserEnrollmentError:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
             )

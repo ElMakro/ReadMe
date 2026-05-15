@@ -11,13 +11,19 @@ from server.schemas.courses import CourseIDMixin, CourseResponse, CoursesList
 from server.schemas.users import UserVerification
 
 
-class UserAlreadyEnrolledError(
+class UserEnrollmentError(
     ValueError,
 ):
     pass
 
 
 class CourseAccessPermissionError(
+    ValueError,
+):
+    pass
+
+
+class CourseExistenceError(
     ValueError,
 ):
     pass
@@ -88,7 +94,7 @@ class CoursesManager:
             result = await session.execute(
                 query,
             )
-            created_course = result.scalars().one()
+            created_course = result.mappings().one()
 
             await session.commit()
             return CourseIDMixin.model_validate(
@@ -99,7 +105,7 @@ class CoursesManager:
             self,
             user: UserVerification,
             course_id: UUID,
-    ) -> CourseResponse | None:
+    ) -> CourseResponse:
         async with self.db.db_session() as session:
             query = select(
                 self.courses_model,
@@ -113,7 +119,7 @@ class CoursesManager:
             course = result.scalars().one_or_none()
 
         if course is None:
-            return None
+            raise CourseExistenceError()
 
         course = CourseResponse.model_validate(
             course,
@@ -147,6 +153,16 @@ class CoursesManager:
             user: UserVerification,
             course_id: UUID,
     ) -> None:
+        course = await self.get_course_by_id(
+            user,
+            course_id,
+        )
+
+        if course.professor_id == user.id:
+            raise UserEnrollmentError(
+                "Пользователь является преподавателем на данном курсе",
+            )
+
         async with self.db.db_session() as session:
             query = insert(
                 self.courses_for_students_model,
@@ -161,4 +177,6 @@ class CoursesManager:
                 )
                 await session.commit()
             except IntegrityError:
-                raise UserAlreadyEnrolledError()
+                raise UserEnrollmentError(
+                    "Пользователь уже записан на данный курс",
+                )

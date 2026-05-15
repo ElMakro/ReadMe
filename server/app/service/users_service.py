@@ -80,7 +80,7 @@ class UsersService:
         )
 
         return MessageResponse(
-            message="Успешный выход",
+            message="Успешный вход",
             details=None,
         )
 
