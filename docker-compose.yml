@@ -124,10 +124,10 @@ services:
                 condition: service_healthy
 
     auto-migrations:
-        image: readmeivtyarsu/readme-database-manager:dev-main-1.1.0
-        #        build:
-        #            context: .
-        #            dockerfile: database_manager/Dockerfile
+#        image: readmeivtyarsu/readme-database-manager:dev-main-1.1.0
+        build:
+            context: .
+            dockerfile: database_manager/Dockerfile
         container_name: readme-auto-migrations
         environment:
             - DB_NAME=${DB_NAME}
