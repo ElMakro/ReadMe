@@ -13,7 +13,8 @@ class Courses(IDMixin, TimestampsMixin, Base):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=True)
     professor_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
-    is_open: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    is_public: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    is_content_public: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
     __table_args__ = (
         CheckConstraint(

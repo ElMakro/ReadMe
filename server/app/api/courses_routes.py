@@ -53,7 +53,12 @@ async def create_course(
     Создать новый курс.
     Текущий пользователь автоматически становится преподавателем курса.
     """
-    pass
+    return await courses_service.create_course(
+        user,
+        course_data.name,
+        course_data.description,
+        course_data.is_open,
+    )
 
 
 @courses_router.get(
@@ -354,7 +359,7 @@ async def put_course_content(
     },
     openapi_extra=openapi_extra_authorization_cookie,
 )
-async def enroll_course(
+async def self_enroll_on_course(
         user: Annotated[UserVerification, Depends(
             get_current_user,
         )],
@@ -385,7 +390,7 @@ async def enroll_course(
     },
     openapi_extra=openapi_extra_authorization_cookie,
 )
-async def unenroll_course(
+async def self_unenroll_from_course(
         user: Annotated[UserVerification, Depends(
             get_current_user,
         )],
