@@ -2,11 +2,11 @@ import uuid
 from uuid import UUID
 
 from fastapi import Depends
-from sqlalchemy import select, insert
+from sqlalchemy import insert, select
 
 from server.config.db_dependency import DBDependency
 from server.database.models import Courses, CoursesForStudents
-from server.schemas.courses import CoursesList, CourseIDMixin, CourseResponse
+from server.schemas.courses import CourseIDMixin, CourseResponse, CoursesList
 from server.schemas.users import UserVerification
 
 
