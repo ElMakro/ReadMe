@@ -100,6 +100,7 @@ async def search_courses_by_name(
     path="/followed-courses",
     response_model=CoursesList,
     status_code=status.HTTP_200_OK,
+    summary="Получить курсы, на которых обучается пользователь",
     response_description="Курсы пользователя получены",
     responses={
         status.HTTP_401_UNAUTHORIZED         : {
