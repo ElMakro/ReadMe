@@ -5,7 +5,7 @@ from fastapi import Depends, HTTPException, status
 from server.app.service.auth_handler import AuthHandler
 from server.app.service.courses_manager import CoursesManager
 from server.enums.role import Role
-from server.schemas.courses import CoursesList, CourseIDMixin, CourseResponse
+from server.schemas.courses import CourseIDMixin, CourseResponse, CoursesList
 from server.schemas.users import UserVerification
 
 
