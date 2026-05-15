@@ -4,11 +4,10 @@ from fastapi import Depends, HTTPException
 from sqlalchemy import insert, select
 from sqlalchemy.exc import IntegrityError
 
-from server.app.service.users_service import StoredUserInfo
 from server.config.db_dependency import DBDependency
 from server.config.redis_dependency import RedisDependency
 from server.database.models import Users
-from server.schemas.users import CreatedUserInfo, NewUser, UserInfo, UserVerification
+from server.schemas.users import CreatedUserInfo, NewUser, UserInfo, UserVerification, StoredUserInfo
 
 
 class UsersManager:
@@ -59,11 +58,11 @@ class UsersManager:
 
     async def store_token(self, user_info: StoredUserInfo, user_id: uuid.UUID, session_id: str) -> None:
         async with self.redis.get_client() as client:
-            await client.set(f"{user_id}:{session_id}", user_info)
+            await client.set(f"{user_id}:{session_id}", user_info.model_dump_json())
 
     async def get_user_info(self, user_id: uuid.UUID, session_id: str) -> StoredUserInfo | None:
         async with self.redis.get_client() as client:
-            return await client.get(f"{user_id}:{session_id}")
+            return StoredUserInfo.model_validate_json(await client.get(f"{user_id}:{session_id}"))
 
     async def clear_token(self, user_id: uuid.UUID, session_id: str) -> None:
         async with self.redis.get_client() as client:

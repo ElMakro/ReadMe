@@ -1,18 +1,12 @@
 import datetime
 import uuid
-from typing import NamedTuple
 
 import jwt
 from fastapi import HTTPException, status
 from passlib.context import CryptContext
 
+from server.app.service.utils import CreatedTokenTuple
 from server.config.settings import settings
-from server.enums.role import Role
-
-
-class CreatedTokenTuple(NamedTuple):
-    encoded_jwt: str
-    session_id: str
 
 
 class AuthHandler:
