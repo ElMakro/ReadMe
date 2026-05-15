@@ -41,9 +41,14 @@ class CourseBase(
         description="Описание курса",
         examples=["Описание курса"],
     )
-    is_open: bool = Field(
+    is_public: bool = Field(
         default=True,
-        description="Открыт ли курс для записи",
+        description="Видим ли курс для всех пользователей",
+        examples=[True, False],
+    )
+    is_content_public: bool = Field(
+        default=True,
+        description="Видимо ли содержимое курса для всех пользователей",
         examples=[True, False],
     )
 
@@ -82,6 +87,16 @@ class CourseUpdate(
     is_open: bool | None = Field(
         None,
         description="Открыт ли курс для записи",
+        examples=[True, False],
+    )
+    is_public: bool = Field(
+        default=None,
+        description="Видим ли курс для всех пользователей",
+        examples=[True, False],
+    )
+    is_content_public: bool = Field(
+        default=None,
+        description="Видимо ли содержимое курса для всех пользователей",
         examples=[True, False],
     )
 
