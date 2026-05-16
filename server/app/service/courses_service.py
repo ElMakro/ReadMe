@@ -7,8 +7,16 @@ from server.app.service.courses_manager import (
     CourseAccessPermissionError,
     CoursesManager,
 )
+from server.enums.role import Role
 from server.schemas.courses import CourseIDMixin, CourseResponse, CoursesList
 from server.schemas.users import UserVerification
+
+
+class CourseUpdatePermissionError(
+    ValueError,
+):
+    """Исключение, связанное с наличием у пользователя прав на редактирование курса"""
+    pass
 
 
 class CoursesService:
@@ -110,4 +118,42 @@ class CoursesService:
         await self.courses_manager.self_unenroll_from_course(
             user,
             course_id,
+        )
+
+    async def update_course(
+            self,
+            user: UserVerification,
+            course_id: UUID,
+            new_name: str | None,
+            new_description: str | None,
+            new_is_public: bool | None,
+            new_is_content_public: bool | None,
+    ) -> None:
+        if user.role == Role.STUDENT:
+            raise CourseUpdatePermissionError(
+                "Обучающийся не имеет права на редактирование курса!",
+            )
+
+        course = await self.courses_manager.get_course_by_id(
+            course_id,
+        )
+
+        if user.role == Role.PROFESSOR and course.professor_id != user.id:
+            raise CourseUpdatePermissionError(
+                "Преподаватель может изменить только тот курс, который он ведёт!",
+            )
+
+        if new_name is None and new_description is None and new_is_public is None and new_is_content_public is None:
+            return
+
+        if (course.name == new_name and course.description == new_description and
+                course.is_public == new_is_public and course.is_content_public == new_is_content_public):
+            return
+
+        await self.courses_manager.update_course(
+            course_id,
+            new_name if new_name is not None else course.name,
+            new_description if new_description is not None else course.description,
+            new_is_public if new_is_public is not None else course.is_public,
+            new_is_content_public if new_is_content_public is not None else course.is_content_public,
         )

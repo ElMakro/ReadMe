@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Path, status
 
 from server.app.api.openapi_docs import openapi_extra_authorization_cookie
 from server.app.service.courses_manager import CourseAccessPermissionError, CourseExistenceError, UserEnrollmentError
-from server.app.service.courses_service import CoursesService
+from server.app.service.courses_service import CoursesService, CourseUpdatePermissionError
 from server.app.service.depends import get_current_user
 from server.enums.role import Role
 from server.schemas.common import UNPROCESSABLE_ENTITY_ERROR_TEXT, PaginationParameters
@@ -401,7 +401,29 @@ async def update_course(
         ),
 ):
     """Обновить информацию о курсе (только для преподавателя курса или администратора системы)."""
-    pass
+    try:
+        await courses_service.update_course(
+            user,
+            course_id,
+            course_update.name,
+            course_update.description,
+            course_update.is_public,
+            course_update.is_content_public,
+        )
+    except CourseUpdatePermissionError as error:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=str(
+                error,
+            ),
+        )
+    except CourseExistenceError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(
+                error,
+            ),
+        )
 
 
 @courses_router.delete(
