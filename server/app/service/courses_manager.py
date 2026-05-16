@@ -2,7 +2,7 @@ import uuid
 from uuid import UUID
 
 from fastapi import Depends
-from sqlalchemy import insert, select
+from sqlalchemy import delete, insert, select
 from sqlalchemy.exc import IntegrityError
 
 from server.config.db_dependency import DBDependency
@@ -103,7 +103,6 @@ class CoursesManager:
 
     async def get_course_by_id(
             self,
-            user: UserVerification,
             course_id: UUID,
     ) -> CourseResponse:
         async with self.db.db_session() as session:
@@ -119,18 +118,21 @@ class CoursesManager:
             course = result.scalars().one_or_none()
 
         if course is None:
-            raise CourseExistenceError()
+            raise CourseExistenceError(
+                "Курса с таким ID не существует!",
+            )
 
         course = CourseResponse.model_validate(
             course,
         )
 
-        if course.is_public:
-            return course
+        return course
 
-        if course.professor_id == user.id:
-            return course
-
+    async def check_is_user_enrolled_on_course(
+            self,
+            user: UserVerification,
+            course_id: UUID,
+    ) -> bool:
         async with self.db.db_session() as session:
             query = select(
                 self.courses_for_students_model,
@@ -143,10 +145,9 @@ class CoursesManager:
             )
             record = result.one_or_none()
 
-        if record:
-            return course
-
-        raise CourseAccessPermissionError()
+        return bool(
+            record,
+        )
 
     async def self_enroll_on_course(
             self,
@@ -154,13 +155,12 @@ class CoursesManager:
             course_id: UUID,
     ) -> None:
         course = await self.get_course_by_id(
-            user,
             course_id,
         )
 
         if course.professor_id == user.id:
             raise UserEnrollmentError(
-                "Пользователь является преподавателем на данном курсе",
+                "Пользователь является преподавателем на данном курсе!",
             )
 
         async with self.db.db_session() as session:
@@ -178,5 +178,27 @@ class CoursesManager:
                 await session.commit()
             except IntegrityError:
                 raise UserEnrollmentError(
-                    "Пользователь уже записан на данный курс",
+                    "Пользователь уже записан на данный курс!",
                 )
+
+    async def self_unenroll_from_course(
+            self,
+            user: UserVerification,
+            course_id: UUID,
+    ) -> None:
+        await self.get_course_by_id(
+            course_id,
+        )
+
+        async with self.db.db_session() as session:
+            query = delete(
+                self.courses_for_students_model,
+            ).where(
+                self.courses_for_students_model.student_id == user.id,
+                self.courses_for_students_model.course_id == course_id,
+            )
+
+            await session.execute(
+                query,
+            )
+            await session.commit()
