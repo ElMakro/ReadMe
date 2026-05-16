@@ -38,6 +38,19 @@ class CoursesService:
             limit,
         )
 
+    async def get_controlled_courses(
+            self,
+            user: UserVerification,
+            page: int,
+            records_per_page: int,
+    ) -> CoursesList:
+        offset = (page - 1) * records_per_page
+        return await self.courses_manager.get_controlled_courses(
+            user.id,
+            offset,
+            records_per_page,
+        )
+
     async def create_course(
             self,
             user: UserVerification,
@@ -75,7 +88,9 @@ class CoursesService:
         ):
             return course
 
-        raise CourseAccessPermissionError("Пользователь не имеет доступа к данному курсу!")
+        raise CourseAccessPermissionError(
+            "Пользователь не имеет доступа к данному курсу!",
+        )
 
     async def self_enroll_on_course(
             self,
@@ -92,7 +107,7 @@ class CoursesService:
             user: UserVerification,
             course_id: UUID,
     ) -> None:
-        await self.courses_manager.self_enroll_on_course(
+        await self.courses_manager.self_unenroll_from_course(
             user,
             course_id,
         )

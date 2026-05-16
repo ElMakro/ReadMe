@@ -58,7 +58,7 @@ async def create_course(
     if user.role == Role.STUDENT:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="У пользователя нет права на создание курса!"
+            detail="У пользователя нет права на создание курса!",
         )
 
     return await courses_service.create_course(
@@ -144,7 +144,7 @@ async def get_followed_courses(
     summary="Получить курсы, на которых преподаёт текущий пользователь",
     response_description="Список курсов, на которых преподаёт пользователь",
     status_code=status.HTTP_200_OK,
-    response_model=CourseFullListResponse,
+    response_model=CoursesList,
     responses={
         status.HTTP_422_UNPROCESSABLE_CONTENT: {
             "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
@@ -160,11 +160,15 @@ async def get_controlled_courses(
         courses_service: CoursesService = Depends(
             CoursesService,
         ),
-) -> CourseFullListResponse:
+) -> CoursesList:
     """
     Получить пагинированный список курсов, на которых преподаёт текущий пользователь.
     """
-    pass
+    return await courses_service.get_controlled_courses(
+        user,
+        pagination_parameters.page,
+        pagination_parameters.records_per_page,
+    )
 
 
 @courses_router.put(

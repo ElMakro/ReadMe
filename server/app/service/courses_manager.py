@@ -71,6 +71,34 @@ class CoursesManager:
                 courses,
             )
 
+    async def get_controlled_courses(
+            self,
+            user_id: uuid.UUID,
+            offset: int,
+            limit: int,
+    ) -> CoursesList:
+        async with self.db.db_session() as session:
+            query = select(
+                self.courses_model,
+            ).where(
+                self.courses_model.professor_id == user_id,
+            ).order_by(
+                self.courses_model.id,
+            ).offset(
+                offset,
+            ).limit(
+                limit,
+            )
+
+            result = await session.execute(
+                query,
+            )
+
+            courses = result.scalars().all()
+            return CoursesList.model_validate(
+                courses,
+            )
+
     async def create_course(
             self,
             name: str,
