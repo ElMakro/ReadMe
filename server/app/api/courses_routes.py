@@ -5,8 +5,12 @@ from fastapi import APIRouter, Depends, HTTPException, Path, status
 
 from server.app.api.openapi_docs import openapi_extra_authorization_cookie
 from server.app.service.courses_manager import CourseAccessPermissionError, CourseExistenceError, UserEnrollmentError
-from server.app.service.courses_service import CoursesService, CourseUpdatePermissionError, CourseCreatePermissionError, \
-    CoursePrivacyLevelsError
+from server.app.service.courses_service import (
+    CourseCreatePermissionError,
+    CoursePrivacyLevelsError,
+    CoursesService,
+    CourseUpdatePermissionError,
+)
 from server.app.service.depends import get_current_user
 from server.schemas.common import UNPROCESSABLE_ENTITY_ERROR_TEXT, PaginationParameters
 from server.schemas.courses import (

@@ -3,10 +3,7 @@ from uuid import UUID
 from fastapi import Depends
 
 from server.app.service.auth_handler import AuthHandler
-from server.app.service.courses_manager import (
-    CourseAccessPermissionError,
-    CoursesManager,
-)
+from server.app.service.courses_manager import CoursesManager
 from server.enums.role import Role
 from server.schemas.courses import CourseIDMixin, CourseResponse, CoursesList
 from server.schemas.users import UserVerification
@@ -30,6 +27,20 @@ class CoursePrivacyLevelsError(
     ValueError,
 ):
     """Исключение, связанное с противоречием в уровнях доступности курсов"""
+    pass
+
+
+class UserEnrollmentError(
+    ValueError,
+):
+    """Исключение, связанное с записью пользователя на курс"""
+    pass
+
+
+class CourseAccessPermissionError(
+    ValueError,
+):
+    """Исключение, связанное с отсутствием прав доступа к курсу"""
     pass
 
 
@@ -115,7 +126,7 @@ class CoursesService:
             return course
 
         if await self.courses_manager.check_is_user_enrolled_on_course(
-                user,
+                user.id,
                 course_id,
         ):
             return course
@@ -129,8 +140,25 @@ class CoursesService:
             user: UserVerification,
             course_id: UUID,
     ) -> None:
+        course = await self.courses_manager.get_course_by_id(
+            course_id,
+        )
+
+        if course.professor_id == user.id:
+            raise UserEnrollmentError(
+                "Пользователь является преподавателем на данном курсе!",
+            )
+
+        if await self.courses_manager.check_is_user_enrolled_on_course(
+                user.id,
+                course_id,
+        ):
+            raise UserEnrollmentError(
+                "Пользователь уже записан на данный курс!",
+            )
+
         await self.courses_manager.self_enroll_on_course(
-            user,
+            user.id,
             course_id,
         )
 
@@ -140,7 +168,7 @@ class CoursesService:
             course_id: UUID,
     ) -> None:
         await self.courses_manager.self_unenroll_from_course(
-            user,
+            user.id,
             course_id,
         )
 
