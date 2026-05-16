@@ -1,10 +1,10 @@
 from typing import Annotated
 
-from fastapi import APIRouter, status, Depends
+from fastapi import APIRouter, Depends, status
 
 from server.app.service.depends import get_current_user
 from server.app.service.students_service import StudentsService
-from server.schemas.users import UserVerification, UserProfile
+from server.schemas.users import UserProfile, UserVerification
 
 students_router = APIRouter(
     prefix="/students",

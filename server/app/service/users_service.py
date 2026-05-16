@@ -4,8 +4,14 @@ from server.app.service.auth_handler import AuthHandler
 from server.app.service.users_manager import UsersManager
 from server.config.settings import settings
 from server.schemas.common import MessageResponse
-from server.schemas.users import CreatedUserInfo, NewUser, UserAuthentication, UserRegistration, UserVerification, \
-    StoredUserInfo
+from server.schemas.users import (
+    CreatedUserInfo,
+    NewUser,
+    StoredUserInfo,
+    UserAuthentication,
+    UserRegistration,
+    UserVerification,
+)
 
 
 class UsersService:

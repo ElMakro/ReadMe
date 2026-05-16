@@ -1,4 +1,4 @@
-from server.schemas.users import UserVerification, UserProfile
+from server.schemas.users import UserProfile, UserVerification
 
 
 class StudentsService:
