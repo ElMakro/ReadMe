@@ -4,12 +4,12 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Path, status
 
 from server.app.api.openapi_docs import openapi_extra_authorization_cookie
-from server.app.service.courses_manager import CourseAccessPermissionError, CourseExistenceError, UserEnrollmentError
+from server.app.service.courses_manager import CourseExistenceError
 from server.app.service.courses_service import (
-    CourseCreatePermissionError,
+    CourseOperationPermissionError,
     CoursePrivacyLevelsError,
     CoursesService,
-    CourseUpdatePermissionError,
+    UserEnrollmentError,
 )
 from server.app.service.depends import get_current_user
 from server.schemas.common import UNPROCESSABLE_ENTITY_ERROR_TEXT, PaginationParameters
@@ -70,7 +70,7 @@ async def create_course(
             course_data.is_public,
             course_data.is_content_public,
         )
-    except CourseCreatePermissionError as error:
+    except CourseOperationPermissionError as error:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=str(
@@ -267,7 +267,7 @@ async def self_enroll_on_course(
             user,
             course_id,
         )
-    except CourseAccessPermissionError as error:
+    except CourseOperationPermissionError as error:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=str(
@@ -369,7 +369,7 @@ async def get_course_by_id(
             user,
             course_id,
         )
-    except CourseAccessPermissionError as error:
+    except CourseOperationPermissionError as error:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=str(
@@ -429,7 +429,7 @@ async def update_course(
             course_update.is_public,
             course_update.is_content_public,
         )
-    except CourseUpdatePermissionError as error:
+    except CourseOperationPermissionError as error:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=str(
@@ -486,4 +486,22 @@ async def delete_course(
     Удалить курс и все связанные с ним данные (разделы, темы, заметки студентов).
     Только преподаватель курса или администратор системы могут его удалить.
     """
-    pass
+    try:
+        await courses_service.delete_course(
+            user,
+            course_id,
+        )
+    except CourseOperationPermissionError as error:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=str(
+                error,
+            ),
+        )
+    except CourseExistenceError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(
+                error,
+            ),
+        )
