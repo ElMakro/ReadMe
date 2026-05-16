@@ -1,11 +1,13 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Path, status
+from fastapi import APIRouter, Depends, HTTPException, Path, status
 
 from server.app.api.openapi_docs import openapi_extra_authorization_cookie
+from server.app.service.courses_manager import CourseAccessPermissionError, CourseExistenceError, UserEnrollmentError
 from server.app.service.courses_service import CoursesService
 from server.app.service.depends import get_current_user
+from server.enums.role import Role
 from server.schemas.common import UNPROCESSABLE_ENTITY_ERROR_TEXT, PaginationParameters
 from server.schemas.courses import (
     CourseChangeOwner,
@@ -53,6 +55,12 @@ async def create_course(
     Создать новый курс.
     Текущий пользователь автоматически становится преподавателем курса.
     """
+    if user.role == Role.STUDENT:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="У пользователя нет права на создание курса!"
+        )
+
     return await courses_service.create_course(
         user,
         course_data.name,
@@ -267,10 +275,32 @@ async def self_enroll_on_course(
         ),
 ) -> None:
     """Записать текущего пользователя на курс"""
-    await courses_service.self_enroll_on_course(
-        user,
-        course_id,
-    )
+    try:
+        await courses_service.self_enroll_on_course(
+            user,
+            course_id,
+        )
+    except CourseAccessPermissionError as error:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=str(
+                error,
+            ),
+        )
+    except CourseExistenceError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(
+                error,
+            ),
+        )
+    except UserEnrollmentError as error:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(
+                error,
+            ),
+        )
 
 
 @courses_router.post(
@@ -301,7 +331,18 @@ async def self_unenroll_from_course(
         ),
 ):
     """Отписать текущего пользователя от курса"""
-    pass
+    try:
+        await courses_service.self_unenroll_from_course(
+            user,
+            course_id,
+        )
+    except CourseExistenceError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(
+                error,
+            ),
+        )
 
 
 @courses_router.get(
@@ -336,10 +377,25 @@ async def get_course_by_id(
         ),
 ) -> CourseResponse:
     """Получить полную информацию о курсе по его идентификатору."""
-    return await courses_service.get_course_by_id(
-        user,
-        course_id,
-    )
+    try:
+        return await courses_service.get_course_by_id(
+            user,
+            course_id,
+        )
+    except CourseAccessPermissionError as error:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=str(
+                error,
+            ),
+        )
+    except CourseExistenceError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(
+                error,
+            ),
+        )
 
 
 @courses_router.put(

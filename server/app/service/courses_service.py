@@ -1,15 +1,12 @@
 from uuid import UUID
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends
 
 from server.app.service.auth_handler import AuthHandler
 from server.app.service.courses_manager import (
     CourseAccessPermissionError,
-    CourseExistenceError,
     CoursesManager,
-    UserEnrollmentError,
 )
-from server.enums.role import Role
 from server.schemas.courses import CourseIDMixin, CourseResponse, CoursesList
 from server.schemas.users import UserVerification
 
@@ -49,10 +46,6 @@ class CoursesService:
             is_public: bool,
             is_content_public: bool,
     ) -> CourseIDMixin:
-        if user.role == Role.STUDENT:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-            )
         return await self.courses_manager.create_course(
             name=name,
             description=description,
@@ -66,42 +59,40 @@ class CoursesService:
             user: UserVerification,
             course_id: UUID,
     ) -> CourseResponse:
-        try:
-            course = await self.courses_manager.get_course_by_id(
+        course = await self.courses_manager.get_course_by_id(
+            course_id,
+        )
+
+        if course.is_public:
+            return course
+
+        if course.professor_id == user.id:
+            return course
+
+        if await self.courses_manager.check_is_user_enrolled_on_course(
                 user,
                 course_id,
-            )
-            return CourseResponse.model_validate(
-                course,
-            )
-        except CourseAccessPermissionError:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-            )
-        except CourseExistenceError:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-            )
+        ):
+            return course
+
+        raise CourseAccessPermissionError("Пользователь не имеет доступа к данному курсу!")
 
     async def self_enroll_on_course(
             self,
             user: UserVerification,
             course_id: UUID,
     ) -> None:
-        try:
-            await self.courses_manager.self_enroll_on_course(
-                user,
-                course_id,
-            )
-        except CourseAccessPermissionError:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-            )
-        except CourseExistenceError:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-            )
-        except UserEnrollmentError:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-            )
+        await self.courses_manager.self_enroll_on_course(
+            user,
+            course_id,
+        )
+
+    async def self_unenroll_from_course(
+            self,
+            user: UserVerification,
+            course_id: UUID,
+    ) -> None:
+        await self.courses_manager.self_enroll_on_course(
+            user,
+            course_id,
+        )
