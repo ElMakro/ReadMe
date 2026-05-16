@@ -1,7 +1,5 @@
 (function() {
     // ========== ПЕРЕКЛЮЧЕНИЕ ТЕМЫ ==========
-    const themeToggle = document.getElementById('themeToggle');
-    const themeIcon = document.getElementById('themeIcon');
     const themeText = document.getElementById('themeText');
     const htmlElement = document.documentElement;
 
@@ -13,10 +11,8 @@
 
     function updateThemeButton(theme) {
         if (theme === 'dark') {
-            themeIcon.textContent = '☀️';
             themeText.textContent = 'Свет';
         } else {
-            themeIcon.textContent = '🌙';
             themeText.textContent = 'Тьма';
         }
     }

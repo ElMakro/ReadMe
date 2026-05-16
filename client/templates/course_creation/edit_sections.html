@@ -1,0 +1,36 @@
+{# templates/edit_sections.html #}
+{% extends "base.html" %}
+{% block title %}Редактирование разделов — ReadMe{% endblock %}
+
+{% block content %}
+<div class="container-xl py-4">
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="/my-courses">Мои курсы</a></li>
+            <li class="breadcrumb-item active">Курс {{ course_id }}</li>
+        </ol>
+    </nav>
+
+    <div class="card bg-secondary border-0 shadow-sm">
+        <div class="card-body">
+            <h5 class="card-title mb-3">Разделы курса</h5>
+            <div id="sectionsList" class="mb-4">
+                <!-- динамические разделы -->
+            </div>
+            <button class="btn btn-outline-accent mb-4" id="addSectionBtn">+ Добавить раздел</button>
+            <div class="d-flex justify-content-between">
+                <a href="/my-courses" class="btn btn-outline-secondary" id="backBtn">Назад</a>
+                <button class="btn btn-accent" id="saveSectionsBtn">Сохранить</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    window.COURSE_ID = {{ course_id }};
+    window.API_BASE_URL = "{{ api_base_url }}";
+</script>
+<script src="../../static/course_creation/edit_sections.js"></script>
+{% endblock %}

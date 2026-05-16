@@ -55,7 +55,7 @@ async def main_page(request: Request):
 @client_app.get("/courses")
 async def get_courses(
         page: int = Query(1, ge=1),
-        limit: int = Query(8, ge=1, le=100),
+        limit: int = Query(6, ge=1, le=100),
         search: str = Query("", max_length=200)
 ):
     filtered = search_courses(search, ALL_COURSES)
@@ -78,7 +78,6 @@ async def get_courses(
         "total_items": total,
         "api_base_url": SERVER_URL
     }
-
 
 @client_app.get("/course/{course_id}")
 async def course_page(request: Request, course_id: int):
@@ -146,7 +145,8 @@ async def profile_redirect(request: Request):
                         "email": "",
                         "photo_url": "https://via.placeholder.com/150"
                     },
-                    "error": "Не удалось определить пользователя"
+                    "error": "Не удалось определить пользователя",
+                    "api_base_url": SERVER_URL
                 })
     except Exception as e:
         print(f"Ошибка получения текущего пользователя: {e}")
@@ -158,7 +158,9 @@ async def profile_redirect(request: Request):
                 "email": "",
                 "photo_url": "https://via.placeholder.com/150"
             },
-            "error": "Сервер временно недоступен. Попробуйте позже."
+            "error": "Сервер временно недоступен. Попробуйте позже.",
+            "api_base_url": SERVER_URL
+
         })
 
 
@@ -195,5 +197,77 @@ async def profile(request: Request, id: str):
     return templates.TemplateResponse(request, "profile.html", {
         "request": request,
         "user": user_data,
+        "api_base_url": SERVER_URL
+    })
+
+# ---------- Страница "Мои курсы" ----------
+@client_app.get("/my-courses")
+async def my_courses(request: Request):
+    return templates.TemplateResponse(request, "my_courses.html", {
+        "request": request,
+        "api_base_url": SERVER_URL
+    })
+
+# ---------- Создание нового курса (шаг 1: название) ----------
+@client_app.get("/create-course")
+async def create_course_form(request: Request):
+    return templates.TemplateResponse(request, "course_creation/create_course.html", {
+        "request": request,
+        "api_base_url": SERVER_URL
+    })
+
+# ---------- Редактирование разделов курса ----------
+@client_app.get("/course/{course_id}/sections")
+async def edit_sections(request: Request, course_id: int):
+    return templates.TemplateResponse(request, "course_creation/edit_sections.html", {
+        "request": request,
+        "course_id": course_id,
+        "api_base_url": SERVER_URL
+    })
+
+# ---------- Редактирование тем раздела ----------
+@client_app.get("/course/{course_id}/section/{section_id}/topics")
+async def edit_topics(request: Request, course_id: int, section_id: int):
+    return templates.TemplateResponse(request, "course_creation/edit_topics.html", {
+        "request": request,
+        "course_id": course_id,
+        "section_id": section_id,
+        "api_base_url": SERVER_URL
+    })
+
+# ---------- Редактирование блоков темы ----------
+@client_app.get("/course/{course_id}/section/{section_id}/topic/{topic_id}/blocks")
+async def edit_blocks(request: Request, course_id: int, section_id: int, topic_id: int):
+    return templates.TemplateResponse(request, "course_creation/edit_blocks.html", {
+        "request": request,
+        "course_id": course_id,
+        "section_id": section_id,
+        "topic_id": topic_id,
+        "api_base_url": SERVER_URL
+    })
+
+
+@client_app.get("/api/courses/created")
+async def get_created_courses(request: Request):
+    """
+    Прокси для получения курсов, созданных текущим пользователем.
+    """
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(
+                f"{SERVER_URL}/courses/created",  # предположительный эндпоинт бэкенда
+                cookies=request.cookies
+            )
+            resp.raise_for_status()
+            return JSONResponse(content=resp.json(), status_code=resp.status_code)
+    except Exception as e:
+        print(f"Ошибка получения созданных курсов: {e}")
+        # Заглушка — пустой список
+        return JSONResponse(content=[], status_code=200)
+
+@client_app.get("/created-courses")
+async def created_courses_page(request: Request):
+    return templates.TemplateResponse(request, "created_courses.html", {
+        "request": request,
         "api_base_url": SERVER_URL
     })

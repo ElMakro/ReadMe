@@ -152,10 +152,10 @@ services:
         restart: "no"
 
     client:
-        image: readmeivtyarsu/readme-client:dev-main-1.1.0
-        #        build:
-        #            context: client
-        #            dockerfile: Dockerfile
+#        image: readmeivtyarsu/readme-client:dev-main-1.1.0
+        build:
+            context: client
+            dockerfile: Dockerfile
         container_name: readme-client
         environment:
             - CLIENT_PORT=${CLIENT_PORT}
