@@ -101,7 +101,7 @@ class CourseUpdate(
     )
 
 
-class CourseChangeOwner(
+class CourseChangeProfessor(
     BaseModel,
 ):
     """Схема запроса на смену владельца курса"""
