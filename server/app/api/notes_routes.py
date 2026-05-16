@@ -1,10 +1,10 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, status
 
 from server.app.service.depends import get_current_user
 from server.app.service.notes_service import NotesService
-from server.schemas.common import UNPROCESSABLE_ENTITY_ERROR_TEXT
+from server.schemas.common import UNPROCESSABLE_ENTITY_ERROR_TEXT, PaginationParameters
 from server.schemas.notes import NotesList
 from server.schemas.users import UserVerification
 
@@ -33,8 +33,7 @@ async def get_my_notes(
     user: Annotated[UserVerification, Depends(
             get_current_user,
     )],
-    page: int = Query(1, ge=1),
-    records_per_page: int = Query(10, ge=1, le=20),
+    pagination_parameters: PaginationParameters = Depends(),
     notes_service: NotesService = Depends(
         NotesService,
     ),
@@ -44,6 +43,6 @@ async def get_my_notes(
     """
     return await notes_service.get_notes_for_user(
         user=user,
-        page=page,
-        size=records_per_page,
+        page=pagination_parameters.page,
+        size=pagination_parameters.records_per_page,
     )
