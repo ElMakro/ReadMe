@@ -5,19 +5,28 @@
     const searchInput = document.getElementById('searchInput');
     const filtersBtn = document.getElementById('filtersBtn');
     const pageInfo = document.getElementById('pageInfo');
+    const myCoursesBtn = document.getElementById('myCoursesBtn');
+    const manageCoursesBtn = document.getElementById('manageCoursesBtn');
 
     let currentPage = 1;
     let currentSearch = '';
     let totalPages = 1;
-    const limit = 8;
+    const limit = 6;
 
-    // Определяет, какой эндпоинт использовать для получения курсов
+    async function checkAuth() {
+        if (localStorage.getItem('loggedIn') === "true") {
+            myCoursesBtn.style.display = '';
+            manageCoursesBtn.style.display = '';
+        } else {
+            myCoursesBtn.style.display = 'none';
+            manageCoursesBtn.style.display = 'none';
+        }
+    }
+
     function getApiUrl() {
-        // Пока всегда один эндпоинт; при авторизации можно будет переключить на /courses/my-courses
         return '/courses';
     }
 
-    // Загрузка курсов с сервера
     async function fetchCourses(page = 1, search = '') {
         const apiUrl = getApiUrl();
         try {
@@ -38,7 +47,6 @@
         }
     }
 
-    // Отрисовка карточек
     function renderCourses(courses) {
         coursesGrid.innerHTML = '';
 
@@ -70,7 +78,6 @@
         return div.innerHTML;
     }
 
-    // Пагинация
     function updatePagination() {
         prevBtn.disabled = currentPage <= 1;
         nextBtn.disabled = currentPage >= totalPages;
@@ -79,6 +86,7 @@
         }
     }
 
+    // Навигация
     prevBtn.addEventListener('click', () => {
         if (currentPage > 1) {
             fetchCourses(currentPage - 1, currentSearch);
@@ -109,10 +117,21 @@
         filtersBtn.addEventListener('click', () => alert('Фильтры курсов (демо)'));
     }
 
-    // Реакция на авторизацию
-    window.addEventListener('auth-changed', function(e) {
-        fetchCourses(currentPage, currentSearch);
-    });
+    // Обработчики для кнопок "Мои курсы" и "Мастерская курсов"
+    if (myCoursesBtn) {
+        myCoursesBtn.addEventListener('click', () => {
+            window.location.href = '/my-courses';
+        });
+    }
+    if (manageCoursesBtn) {
+        manageCoursesBtn.addEventListener('click', () => {
+            window.location.href = '/created-courses';
+        });
+    }
 
+    window.addEventListener('auth-changed', function(e) {
+        checkAuth();
+    });
+    checkAuth();
     fetchCourses(1);
 })();

@@ -7,6 +7,8 @@
 
         const logout_url = `${window.API_BASE_URL}auth/logout`;
 
+        console.log(`${logout_url}`)
+
         try {
             const response = await fetch(logout_url, {
                 method: 'GET',

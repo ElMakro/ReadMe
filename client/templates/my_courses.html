@@ -1,0 +1,21 @@
+{# templates/my_courses.html #}
+{% extends "base.html" %}
+{% block title %}Мои курсы — ReadMe{% endblock %}
+
+{% block content %}
+<div class="container-xl py-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="section-title">Мои курсы</h1>
+    </div>
+
+    <div class="courses-grid row g-4 row-cols-1 row-cols-md-2 row-cols-lg-3" id="myCoursesGrid">
+        <!-- карточки будут заполнены JS -->
+        <div class="col-12 text-center py-5 text-muted">Загрузка...</div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>window.API_BASE_URL = "{{ api_base_url }}";</script>
+<script src="../static/my_courses.js"></script>
+{% endblock %}
