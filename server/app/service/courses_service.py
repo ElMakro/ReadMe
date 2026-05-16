@@ -19,6 +19,20 @@ class CourseUpdatePermissionError(
     pass
 
 
+class CourseCreatePermissionError(
+    ValueError,
+):
+    """Исключение, связанное с наличием у пользователя прав на создание курса"""
+    pass
+
+
+class CoursePrivacyLevelsError(
+    ValueError,
+):
+    """Исключение, связанное с противоречием в уровнях доступности курсов"""
+    pass
+
+
 class CoursesService:
     def __init__(
             self,
@@ -67,6 +81,16 @@ class CoursesService:
             is_public: bool,
             is_content_public: bool,
     ) -> CourseIDMixin:
+        if user.role == Role.STUDENT:
+            raise CourseCreatePermissionError(
+                "Обучающийся не имеет права на создание курса!",
+            )
+
+        if not is_public and is_content_public:
+            raise CoursePrivacyLevelsError(
+                "Содержимое курса не может быть публичным, если сам курс непубличный!",
+            )
+
         return await self.courses_manager.create_course(
             name=name,
             description=description,
@@ -146,14 +170,25 @@ class CoursesService:
         if new_name is None and new_description is None and new_is_public is None and new_is_content_public is None:
             return
 
-        if (course.name == new_name and course.description == new_description and
-                course.is_public == new_is_public and course.is_content_public == new_is_content_public):
+        result_name = new_name if new_name is not None else course.name
+        result_description = new_description if new_description is not None else course.description
+        result_is_public = new_is_public if new_is_public is not None else course.is_public
+        result_is_content_public = new_is_content_public if (new_is_content_public
+                                                             is not None) else course.is_content_public
+
+        if not result_is_public and result_is_content_public:
+            raise CoursePrivacyLevelsError(
+                "Содержимое курса не может быть публичным, если сам курс непубличный!",
+            )
+
+        if (course.name == result_name and course.description == result_description and
+                course.is_public == result_is_public and course.is_content_public == result_is_content_public):
             return
 
         await self.courses_manager.update_course(
             course_id,
-            new_name if new_name is not None else course.name,
-            new_description if new_description is not None else course.description,
-            new_is_public if new_is_public is not None else course.is_public,
-            new_is_content_public if new_is_content_public is not None else course.is_content_public,
+            result_name,
+            result_description,
+            result_is_public,
+            result_is_content_public,
         )
