@@ -9,17 +9,10 @@ from server.schemas.courses import CourseIDMixin, CourseResponse, CoursesList
 from server.schemas.users import UserVerification
 
 
-class CourseUpdatePermissionError(
+class CourseOperationPermissionError(
     ValueError,
 ):
-    """Исключение, связанное с наличием у пользователя прав на редактирование курса"""
-    pass
-
-
-class CourseCreatePermissionError(
-    ValueError,
-):
-    """Исключение, связанное с наличием у пользователя прав на создание курса"""
+    """Исключение, связанное с наличием у пользователя прав на операцию над курсом"""
     pass
 
 
@@ -34,13 +27,6 @@ class UserEnrollmentError(
     ValueError,
 ):
     """Исключение, связанное с записью пользователя на курс"""
-    pass
-
-
-class CourseAccessPermissionError(
-    ValueError,
-):
-    """Исключение, связанное с отсутствием прав доступа к курсу"""
     pass
 
 
@@ -93,7 +79,7 @@ class CoursesService:
             is_content_public: bool,
     ) -> CourseIDMixin:
         if user.role == Role.STUDENT:
-            raise CourseCreatePermissionError(
+            raise CourseOperationPermissionError(
                 "Обучающийся не имеет права на создание курса!",
             )
 
@@ -131,7 +117,7 @@ class CoursesService:
         ):
             return course
 
-        raise CourseAccessPermissionError(
+        raise CourseOperationPermissionError(
             "Пользователь не имеет доступа к данному курсу!",
         )
 
@@ -182,7 +168,7 @@ class CoursesService:
             new_is_content_public: bool | None,
     ) -> None:
         if user.role == Role.STUDENT:
-            raise CourseUpdatePermissionError(
+            raise CourseOperationPermissionError(
                 "Обучающийся не имеет права на редактирование курса!",
             )
 
@@ -191,7 +177,7 @@ class CoursesService:
         )
 
         if user.role == Role.PROFESSOR and course.professor_id != user.id:
-            raise CourseUpdatePermissionError(
+            raise CourseOperationPermissionError(
                 "Преподаватель может изменить только тот курс, который он ведёт!",
             )
 
@@ -219,4 +205,27 @@ class CoursesService:
             result_description,
             result_is_public,
             result_is_content_public,
+        )
+
+    async def delete_course(
+            self,
+            user: UserVerification,
+            course_id: UUID,
+    ):
+        if user.role == Role.STUDENT:
+            raise CourseOperationPermissionError(
+                "Обучающийся не имеет права на удаление курса!",
+            )
+
+        course = await self.courses_manager.get_course_by_id(
+            course_id,
+        )
+
+        if user.role == Role.PROFESSOR and course.professor_id != user.id:
+            raise CourseOperationPermissionError(
+                "Преподаватель может удалить только тот курс, который он ведёт!",
+            )
+
+        await self.courses_manager.delete_course(
+            course_id,
         )

@@ -230,3 +230,21 @@ class CoursesManager:
                 query,
             )
             await session.commit()
+
+    async def delete_course(
+            self,
+            course_id: UUID,
+    ):
+        # TODO: Доделать удаление связанных с курсом элементов
+        async with self.db.db_session() as session:
+            await session.begin()
+            query = delete(
+                self.courses_model,
+            ).where(
+                self.courses_model.id == course_id,
+            )
+
+            await session.execute(
+                query,
+            )
+            await session.commit()
