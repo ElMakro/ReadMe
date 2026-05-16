@@ -10,7 +10,7 @@ from server.app.service.depends import get_current_user
 from server.enums.role import Role
 from server.schemas.common import UNPROCESSABLE_ENTITY_ERROR_TEXT, PaginationParameters
 from server.schemas.courses import (
-    CourseChangeOwner,
+    CourseChangeProfessor,
     CourseCreation,
     CourseFullListResponse,
     CourseIDMixin,
@@ -172,9 +172,9 @@ async def get_controlled_courses(
 
 
 @courses_router.put(
-    "/{course_id}/change_owner",
-    summary="Сменить владельца курса",
-    response_description="Владелец курса успешно изменён",
+    "/{course_id}/change_professor",
+    summary="Сменить преподавателя курса",
+    response_description="Преподаватель курса успешно изменён",
     status_code=status.HTTP_204_NO_CONTENT,
     responses={
         status.HTTP_403_FORBIDDEN            : {
@@ -192,11 +192,11 @@ async def get_controlled_courses(
     },
     openapi_extra=openapi_extra_authorization_cookie,
 )
-async def change_course_owner(
+async def change_course_professor(
         user: Annotated[UserVerification, Depends(
             get_current_user,
         )],
-        owner_data: CourseChangeOwner,
+        owner_data: CourseChangeProfessor,
         course_id: UUID = Path(
             ...,
             description="Уникальный идентификатор курса",
@@ -209,39 +209,6 @@ async def change_course_owner(
     Сменить преподавателя курса.
     Только текущий преподаватель или администратор может передать права другому пользователю.
     """
-    pass
-
-
-@courses_router.put(
-    "/{course_id}/put-content",
-    summary="Установить контент оглавления курса",
-    status_code=status.HTTP_204_NO_CONTENT,
-    responses={
-        status.HTTP_403_FORBIDDEN            : {
-            "description": "Пользователь не имеет прав на установление контента",
-        },
-        status.HTTP_404_NOT_FOUND            : {
-            "description": "Курса с таким идентификатором не существует",
-        },
-        status.HTTP_422_UNPROCESSABLE_CONTENT: {
-            "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
-        },
-    },
-    deprecated=True,
-    openapi_extra=openapi_extra_authorization_cookie,
-)
-async def put_course_content(
-        user: Annotated[UserVerification, Depends(
-            get_current_user,
-        )],
-        course_id: UUID = Path(
-            ...,
-            description="Уникальный идентификатор курса",
-        ),
-        courses_service: CoursesService = Depends(
-            CoursesService,
-        ),
-):
     pass
 
 
