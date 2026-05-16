@@ -5,9 +5,9 @@ from fastapi import APIRouter, Depends, HTTPException, Path, status
 
 from server.app.api.openapi_docs import openapi_extra_authorization_cookie
 from server.app.service.courses_manager import CourseAccessPermissionError, CourseExistenceError, UserEnrollmentError
-from server.app.service.courses_service import CoursesService, CourseUpdatePermissionError
+from server.app.service.courses_service import CoursesService, CourseUpdatePermissionError, CourseCreatePermissionError, \
+    CoursePrivacyLevelsError
 from server.app.service.depends import get_current_user
-from server.enums.role import Role
 from server.schemas.common import UNPROCESSABLE_ENTITY_ERROR_TEXT, PaginationParameters
 from server.schemas.courses import (
     CourseChangeProfessor,
@@ -36,6 +36,9 @@ courses_router = APIRouter(
         status.HTTP_403_FORBIDDEN            : {
             "description": "Пользователь не имеет прав на создание курса",
         },
+        status.HTTP_409_CONFLICT             : {
+            "description": "Конфликт уровней публичности курса (непубличный курс, но публичный контент курса)",
+        },
         status.HTTP_422_UNPROCESSABLE_CONTENT: {
             "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
         },
@@ -55,19 +58,28 @@ async def create_course(
     Создать новый курс.
     Текущий пользователь автоматически становится преподавателем курса.
     """
-    if user.role == Role.STUDENT:
+    try:
+        return await courses_service.create_course(
+            user,
+            course_data.name,
+            course_data.description,
+            course_data.is_public,
+            course_data.is_content_public,
+        )
+    except CourseCreatePermissionError as error:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="У пользователя нет права на создание курса!",
+            detail=str(
+                error,
+            ),
         )
-
-    return await courses_service.create_course(
-        user,
-        course_data.name,
-        course_data.description,
-        course_data.is_public,
-        course_data.is_content_public,
-    )
+    except CoursePrivacyLevelsError as error:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(
+                error,
+            ),
+        )
 
 
 @courses_router.get(
@@ -381,6 +393,9 @@ async def get_course_by_id(
         status.HTTP_404_NOT_FOUND            : {
             "description": "Курса с таким ID не существует",
         },
+        status.HTTP_409_CONFLICT             : {
+            "description": "Конфликт уровней публичности курса (непубличный курс, но публичный контент курса)",
+        },
         status.HTTP_422_UNPROCESSABLE_CONTENT: {
             "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
         },
@@ -420,6 +435,13 @@ async def update_course(
     except CourseExistenceError as error:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(
+                error,
+            ),
+        )
+    except CoursePrivacyLevelsError as error:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
             detail=str(
                 error,
             ),
