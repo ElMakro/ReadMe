@@ -7,7 +7,7 @@ from sqlalchemy.exc import IntegrityError
 from server.config.db_dependency import DBDependency
 from server.config.redis_dependency import RedisDependency
 from server.database.models import Users
-from server.schemas.users import CreatedUserInfo, NewUser, UserInfo, UserVerification, StoredUserInfo
+from server.schemas.users import CreatedUserInfo, NewUser, StoredUserInfo, UserInfo, UserVerification
 
 
 class UsersManager:
