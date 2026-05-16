@@ -5,10 +5,10 @@
     logoutBtn.addEventListener('click', async (e) => {
         e.preventDefault();
 
-        const logoutUrl = 'http://localhost:8080/readme/v1/auth/logout';
+        const logout_url = `${window.API_BASE_URL}auth/logout`;
 
         try {
-            const response = await fetch(logoutUrl, {
+            const response = await fetch(logout_url, {
                 method: 'GET',
                 credentials: 'include'
             });

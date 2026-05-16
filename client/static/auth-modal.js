@@ -152,7 +152,7 @@
       if (existingError) existingError.remove();
 
       let url, payload;
-      const main_url = 'http://localhost:8080/readme/v1/';
+//      const main_url = 'http://localhost:8080/api/v1/';
       if (currentMode === 'login') {
         if (loginNickname.value.trim() === '' || loginPassword.value.trim() === '') {
           showError('Заполните никнейм и пароль');
@@ -165,7 +165,9 @@
           submitBtn.disabled = false;
           return;
         }
-        url = `${main_url}auth/login`;
+//        url = `${main_url}auth/login`;
+//        url = "/auth/login";
+        auth_url = `${window.API_BASE_URL}auth/login`;
         payload = {
           nickname: loginNickname.value.trim(),
           password: loginPassword.value
@@ -186,7 +188,9 @@
           submitBtn.disabled = false;
           return;
         }
-        url = `${main_url}auth/reg`;
+//        url = `${main_url}auth/reg`;
+//        url = "/auth/reg";
+        auth_url = `${window.API_BASE_URL}auth/reg`;
         payload = {
           nickname: regNickname.value.trim(),
           email: regEmail.value.trim() || undefined,
@@ -237,7 +241,7 @@
 //      }
 
       try {
-          const response = await fetch(url, {
+          const response = await fetch(auth_url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',

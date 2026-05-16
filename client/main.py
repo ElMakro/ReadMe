@@ -16,7 +16,7 @@ client_app.mount("/static", StaticFiles(directory=STATIC_PATH), name="static")
 
 templates = Jinja2Templates(directory="templates")
 
-SERVER_URL = "http://localhost:8080/readme/v1/"
+SERVER_URL = "http://localhost:8080/api/v1/"
 
 ALL_COURSES = []
 for i in range(1, 41):
@@ -47,7 +47,9 @@ async def healthcheck() -> Response:
 
 @client_app.get("/")
 async def main_page(request: Request):
-    return templates.TemplateResponse(request, "index.html", {"request": request})
+    return templates.TemplateResponse(request, "index.html",
+    {"request": request,
+            "api_base_url": SERVER_URL})
 
 
 @client_app.get("/courses")
@@ -73,7 +75,8 @@ async def get_courses(
         "courses": page_courses,
         "page": page,
         "total_pages": total_pages,
-        "total_items": total
+        "total_items": total,
+        "api_base_url": SERVER_URL
     }
 
 
@@ -85,7 +88,8 @@ async def course_page(request: Request, course_id: int):
     return templates.TemplateResponse(request, "course.html", {
         "request": request,
         "course_id": course_id,
-        "course_title": course_title
+        "course_title": course_title,
+        "api_base_url": SERVER_URL
     })
 
 
@@ -190,5 +194,6 @@ async def profile(request: Request, id: str):
 
     return templates.TemplateResponse(request, "profile.html", {
         "request": request,
-        "user": user_data
+        "user": user_data,
+        "api_base_url": SERVER_URL
     })
