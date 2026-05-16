@@ -1,8 +1,9 @@
 import uuid
+from datetime import datetime
 from uuid import UUID
 
 from fastapi import Depends
-from sqlalchemy import delete, insert, select
+from sqlalchemy import delete, insert, select, update
 from sqlalchemy.exc import IntegrityError
 
 from server.config.db_dependency import DBDependency
@@ -224,6 +225,32 @@ class CoursesManager:
             ).where(
                 self.courses_for_students_model.student_id == user.id,
                 self.courses_for_students_model.course_id == course_id,
+            )
+
+            await session.execute(
+                query,
+            )
+            await session.commit()
+
+    async def update_course(
+            self,
+            course_id: UUID,
+            name: str,
+            description: str,
+            is_public: bool,
+            is_content_public: bool,
+    ) -> None:
+        async with self.db.db_session() as session:
+            query = update(
+                self.courses_model,
+            ).where(
+                self.courses_model.id == course_id,
+            ).values(
+                name=name,
+                description=description,
+                is_public=is_public,
+                is_content_public=is_content_public,
+                updated_at=datetime.now(),
             )
 
             await session.execute(
