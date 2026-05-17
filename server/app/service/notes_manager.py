@@ -1,7 +1,7 @@
 import uuid
 
 from fastapi import Depends
-from sqlalchemy import select
+from sqlalchemy import select, desc
 
 from server.config.db_dependency import DBDependency
 from server.database.models import Notes, Topics
@@ -25,7 +25,8 @@ class NotesManager:
                            ).join(
                 self.topics_model, self.notes_model.topic_id == self.topics_model.id
             ).where(self.notes_model.student_id == user_id
-                    ).order_by(self.notes_model.updated_at
+                    ).order_by(
+                desc(self.notes_model.updated_at)
                                ).offset(offset
                                         ).limit(limit)
             result = await session.execute(query)
