@@ -1,273 +1,311 @@
 import os
-from math import ceil
 from uuid import UUID
 
 import httpx
-from fastapi import FastAPI, Query, Response, status
-from fastapi.requests import Request
+from fastapi import FastAPI, Query, Request, Response, status
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-STATIC_PATH = os.path.join(str(os.path.dirname(__file__)), "static")
+STATIC_PATH = os.path.join(os.path.dirname(__file__), "static")
 client_app = FastAPI()
-
 client_app.mount("/static", StaticFiles(directory=STATIC_PATH), name="static")
-
 templates = Jinja2Templates(directory="templates")
 
-SERVER_URL = "http://localhost:8080/api/v1/"
+# Реальный адрес бэкенда (из спецификации)
+BACKEND_URL = "http://localhost:8080/api/v1/"
 
-ALL_COURSES = []
-for i in range(1, 41):
-    ALL_COURSES.append({
-        "id": i,
-        "title": f"Курс {i}",
-        "instructor": f"Преподаватель {i}",
-        "description": f"Описание курса {i} – подробное руководство для начинающих."
-    })
-
-
-def search_courses(query: str, courses: list) -> list:
-    if not query:
-        return courses
-    q = query.lower()
-    return [
-        c for c in courses
-        if q in c["title"].lower()
-           or q in c["instructor"].lower()
-           or q in c["description"].lower()
-    ]
-
+# ========== СТРАНИЦЫ ==========
 
 @client_app.get("/client_healthcheck")
 async def healthcheck() -> Response:
     return Response(status_code=status.HTTP_200_OK)
 
-
 @client_app.get("/")
 async def main_page(request: Request):
-    return templates.TemplateResponse(request, "index.html",
-    {"request": request,
-            "api_base_url": SERVER_URL})
-
-
-@client_app.get("/courses")
-async def get_courses(
-        page: int = Query(1, ge=1),
-        limit: int = Query(6, ge=1, le=100),
-        search: str = Query("", max_length=200)
-):
-    filtered = search_courses(search, ALL_COURSES)
-    total = len(filtered)
-    total_pages = ceil(total / limit) if total else 1
-
-    if page < 1:
-        page = 1
-    if page > total_pages:
-        page = total_pages
-
-    start = (page - 1) * limit
-    end = start + limit
-    page_courses = filtered[start:end]
-
-    return {
-        "courses": page_courses,
-        "page": page,
-        "total_pages": total_pages,
-        "total_items": total,
-        "api_base_url": SERVER_URL
-    }
+    return templates.TemplateResponse(request, "index.html", {
+        "request": request,
+        "api_base_url": BACKEND_URL
+    })
 
 @client_app.get("/course/{course_id}")
-async def course_page(request: Request, course_id: int):
-    course = next((c for c in ALL_COURSES if c["id"] == course_id), None)
-    course_title = course["title"] if course else f"Курс {course_id}"
-
+async def course_page(request: Request, course_id: str):  # course_id теперь UUID
+    # Можно заранее получить данные курса через бэкенд
     return templates.TemplateResponse(request, "course.html", {
         "request": request,
         "course_id": course_id,
-        "course_title": course_title,
-        "api_base_url": SERVER_URL
+        "api_base_url": BACKEND_URL
     })
-
-
-@client_app.post("/auth/login")
-async def proxy_login(request: Request):
-    try:
-        body = await request.json()
-        async with httpx.AsyncClient() as client:
-            resp = await client.post(f"{SERVER_URL}/auth/login", json=body)
-            resp.raise_for_status()
-            return JSONResponse(content=resp.json(), status_code=resp.status_code)
-    except Exception as e:
-        print(f"Ошибка: {e}")
-        return JSONResponse({"detail": f"Внутренняя ошибка сервера: {str(e)}"}, status_code=500)
-
-
-@client_app.post("/auth/reg")
-async def proxy_reg(request: Request):
-    try:
-        body = await request.json()
-        async with httpx.AsyncClient() as client:
-            resp = await client.post(f"{SERVER_URL}/auth/reg", json=body)
-            resp.raise_for_status()
-            return JSONResponse(content=resp.json(), status_code=resp.status_code)
-    except Exception as e:
-        print(f"Ошибка: {e}")
-        return JSONResponse({"detail": f"Внутренняя ошибка сервера: {str(e)}"}, status_code=500)
 
 
 @client_app.get("/me")
 async def profile_redirect(request: Request):
-    """
-    Проксируем запрос к бэкенду, передавая куки браузера.
-    Если получен текущий пользователь — редиректим на /me/{id}.
-    Иначе показываем страницу профиля с заглушкой и ошибкой.
-    """
-    try:
-        async with httpx.AsyncClient() as client:
-            resp = await client.get(
-                f"{SERVER_URL}/me",
-                cookies=request.cookies
-            )
-            resp.raise_for_status()
-            user_data = resp.json()
-            user_id = user_data.get("id") or user_data.get("nickname")
-            if user_id:
-                return RedirectResponse(f"/me/{user_id}")
-            else:
-                # Бэкенд вернул пустой ответ
-                return templates.TemplateResponse(request, "profile.html", {
-                    "request": request,
-                    "user": {
-                        "nickname": "unknown",
-                        "email": "",
-                        "photo_url": "https://via.placeholder.com/150"
-                    },
-                    "error": "Не удалось определить пользователя",
-                    "api_base_url": SERVER_URL
-                })
-    except Exception as e:
-        print(f"Ошибка получения текущего пользователя: {e}")
-        # Бэкенд недоступен или ошибка — показываем профиль с заглушкой
-        return templates.TemplateResponse(request, "profile.html", {
-            "request": request,
-            "user": {
-                "nickname": "",
-                "email": "",
-                "photo_url": "https://via.placeholder.com/150"
-            },
-            "error": "Сервер временно недоступен. Попробуйте позже.",
-            "api_base_url": SERVER_URL
-
-        })
-
-
-@client_app.get("/me/{id}")
-async def profile(request: Request, id: str):
-    # пробуем как UUID, потом как никнейм, иначе заглушка
-    try:
-        UUID(id)
-        is_uuid = True
-    except ValueError:
-        is_uuid = False
-
-    try:
-        if is_uuid:
-            async with httpx.AsyncClient() as client:
-                resp = await client.get(f"{SERVER_URL}/me/{id}")
-                resp.raise_for_status()
-                user_data = resp.json()
-        else:
-            # Запрос профиля по никнейму (если есть такой эндпоинт)
-            async with httpx.AsyncClient() as client:
-                resp = await client.get(f"{SERVER_URL}/users/nickname/{id}")
-                resp.raise_for_status()
-                user_data = resp.json()
-    except Exception as e:
-        print(f"Ошибка получения профиля: {e}")
-        # Заглушка, пока сервер не реализован
-        user_data = {
-            "nickname": id,
-            "email": f"{id}@example.com",
-            "photo_url": "https://via.placeholder.com/150"
-        }
-
+    # Просто отдаём шаблон, данные загрузит JS через /students/profile
     return templates.TemplateResponse(request, "profile.html", {
         "request": request,
-        "user": user_data,
-        "api_base_url": SERVER_URL
+        "user": None,          # важно: шаблон должен быть готов к None
+        "api_base_url": BACKEND_URL
     })
 
-# ---------- Страница "Мои курсы" ----------
+@client_app.get("/me/{user_id}")
+async def profile(request: Request, user_id: str):
+    # Также просто отдаём страницу. ID может пригодиться для JS, но пока не используем.
+    return templates.TemplateResponse(request, "profile.html", {
+        "request": request,
+        "user": {"id": user_id},  # минимальные данные, чтобы шаблон не упал
+        "api_base_url": BACKEND_URL
+    })
+
 @client_app.get("/my-courses")
-async def my_courses(request: Request):
+async def my_courses_page(request: Request):
     return templates.TemplateResponse(request, "my_courses.html", {
         "request": request,
-        "api_base_url": SERVER_URL
+        "api_base_url": BACKEND_URL
     })
-
-# ---------- Создание нового курса (шаг 1: название) ----------
-@client_app.get("/create-course")
-async def create_course_form(request: Request):
-    return templates.TemplateResponse(request, "course_creation/create_course.html", {
-        "request": request,
-        "api_base_url": SERVER_URL
-    })
-
-# ---------- Редактирование разделов курса ----------
-@client_app.get("/course/{course_id}/sections")
-async def edit_sections(request: Request, course_id: int):
-    return templates.TemplateResponse(request, "course_creation/edit_sections.html", {
-        "request": request,
-        "course_id": course_id,
-        "api_base_url": SERVER_URL
-    })
-
-# ---------- Редактирование тем раздела ----------
-@client_app.get("/course/{course_id}/section/{section_id}/topics")
-async def edit_topics(request: Request, course_id: int, section_id: int):
-    return templates.TemplateResponse(request, "course_creation/edit_topics.html", {
-        "request": request,
-        "course_id": course_id,
-        "section_id": section_id,
-        "api_base_url": SERVER_URL
-    })
-
-# ---------- Редактирование блоков темы ----------
-@client_app.get("/course/{course_id}/section/{section_id}/topic/{topic_id}/blocks")
-async def edit_blocks(request: Request, course_id: int, section_id: int, topic_id: int):
-    return templates.TemplateResponse(request, "course_creation/edit_blocks.html", {
-        "request": request,
-        "course_id": course_id,
-        "section_id": section_id,
-        "topic_id": topic_id,
-        "api_base_url": SERVER_URL
-    })
-
-
-@client_app.get("/api/courses/created")
-async def get_created_courses(request: Request):
-    """
-    Прокси для получения курсов, созданных текущим пользователем.
-    """
-    try:
-        async with httpx.AsyncClient() as client:
-            resp = await client.get(
-                f"{SERVER_URL}/courses/created",  # предположительный эндпоинт бэкенда
-                cookies=request.cookies
-            )
-            resp.raise_for_status()
-            return JSONResponse(content=resp.json(), status_code=resp.status_code)
-    except Exception as e:
-        print(f"Ошибка получения созданных курсов: {e}")
-        # Заглушка — пустой список
-        return JSONResponse(content=[], status_code=200)
 
 @client_app.get("/created-courses")
 async def created_courses_page(request: Request):
     return templates.TemplateResponse(request, "created_courses.html", {
         "request": request,
-        "api_base_url": SERVER_URL
+        "api_base_url": BACKEND_URL
     })
+
+@client_app.get("/create-course")
+async def create_course_form(request: Request):
+    return templates.TemplateResponse(request, "course_creation/create_course.html", {
+        "request": request,
+        "api_base_url": BACKEND_URL
+    })
+
+@client_app.get("/course/{course_id}/sections")
+async def edit_sections(request: Request, course_id: str):
+    return templates.TemplateResponse(request, "course_creation/edit_sections.html", {
+        "request": request,
+        "course_id": course_id,
+        "api_base_url": BACKEND_URL
+    })
+
+@client_app.get("/course/{course_id}/section/{section_id}/topics")
+async def edit_topics(request: Request, course_id: str, section_id: str):
+    return templates.TemplateResponse(request, "course_creation/edit_topics.html", {
+        "request": request,
+        "course_id": course_id,
+        "section_id": section_id,
+        "api_base_url": BACKEND_URL
+    })
+
+@client_app.get("/course/{course_id}/section/{section_id}/topic/{topic_id}/blocks")
+async def edit_blocks(request: Request, course_id: str, section_id: str, topic_id: str):
+    return templates.TemplateResponse(request, "course_creation/edit_blocks.html", {
+        "request": request,
+        "course_id": course_id,
+        "section_id": section_id,
+        "topic_id": topic_id,
+        "api_base_url": BACKEND_URL
+    })
+
+# ========== ПРОКСИ ДЛЯ API ==========
+
+# Авторизация
+@client_app.post("/auth/login")
+@client_app.post("/auth/reg")
+async def auth_proxy(request: Request):
+    """Прокси для /auth/login и /auth/reg"""
+    body = await request.json()
+    async with httpx.AsyncClient() as client:
+        resp = await client.post(f"{BACKEND_URL}{request.url.path}", json=body)
+        # Передаём куки от бэкенда (если есть)
+        response = JSONResponse(content=resp.json(), status_code=resp.status_code)
+        if 'set-cookie' in resp.headers:
+            response.headers['Set-Cookie'] = resp.headers['set-cookie']
+        return response
+
+@client_app.get("/auth/logout")
+async def logout_proxy(request: Request):
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(f"{BACKEND_URL}auth/logout", cookies=request.cookies)
+        response = JSONResponse(content=resp.json(), status_code=resp.status_code)
+        if 'set-cookie' in resp.headers:
+            response.headers['Set-Cookie'] = resp.headers['set-cookie']
+        return response
+
+# Профиль
+@client_app.get("/students/profile")
+async def profile_proxy(request: Request):
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(f"{BACKEND_URL}students/profile", cookies=request.cookies)
+        return JSONResponse(content=resp.json(), status_code=resp.status_code)
+
+# Курсы (поиск)
+@client_app.get("/courses/search/{course_name_part}")
+async def search_courses_proxy(request: Request, course_name_part: str, page: int = 1, records_per_page: int = 10):
+    params = {"page": page, "records_per_page": records_per_page}
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(
+            f"{BACKEND_URL}courses/search/{course_name_part}",
+            params=params,
+            cookies=request.cookies
+        )
+        return JSONResponse(content=resp.json(), status_code=resp.status_code)
+
+# Мои курсы (на которые подписан)
+@client_app.get("/courses/followed")
+async def followed_courses_proxy(request: Request, page: int = 1, records_per_page: int = 10):
+    params = {"page": page, "records_per_page": records_per_page}
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(f"{BACKEND_URL}courses/followed-courses", params=params, cookies=request.cookies)
+        return JSONResponse(content=resp.json(), status_code=resp.status_code)
+
+# Курсы, где я преподаватель
+@client_app.get("/courses/controlled")
+async def controlled_courses_proxy(request: Request, page: int = 1, records_per_page: int = 10):
+    params = {"page": page, "records_per_page": records_per_page}
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(f"{BACKEND_URL}courses/controlled-courses", params=params, cookies=request.cookies)
+        return JSONResponse(content=resp.json(), status_code=resp.status_code)
+
+# Создание курса
+@client_app.post("/courses/create")
+async def create_course_proxy(request: Request):
+    body = await request.json()
+    async with httpx.AsyncClient() as client:
+        resp = await client.post(f"{BACKEND_URL}courses/create-course", json=body, cookies=request.cookies)
+        return JSONResponse(content=resp.json(), status_code=resp.status_code)
+
+# Получение курса по ID
+@client_app.get("/courses/{course_id}")
+async def get_course_proxy(request: Request, course_id: str):
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(f"{BACKEND_URL}courses/{course_id}", cookies=request.cookies)
+        return JSONResponse(content=resp.json(), status_code=resp.status_code)
+
+# Разделы: создание
+@client_app.post("/sections/create")
+async def create_section_proxy(request: Request):
+    body = await request.json()
+    async with httpx.AsyncClient() as client:
+        resp = await client.post(f"{BACKEND_URL}sections/create-section", json=body, cookies=request.cookies)
+        return JSONResponse(content=resp.json(), status_code=resp.status_code)
+
+# Получение разделов курса
+@client_app.get("/courses/{course_id}/sections")
+async def get_sections_proxy(request: Request, course_id: str):
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(f"{BACKEND_URL}sections/by_course/{course_id}", cookies=request.cookies)
+        return JSONResponse(content=resp.json(), status_code=resp.status_code)
+
+# Темы: создание
+@client_app.post("/topics/create")
+async def create_topic_proxy(request: Request):
+    body = await request.json()
+    async with httpx.AsyncClient() as client:
+        resp = await client.post(f"{BACKEND_URL}topics/create-topic", json=body, cookies=request.cookies)
+        return JSONResponse(content=resp.json(), status_code=resp.status_code)
+
+# Получение тем раздела
+@client_app.get("/sections/{section_id}/topics")
+async def get_topics_proxy(request: Request, section_id: str):
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(f"{BACKEND_URL}topics/by-section/{section_id}", cookies=request.cookies)
+        return JSONResponse(content=resp.json(), status_code=resp.status_code)
+
+# Контент темы (сырой)
+@client_app.get("/topics/{topic_id}/raw")
+async def get_raw_content_proxy(request: Request, topic_id: str):
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(f"{BACKEND_URL}topics/get-raw-content/{topic_id}", cookies=request.cookies)
+        return JSONResponse(content=resp.json(), status_code=resp.status_code)
+
+# Контент темы (рендеренный)
+@client_app.get("/topics/{topic_id}/rendered")
+async def get_rendered_content_proxy(request: Request, topic_id: str):
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(f"{BACKEND_URL}topics/get-rendered-content/{topic_id}", cookies=request.cookies)
+        return JSONResponse(content=resp.json(), status_code=resp.status_code)
+
+# Обновление контента темы
+@client_app.put("/topics/{topic_id}/content")
+async def update_topic_content_proxy(request: Request, topic_id: str):
+    body = await request.json()
+    async with httpx.AsyncClient() as client:
+        resp = await client.put(f"{BACKEND_URL}topics/put-content/{topic_id}", json=body, cookies=request.cookies)
+        return JSONResponse(content=resp.json(), status_code=resp.status_code)
+
+# Обновление курса (PUT)
+@client_app.put("/courses/{course_id}")
+async def update_course_proxy(request: Request, course_id: str):
+    body = await request.json()
+    async with httpx.AsyncClient() as client:
+        resp = await client.put(f"{BACKEND_URL}courses/{course_id}", json=body, cookies=request.cookies)
+        return JSONResponse(content=resp.json(), status_code=resp.status_code)
+
+# Удаление курса
+@client_app.delete("/courses/{course_id}")
+async def delete_course_proxy(request: Request, course_id: str):
+    async with httpx.AsyncClient() as client:
+        resp = await client.delete(f"{BACKEND_URL}courses/{course_id}", cookies=request.cookies)
+        return JSONResponse(content=resp.json(), status_code=resp.status_code)
+
+# Запись на курс
+@client_app.post("/courses/{course_id}/enroll")
+async def enroll_course_proxy(request: Request, course_id: str):
+    async with httpx.AsyncClient() as client:
+        resp = await client.post(f"{BACKEND_URL}courses/{course_id}/enroll", cookies=request.cookies)
+        return JSONResponse(content=resp.json(), status_code=resp.status_code)
+
+# Отписка от курса
+@client_app.post("/courses/{course_id}/unenroll")
+async def unenroll_course_proxy(request: Request, course_id: str):
+    async with httpx.AsyncClient() as client:
+        resp = await client.post(f"{BACKEND_URL}courses/{course_id}/unenroll", cookies=request.cookies)
+        return JSONResponse(content=resp.json(), status_code=resp.status_code)
+
+# Обновление раздела (PUT)
+@client_app.put("/sections/{section_id}")
+async def update_section_proxy(request: Request, section_id: str):
+    body = await request.json()
+    async with httpx.AsyncClient() as client:
+        resp = await client.put(f"{BACKEND_URL}sections/{section_id}", json=body, cookies=request.cookies)
+        return JSONResponse(content=resp.json(), status_code=resp.status_code)
+
+# Удаление раздела
+@client_app.delete("/sections/{section_id}")
+async def delete_section_proxy(request: Request, section_id: str):
+    async with httpx.AsyncClient() as client:
+        resp = await client.delete(f"{BACKEND_URL}sections/{section_id}", cookies=request.cookies)
+        return JSONResponse(content=resp.json(), status_code=resp.status_code)
+
+# Обновление темы (через query-параметры, как в спецификации)
+@client_app.put("/topics/{topic_id}")
+async def update_topic_proxy(request: Request, topic_id: str, name: str = None, order_number: int = None):
+    # Формируем URL с query-параметрами
+    params = {}
+    if name is not None:
+        params["name"] = name
+    if order_number is not None:
+        params["order_number"] = order_number
+    async with httpx.AsyncClient() as client:
+        resp = await client.put(f"{BACKEND_URL}topics/{topic_id}", params=params, cookies=request.cookies)
+        return JSONResponse(content=resp.json(), status_code=resp.status_code)
+
+# Удаление темы
+@client_app.delete("/topics/{topic_id}")
+async def delete_topic_proxy(request: Request, topic_id: str):
+    async with httpx.AsyncClient() as client:
+        resp = await client.delete(f"{BACKEND_URL}topics/{topic_id}", cookies=request.cookies)
+        return JSONResponse(content=resp.json(), status_code=resp.status_code)
+
+# Рендеренный контент темы
+@client_app.get("/topics/{topic_id}/rendered")
+async def get_rendered_content_proxy(request: Request, topic_id: str):
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(f"{BACKEND_URL}topics/get-rendered-content/{topic_id}", cookies=request.cookies)
+        return JSONResponse(content=resp.json(), status_code=resp.status_code)
+
+# Установка контента темы (блоки)
+@client_app.put("/topics/{topic_id}/content")
+async def put_topic_content_proxy(request: Request, topic_id: str):
+    body = await request.json()
+    async with httpx.AsyncClient() as client:
+        resp = await client.put(f"{BACKEND_URL}topics/put-content/{topic_id}", json=body, cookies=request.cookies)
+        return JSONResponse(content=resp.json(), status_code=resp.status_code)

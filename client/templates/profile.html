@@ -4,37 +4,15 @@
 
 {% block content %}
 <div class="container-xl py-5">
-    <!-- Профиль -->
-    <div class="row mb-5">
-        <div class="col-lg-4 text-center mb-4 mb-lg-0">
-            <div class="profile-photo-wrapper mx-auto mb-3">
-                <img src="{{ user.photo_url or 'https://via.placeholder.com/150' }}" alt="Фото профиля" class="profile-photo" width="200" height="200">
-            </div>
-        </div>
-
-        <div class="col-lg-8">
-            <h3 class="mb-4">Мои Данные</h3>
-            <div class="data-item d-flex align-items-center mb-3">
-                <span class="fw-bold me-2">Никнейм:</span>
-                <span>{{ user.nickname }}</span>
-            </div>
-            <div class="data-item d-flex align-items-center mb-3">
-                <span class="fw-bold me-2">Почта:</span>
-                <span>{{ user.email }}</span>
-            </div>
-            <div class="data-item d-flex align-items-center mb-3">
-                <span class="fw-bold me-2">Пароль:</span>
-                <span id="passwordDisplay">••••••••</span>
-                <span id="togglePassword" class="ms-2" style="cursor: pointer;" title="Показать пароль">👁️</span>
-            </div>
-            <button class="btn btn-outline-accent" id="logoutBtn">Выход</button>
-        </div>
+    <div id="profileContainer">
+        <!-- Будет заполнено через JS -->
+        <div class="text-center">Загрузка профиля...</div>
     </div>
 
-    <!-- Достижения -->
-    <h3 class="mb-4">Мои Достижения</h3>
-    <div class="row row-cols-1 row-cols-md-3 g-3 mb-4">
-        <!-- карточки достижений -->
+    <!-- Достижения (можно тоже через JS или оставить статикой) -->
+    <h3 class="mb-4 mt-5">Мои Достижения</h3>
+    <div class="row row-cols-1 row-cols-md-3 g-3 mb-4" id="achievementsContainer">
+        <!-- сюда можно подгрузить достижения, пока пусто -->
     </div>
     <a href="/achievements" class="btn btn-outline-accent">Все Достижения →</a>
 </div>
@@ -42,5 +20,6 @@
 
 {% block scripts %}
 <script>window.API_BASE_URL = "{{ api_base_url }}";</script>
+<script src="../static/auth.js"></script>
 <script src="../static/profile.js"></script>
 {% endblock %}
