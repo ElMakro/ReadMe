@@ -1,7 +1,7 @@
 import uuid
 
 from fastapi import Depends
-from sqlalchemy import desc, select
+from sqlalchemy import desc, func, select
 
 from server.config.db_dependency import DBDependency
 from server.database.models import Notes, Topics
@@ -19,7 +19,7 @@ class NotesManager:
             query = select(
                 self.notes_model.id.label("id"),
                 self.notes_model.name.label("name"),
-                self.notes_model.content.label("content"),
+                func.substring(self.notes_model.content, 1, 50).label("content"),
                 self.notes_model.topic_id.label("topic_id"),
                 self.topics_model.name.label("topic_name"),
                            ).join(
