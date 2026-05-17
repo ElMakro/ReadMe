@@ -1,7 +1,9 @@
 import uuid
+from typing import Iterable
 
 from pydantic import BaseModel, ConfigDict, Field, RootModel
 
+from server.enums.course_state import CourseState
 from server.schemas.common import TimestampsMixin
 
 
@@ -129,21 +131,10 @@ class CourseResponse(
 
 
 class CourseFullListResponse(
-    BaseModel,
+    RootModel[list[CourseResponse]]
 ):
     """Схема ответа со списком полных информаций о курсах"""
-    model_config = ConfigDict(
-        from_attributes=True,
-        extra="ignore",
-    )
-
-    courses: list[CourseResponse]
-    total: int = Field(
-        ...,
-        ge=0,
-        description="Количество курсов",
-        examples=[1],
-    )
+    pass
 
 
 class CourseByName(
@@ -160,6 +151,28 @@ class CourseByName(
         min_length=1,
         max_length=255,
     )
+
+
+class CourseSearchResponse(
+    CourseIDMixin,
+    CourseByName,
+    BaseModel,
+):
+    model_config = ConfigDict(
+        from_attributes=True,
+        extra="ignore",
+    )
+
+    state: CourseState = Field(
+        ...,
+        description="Статус курса по отношению к ищущему",
+    )
+
+
+class CoursesListSearchResponse(
+    RootModel[list[CourseSearchResponse]],
+):
+    pass
 
 
 class CourseInfo(
