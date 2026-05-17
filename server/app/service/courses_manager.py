@@ -236,18 +236,28 @@ class CoursesManager:
             course_id: UUID,
     ):
         # TODO: Доделать удаление связанных с курсом элементов
-        async with self.db.db_session() as session:
-            await session.begin()
-            query = delete(
-                self.courses_model,
-            ).where(
-                self.courses_model.id == course_id,
+        async with self.db.db_session() as session, session.begin():
+            select_query = (
+                select(
+                    self.courses_model,
+                )
+                .where(
+                    self.courses_model.id == course_id,
+                )
+                .with_for_update()
             )
 
             await session.execute(
-                query,
+                select_query,
             )
-            await session.commit()
+
+            await session.execute(
+                delete(
+                    self.courses_model,
+                ).where(
+                    self.courses_model.id == course_id,
+                ),
+            )
 
     async def search_courses_by_name_prefix(
             self,

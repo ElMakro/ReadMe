@@ -1,7 +1,7 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Path, status
 
 from server.app.api.openapi_docs import openapi_extra_authorization_cookie
 from server.app.service.courses_manager import CourseExistenceError
@@ -12,7 +12,6 @@ from server.app.service.courses_service import (
     UserEnrollmentError,
 )
 from server.app.service.depends import get_current_user
-from server.app.service.utils import get_token_from_cookies
 from server.schemas.common import UNPROCESSABLE_ENTITY_ERROR_TEXT, PaginationParameters
 from server.schemas.courses import (
     CourseChangeProfessor,
@@ -135,7 +134,7 @@ async def search_courses_by_name_prefix(
     },
     openapi_extra=openapi_extra_authorization_cookie,
 )
-async def search_courses_by_name_prefix(
+async def authorized_search_courses_by_name_prefix(
         user: Annotated[UserVerification, Depends(
             get_current_user,
         )],
@@ -252,7 +251,7 @@ async def change_course_professor(
         user: Annotated[UserVerification, Depends(
             get_current_user,
         )],
-        owner_data: CourseChangeProfessor,
+        new_professor_data: CourseChangeProfessor,
         course_id: UUID = Path(
             ...,
             description="Уникальный идентификатор курса",
