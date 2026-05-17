@@ -1,38 +1,62 @@
-{# templates/create_course.html #}
+{# templates/course_creation/create_course.html #}
 {% extends "base.html" %}
-{% block title %}Создание курса — ReadMe{% endblock %}
+{% block title %}{% if course_id %}Редактирование курса{% else %}Создание курса{% endif %} — ReadMe{% endblock %}
 
 {% block content %}
 <div class="container-xl py-4">
     <nav aria-label="breadcrumb" class="mb-4">
         <ol class="breadcrumb">
-            <li class="breadcrumb-item active">Курс</li>
+            <li class="breadcrumb-item"><a href="/created-courses">Мастерская курсов</a></li>
+            <li class="breadcrumb-item active">{% if course_id %}Редактирование{% else %}Создание{% endif %}</li>
         </ol>
     </nav>
 
     <div class="card bg-secondary border-0 shadow-sm">
         <div class="card-body">
-            <h5 class="card-title mb-3">Название курса</h5>
-            <input type="text" class="form-control mb-4" id="courseTitle" placeholder="Введите название курса" required>
-
-            <div class="mb-4">
-                <label for="courseDescription" class="form-label">Описание курса</label>
-                <textarea class="form-control" id="courseDescription" rows="3"
-                          placeholder="Введите описание курса (необязательно)"
-                          style="width: 100%; resize: vertical; min-height: 80px;"></textarea>
-                <small class="text-muted">Кратко о том, чему научится студент</small>
+            <h5 class="card-title mb-3">{% if course_id %}Редактирование курса{% else %}Новый курс{% endif %}</h5>
+            <div id="editCourseForm">
+                <div class="mb-3">
+                    <label for="courseTitle" class="form-label">Название курса *</label>
+                    <input type="text" class="form-control" id="courseTitle" required>
+                </div>
+                <div class="mb-3">
+                    <label for="courseDescription" class="form-label">Описание курса</label>
+                    <textarea class="form-control" id="courseDescription" rows="4"></textarea>
+                </div>
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <label for="isPublic" class="form-label">Видимость курса</label>
+                        <select id="isPublic" class="form-select">
+                            <option value="true">Публичный (видят все)</option>
+                            <option value="false">Закрытый (только авторизованные)</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="isContentPublic" class="form-label">Видимость содержимого</label>
+                        <select id="isContentPublic" class="form-select">
+                            <option value="true">Публичный (содержимое открыто всем)</option>
+                            <option value="false">Закрытый (только записанные студенты)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="d-flex justify-content-between">
+                    <a href="/created-courses" class="btn btn-outline-secondary">Назад</a>
+                    <div>
+                        <button class="btn btn-danger me-2" id="deleteCourseBtn" style="display: none;">Удалить курс</button>
+                        <button class="btn btn-accent" id="saveCourseBtn">{% if course_id %}Сохранить изменения{% else %}Создать курс{% endif %}</button>
+                    </div>
+                </div>
             </div>
-
-            <div class="d-flex justify-content-between">
-                <a href="/created-courses" class="btn btn-outline-secondary" id="backBtn">Назад</a>
-                <button class="btn btn-accent" id="saveCourseBtn">Сохранить и продолжить</button>
-            </div>
+            <div id="loadingMessage" class="text-muted mt-3" style="display: none;">Загрузка данных курса...</div>
         </div>
     </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
-<script>window.API_BASE_URL = "{{ api_base_url }}";</script>
-<script src="../../static/course_creation/create_course.js"></script>
+<script>
+    window.COURSE_ID = {% if course_id %}"{{ course_id }}"{% else %}null{% endif %};
+    window.API_BASE_URL = "{{ api_base_url }}";
+</script>
+<script src="../../static/course_creation/course_form.js"></script>
 {% endblock %}

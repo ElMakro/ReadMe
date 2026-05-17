@@ -1,3 +1,4 @@
+// static/course_creation/edit_topics.js (обновлённый)
 (function() {
     const courseId = window.COURSE_ID;
     const sectionId = window.SECTION_ID;
@@ -10,7 +11,10 @@
     let hasUnsaved = false;
 
     window.addEventListener('beforeunload', (e) => {
-        if (hasUnsaved) e.preventDefault(), e.returnValue = '';
+        if (hasUnsaved) {
+            e.preventDefault();
+            e.returnValue = '';
+        }
     });
 
     async function loadTopics() {
@@ -18,19 +22,21 @@
             const res = await fetch(`${window.API_BASE_URL}topics/by-section/${sectionId}`, {
                 credentials: 'include'
             });
-            if (!res.ok) throw new Error();
-            const data = await res.json();   // { topics: [...], total }
-            topics = (data.topics || []).map(t => ({
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+            topics = (data && Array.isArray(data.topics)) ? data.topics.map(t => ({
                 id: t.id,
                 name: t.name,
                 order_number: t.order_number,
                 isNew: false
-            }));
+            })) : [];
             topics.sort((a,b) => a.order_number - b.order_number);
             originalTopics = JSON.parse(JSON.stringify(topics));
             renderTopics();
             hasUnsaved = false;
-        } catch {
+        } catch (err) {
+            console.error(err);
+            container.innerHTML = `<div class="text-danger">Ошибка загрузки тем: ${err.message}</div>`;
             topics = [];
             originalTopics = [];
             renderTopics();
@@ -40,13 +46,17 @@
     function renderTopics() {
         container.innerHTML = '';
         topics.forEach((topic, idx) => {
-            const div = document.createElement('div');
-            div.className = 'mb-2 d-flex align-items-center gap-2';
-            div.innerHTML = `
-                <input type="text" class="form-control topic-name" value="${escapeHtml(topic.name)}" data-idx="${idx}" placeholder="Название темы">
-                <button class="btn btn-sm btn-outline-danger delete-topic" data-idx="${idx}">🗑️</button>
+            const card = document.createElement('div');
+            card.className = 'card mb-3 bg-secondary border-0 shadow-sm';
+            card.innerHTML = `
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start gap-2">
+                        <input type="text" class="form-control topic-name flex-grow-1" value="${escapeHtml(topic.name)}" data-idx="${idx}" placeholder="Название темы">
+                        <button class="btn btn-sm btn-outline-danger delete-topic" data-idx="${idx}">🗑️</button>
+                    </div>
+                </div>
             `;
-            container.appendChild(div);
+            container.appendChild(card);
         });
         attachEvents();
     }
@@ -99,7 +109,19 @@
     async function saveTopics() {
         saveBtn.disabled = true;
         try {
-            for (const tp of topics.filter(t => t.isNew && t.name.trim())) {
+            // 1. Удаление
+            const currentIds = topics.filter(t => t.id !== null).map(t => t.id);
+            const toDelete = originalTopics.filter(orig => !currentIds.includes(orig.id));
+            for (const del of toDelete) {
+                const res = await fetch(`${window.API_BASE_URL}topics/${del.id}`, {
+                    method: 'DELETE',
+                    credentials: 'include'
+                });
+                if (!res.ok) throw new Error(`Ошибка удаления темы ${del.id}`);
+            }
+
+            // 2. Создание
+            for (const tp of topics.filter(t => t.id === null && t.name.trim() !== '')) {
                 const res = await fetch(`${window.API_BASE_URL}topics/create-topic`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -110,28 +132,29 @@
                         section_id: sectionId
                     })
                 });
-                if (!res.ok) throw new Error('Ошибка создания темы');
-                const data = await res.json();
-                tp.id = data.id;
-                tp.isNew = false;
-            }
-            for (const tp of topics.filter(t => !t.isNew)) {
-                const orig = originalTopics.find(o => o.id === tp.id);
-                if (orig && (orig.name !== tp.name || orig.order_number !== tp.order_number)) {
-                    let url = `${window.API_BASE_URL}topics/${tp.id}?`;
-                    const params = new URLSearchParams();
-                    if (tp.name !== orig.name) params.append('name', tp.name);
-                    if (tp.order_number !== orig.order_number) params.append('order_number', tp.order_number);
-                    if (params.toString()) {
-                        url += params.toString();
-                        await fetch(url, { method: 'PUT', credentials: 'include' });
-                    }
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.detail || 'Ошибка создания темы');
                 }
             }
+
+            // 3. Обновление
+            for (const tp of topics.filter(t => t.id !== null)) {
+                const params = new URLSearchParams();
+                if (tp.name) params.append('name', tp.name);
+                if (tp.order_number !== undefined) params.append('order_number', tp.order_number);
+                const url = `${window.API_BASE_URL}topics/${tp.id}?${params.toString()}`;
+                const res = await fetch(url, { method: 'PUT', credentials: 'include' });
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.detail || `Ошибка обновления темы ${tp.id}`);
+                }
+            }
+
             await loadTopics();
-            alert('Темы сохранены');
+            alert('Темы успешно сохранены');
         } catch (err) {
-            alert('Ошибка сохранения тем: ' + err.message);
+            alert('Ошибка сохранения: ' + err.message);
         } finally {
             saveBtn.disabled = false;
         }
@@ -145,6 +168,7 @@
         return div.innerHTML;
     }
 
+    // Переход к редактированию блоков при клике на название темы (на любом месте карточки, но именно по полю ввода)
     container.addEventListener('click', (e) => {
         const input = e.target.closest('.topic-name');
         if (!input) return;

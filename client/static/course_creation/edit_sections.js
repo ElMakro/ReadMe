@@ -1,15 +1,19 @@
+// static/course_creation/edit_sections.js
 (function() {
     const courseId = window.COURSE_ID;
     const container = document.getElementById('sectionsList');
     const addBtn = document.getElementById('addSectionBtn');
     const saveBtn = document.getElementById('saveSectionsBtn');
 
-    let sections = [];
-    let originalSections = [];
+    let sections = [];           // текущий список разделов на форме
+    let originalSections = [];   // копия при загрузке для отслеживания удалений
     let hasUnsavedChanges = false;
 
     window.addEventListener('beforeunload', (e) => {
-        if (hasUnsavedChanges) e.preventDefault(), e.returnValue = '';
+        if (hasUnsavedChanges) {
+            e.preventDefault();
+            e.returnValue = '';
+        }
     });
 
     async function loadSections() {
@@ -17,20 +21,30 @@
             const res = await fetch(`${window.API_BASE_URL}sections/by_course/${courseId}`, {
                 credentials: 'include'
             });
-            if (!res.ok) throw new Error();
-            const data = await res.json();   // { sections: [...], total }
-            sections = (data.sections || []).map(s => ({
+            if (!res.ok) {
+                let errorMsg = `HTTP ${res.status}`;
+                try {
+                    const errData = await res.json();
+                    errorMsg = errData.detail || errorMsg;
+                } catch(e) {}
+                throw new Error(errorMsg);
+            }
+            const data = await res.json();
+            // Защита от null или отсутствия поля sections
+            sections = (data && Array.isArray(data.sections)) ? data.sections.map(s => ({
                 id: s.id,
                 name: s.name,
+                description: s.description || '',
                 order_number: s.order_number,
                 isNew: false
-            }));
+            })) : [];
             sections.sort((a,b) => a.order_number - b.order_number);
             originalSections = JSON.parse(JSON.stringify(sections));
             renderSections();
             hasUnsavedChanges = false;
         } catch (err) {
             console.error(err);
+            container.innerHTML = `<div class="text-danger">Ошибка загрузки разделов: ${err.message}</div>`;
             sections = [];
             originalSections = [];
             renderSections();
@@ -41,10 +55,15 @@
         container.innerHTML = '';
         sections.forEach((sec, idx) => {
             const div = document.createElement('div');
-            div.className = 'mb-2 d-flex align-items-center gap-2';
+            div.className = 'card mb-3 bg-secondary border-0 shadow-sm';
             div.innerHTML = `
-                <input type="text" class="form-control section-name" value="${escapeHtml(sec.name)}" data-idx="${idx}" placeholder="Название раздела">
-                <button class="btn btn-sm btn-outline-danger delete-section" data-idx="${idx}">🗑️</button>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <input type="text" class="form-control section-name mb-2" value="${escapeHtml(sec.name)}" data-idx="${idx}" placeholder="Название раздела" style="flex: 1;">
+                        <button class="btn btn-sm btn-outline-danger delete-section ms-2" data-idx="${idx}">🗑️</button>
+                    </div>
+                    <textarea class="form-control section-description" rows="2" data-idx="${idx}" placeholder="Описание раздела (необязательно)">${escapeHtml(sec.description)}</textarea>
+                </div>
             `;
             container.appendChild(div);
         });
@@ -55,6 +74,10 @@
         document.querySelectorAll('.section-name').forEach(inp => {
             inp.removeEventListener('input', handleNameChange);
             inp.addEventListener('input', handleNameChange);
+        });
+        document.querySelectorAll('.section-description').forEach(ta => {
+            ta.removeEventListener('input', handleDescChange);
+            ta.addEventListener('input', handleDescChange);
         });
         document.querySelectorAll('.delete-section').forEach(btn => {
             btn.removeEventListener('click', handleDelete);
@@ -68,9 +91,16 @@
         markUnsaved();
     }
 
+    function handleDescChange(e) {
+        const idx = parseInt(e.target.dataset.idx);
+        sections[idx].description = e.target.value;
+        markUnsaved();
+    }
+
     function handleDelete(e) {
         const idx = parseInt(e.target.dataset.idx);
         sections.splice(idx, 1);
+        // перенумеровать порядок
         sections.forEach((sec, i) => sec.order_number = i + 1);
         renderSections();
         markUnsaved();
@@ -81,6 +111,7 @@
         sections.push({
             id: null,
             name: '',
+            description: '',
             order_number: newOrder,
             isNew: true
         });
@@ -91,51 +122,70 @@
     addBtn.addEventListener('click', addSection);
 
     function markUnsaved() {
-        const currentStr = JSON.stringify(sections.map(s => ({ id: s.id, name: s.name, order: s.order_number })));
-        const origStr = JSON.stringify(originalSections.map(s => ({ id: s.id, name: s.name, order: s.order_number })));
+        // Просто сравниваем строковые представления для упрощения
+        const currentStr = JSON.stringify(sections.map(s => ({ id: s.id, name: s.name, desc: s.description, order: s.order_number })));
+        const origStr = JSON.stringify(originalSections.map(s => ({ id: s.id, name: s.name, desc: s.description, order: s.order_number })));
         hasUnsavedChanges = currentStr !== origStr;
     }
 
     async function saveSections() {
         saveBtn.disabled = true;
         try {
-            // Создание новых разделов
-            for (const sec of sections.filter(s => s.isNew && s.name.trim())) {
+            // 1. Удалить разделы, которых нет в текущем списке
+            const currentIds = sections.filter(s => s.id !== null).map(s => s.id);
+            const toDelete = originalSections.filter(orig => !currentIds.includes(orig.id));
+            for (const del of toDelete) {
+                const res = await fetch(`${window.API_BASE_URL}sections/${del.id}`, {
+                    method: 'DELETE',
+                    credentials: 'include'
+                });
+                if (!res.ok) throw new Error(`Ошибка удаления раздела ${del.id}`);
+            }
+
+            // 2. Создать новые разделы
+            for (const sec of sections.filter(s => s.id === null && s.name.trim() !== '')) {
                 const res = await fetch(`${window.API_BASE_URL}sections/create-section`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
                     body: JSON.stringify({
                         name: sec.name,
-                        description: "",
+                        description: sec.description,
                         order_number: sec.order_number,
                         course_id: courseId
                     })
                 });
-                if (!res.ok) throw new Error('Ошибка создания раздела');
-                const data = await res.json();
-                sec.id = data.id;
-                sec.isNew = false;
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.detail || 'Ошибка создания раздела');
+                }
+                // id получим при перезагрузке
             }
-            // Обновление существующих
-            for (const sec of sections.filter(s => !s.isNew)) {
-                const orig = originalSections.find(o => o.id === sec.id);
-                if (orig && (orig.name !== sec.name || orig.order_number !== sec.order_number)) {
-                    await fetch(`${window.API_BASE_URL}sections/${sec.id}`, {
-                        method: 'PUT',
-                        headers: { 'Content-Type': 'application/json' },
-                        credentials: 'include',
-                        body: JSON.stringify({
-                            name: sec.name,
-                            order_number: sec.order_number
-                        })
-                    });
+
+            // 3. Обновить существующие разделы (все, у которых есть id)
+            for (const sec of sections.filter(s => s.id !== null)) {
+                const payload = {
+                    name: sec.name,
+                    description: sec.description,
+                    order_number: sec.order_number
+                };
+                const res = await fetch(`${window.API_BASE_URL}sections/${sec.id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify(payload)
+                });
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.detail || `Ошибка обновления раздела ${sec.id}`);
                 }
             }
+
+            // 4. Перезагрузить список с сервера
             await loadSections();
-            alert('Разделы сохранены');
+            alert('Разделы успешно сохранены');
         } catch (err) {
-            alert(err.message);
+            alert('Ошибка сохранения: ' + err.message);
         } finally {
             saveBtn.disabled = false;
         }
@@ -149,10 +199,11 @@
         return div.innerHTML;
     }
 
+    // Клик по названию раздела (только для существующих) → переход к темам
     container.addEventListener('click', (e) => {
-        const input = e.target.closest('.section-name');
-        if (!input) return;
-        const idx = parseInt(input.dataset.idx);
+        const nameInput = e.target.closest('.section-name');
+        if (!nameInput) return;
+        const idx = parseInt(nameInput.dataset.idx);
         const section = sections[idx];
         if (section.id) {
             if (hasUnsavedChanges && !confirm('Есть несохранённые изменения. Перейти всё равно?')) return;

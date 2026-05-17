@@ -18,12 +18,12 @@
                 credentials: 'include'
             });
             if (!res.ok) throw new Error();
-            const data = await res.json();   // { blocks: [{type, raw_content}] }
-            blocks = (data.blocks || []).map(b => ({
+            const data = await res.json();
+            blocks = (data && Array.isArray(data.blocks)) ? data.blocks.map(b => ({
                 type: b.type,
                 raw_content: b.raw_content,
                 isExpanded: true
-            }));
+            })) : [];
             originalBlocks = JSON.parse(JSON.stringify(blocks));
             renderBlocks();
             hasUnsaved = false;
@@ -39,7 +39,7 @@
         container.innerHTML = '';
         blocks.forEach((block, idx) => {
             const card = document.createElement('div');
-            card.className = 'card mb-3 bg-primary border';
+            card.className = 'card mb-3 bg-secondary border-0 shadow-sm';
             card.innerHTML = `
                 <div class="card-header d-flex justify-content-between align-items-center bg-secondary">
                     <div class="d-flex align-items-center gap-2 flex-grow-1">
