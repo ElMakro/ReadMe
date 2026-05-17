@@ -1,11 +1,10 @@
-// static/edit-blocks.js
 (function() {
     const topicId = window.TOPIC_ID;
     const container = document.getElementById('blocksList');
     const addBtn = document.getElementById('addBlockBtn');
     const saveBtn = document.getElementById('saveBlocksBtn');
 
-    let blocks = [];        // { id, title, block_type, content, isNew, isExpanded }
+    let blocks = [];
     let originalBlocks = [];
     let hasUnsaved = false;
 
@@ -15,21 +14,21 @@
 
     async function loadBlocks() {
         try {
-            const res = await fetch(`${window.API_BASE_URL}topics/${topicId}/blocks`, { credentials: 'include' });
+            const res = await fetch(`${window.API_BASE_URL}topics/get-raw-content/${topicId}`, {
+                credentials: 'include'
+            });
             if (!res.ok) throw new Error();
-            const data = await res.json();
-            blocks = data.map(b => ({
-                id: b.id,
-                title: b.title,
-                block_type: b.block_type || 'md',
-                content: b.content || '',
-                isNew: false,
-                isExpanded: false
+            const data = await res.json();   // { blocks: [{type, raw_content}] }
+            blocks = (data.blocks || []).map(b => ({
+                type: b.type,
+                raw_content: b.raw_content,
+                isExpanded: true
             }));
             originalBlocks = JSON.parse(JSON.stringify(blocks));
             renderBlocks();
             hasUnsaved = false;
-        } catch {
+        } catch (err) {
+            console.error(err);
             blocks = [];
             originalBlocks = [];
             renderBlocks();
@@ -45,68 +44,71 @@
                 <div class="card-header d-flex justify-content-between align-items-center bg-secondary">
                     <div class="d-flex align-items-center gap-2 flex-grow-1">
                         <button class="btn btn-sm btn-outline-secondary toggle-expand" data-idx="${idx}">${block.isExpanded ? '−' : '+'}</button>
-                        <input type="text" class="form-control form-control-sm block-title" value="${escapeHtml(block.title)}" placeholder="Название блока" data-idx="${idx}" style="width: 200px;">
                         <select class="form-select form-select-sm block-type" data-idx="${idx}" style="width: 120px;">
-                            <option value="md" ${block.block_type === 'md' ? 'selected' : ''}>MD</option>
-                            <option value="uml" ${block.block_type === 'uml' ? 'selected' : ''}>UML</option>
-                            <option value="latex" ${block.block_type === 'latex' ? 'selected' : ''}>LaTeX</option>
+                            <option value="markdown" ${block.type === 'markdown' ? 'selected' : ''}>Markdown</option>
+                            <option value="uml" ${block.type === 'uml' ? 'selected' : ''}>UML</option>
+                            <option value="latex" ${block.type === 'latex' ? 'selected' : ''}>LaTeX</option>
                         </select>
                         <button class="btn btn-sm btn-outline-danger delete-block" data-idx="${idx}">🗑️</button>
                     </div>
                 </div>
                 <div class="card-body block-content" style="display: ${block.isExpanded ? 'block' : 'none'};">
-                    <textarea class="form-control block-textarea" rows="5" data-idx="${idx}" placeholder="Содержимое блока...">${escapeHtml(block.content)}</textarea>
+                    <textarea class="form-control block-textarea" rows="6" data-idx="${idx}" placeholder="Содержимое блока...">${escapeHtml(block.raw_content)}</textarea>
                 </div>
             `;
             container.appendChild(card);
         });
+        attachEvents();
+    }
 
-        // Обработчики
-        document.querySelectorAll('.block-title').forEach(inp => {
-            inp.addEventListener('input', (e) => {
-                const idx = parseInt(e.target.dataset.idx);
-                blocks[idx].title = e.target.value;
-                markUnsaved();
-            });
-        });
+    function attachEvents() {
         document.querySelectorAll('.block-type').forEach(sel => {
-            sel.addEventListener('change', (e) => {
-                const idx = parseInt(e.target.dataset.idx);
-                blocks[idx].block_type = e.target.value;
-                markUnsaved();
-            });
+            sel.removeEventListener('change', handleTypeChange);
+            sel.addEventListener('change', handleTypeChange);
         });
         document.querySelectorAll('.block-textarea').forEach(ta => {
-            ta.addEventListener('input', (e) => {
-                const idx = parseInt(e.target.dataset.idx);
-                blocks[idx].content = e.target.value;
-                markUnsaved();
-            });
+            ta.removeEventListener('input', handleContentChange);
+            ta.addEventListener('input', handleContentChange);
         });
         document.querySelectorAll('.toggle-expand').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const idx = parseInt(btn.dataset.idx);
-                blocks[idx].isExpanded = !blocks[idx].isExpanded;
-                renderBlocks();
-            });
+            btn.removeEventListener('click', handleToggle);
+            btn.addEventListener('click', handleToggle);
         });
         document.querySelectorAll('.delete-block').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const idx = parseInt(btn.dataset.idx);
-                blocks.splice(idx, 1);
-                renderBlocks();
-                markUnsaved();
-            });
+            btn.removeEventListener('click', handleDelete);
+            btn.addEventListener('click', handleDelete);
         });
+    }
+
+    function handleTypeChange(e) {
+        const idx = parseInt(e.target.dataset.idx);
+        blocks[idx].type = e.target.value;
+        markUnsaved();
+    }
+
+    function handleContentChange(e) {
+        const idx = parseInt(e.target.dataset.idx);
+        blocks[idx].raw_content = e.target.value;
+        markUnsaved();
+    }
+
+    function handleToggle(e) {
+        const idx = parseInt(e.target.dataset.idx);
+        blocks[idx].isExpanded = !blocks[idx].isExpanded;
+        renderBlocks();
+    }
+
+    function handleDelete(e) {
+        const idx = parseInt(e.target.dataset.idx);
+        blocks.splice(idx, 1);
+        renderBlocks();
+        markUnsaved();
     }
 
     function addBlock() {
         blocks.push({
-            id: null,
-            title: '',
-            block_type: 'md',
-            content: '',
-            isNew: true,
+            type: 'markdown',
+            raw_content: '',
             isExpanded: true
         });
         renderBlocks();
@@ -116,55 +118,26 @@
     addBtn.addEventListener('click', addBlock);
 
     function markUnsaved() {
-        const currentCopy = blocks.map(b => ({
-            id: b.id, title: b.title, block_type: b.block_type, content: b.content, isNew: b.isNew
-        }));
-        const origCopy = originalBlocks.map(b => ({
-            id: b.id, title: b.title, block_type: b.block_type, content: b.content, isNew: b.isNew
-        }));
-        hasUnsaved = JSON.stringify(currentCopy) !== JSON.stringify(origCopy);
+        const currentData = blocks.map(b => ({ type: b.type, raw_content: b.raw_content }));
+        const originalData = originalBlocks.map(b => ({ type: b.type, raw_content: b.raw_content }));
+        hasUnsaved = JSON.stringify(currentData) !== JSON.stringify(originalData);
     }
 
     async function saveBlocks() {
-        const newBlocks = blocks.filter(b => b.isNew && b.title.trim());
-        const existing = blocks.filter(b => !b.isNew);
         saveBtn.disabled = true;
         try {
-            for (const bl of newBlocks) {
-                const res = await fetch(`${window.API_BASE_URL}topics/${topicId}/blocks`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify({
-                        title: bl.title,
-                        block_type: bl.block_type,
-                        content: bl.content
-                    })
-                });
-                if (!res.ok) throw new Error();
-                const data = await res.json();
-                bl.id = data.id;
-                bl.isNew = false;
-            }
-            for (const bl of existing) {
-                const orig = originalBlocks.find(o => o.id === bl.id);
-                if (orig && (orig.title !== bl.title || orig.block_type !== bl.block_type || orig.content !== bl.content)) {
-                    await fetch(`${window.API_BASE_URL}blocks/${bl.id}`, {
-                        method: 'PUT',
-                        headers: { 'Content-Type': 'application/json' },
-                        credentials: 'include',
-                        body: JSON.stringify({
-                            title: bl.title,
-                            block_type: bl.block_type,
-                            content: bl.content
-                        })
-                    });
-                }
-            }
+            const payload = { blocks: blocks.map(b => ({ type: b.type, raw_content: b.raw_content })) };
+            const res = await fetch(`${window.API_BASE_URL}topics/put-content/${topicId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify(payload)
+            });
+            if (!res.ok) throw new Error('Ошибка сохранения контента');
             await loadBlocks();
             alert('Блоки сохранены');
         } catch (err) {
-            alert('Ошибка сохранения блоков');
+            alert(err.message);
         } finally {
             saveBtn.disabled = false;
         }

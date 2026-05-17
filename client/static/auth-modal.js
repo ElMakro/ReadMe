@@ -10,7 +10,6 @@
         </div>
         <div class="modal-body">
           <form id="${PREFIX}form" novalidate>
-            <!-- Поля для входа -->
             <div id="${PREFIX}loginFields">
               <div class="mb-3">
                 <input type="text" class="form-control" placeholder="Никнейм" id="${PREFIX}loginNickname" required>
@@ -19,7 +18,6 @@
                 <input type="password" class="form-control" placeholder="Пароль" id="${PREFIX}loginPassword" required>
               </div>
             </div>
-            <!-- Поля для регистрации (изначально скрыты и отключены) -->
             <div id="${PREFIX}regFields" style="display: none;">
               <div class="mb-3">
                 <input type="text" class="form-control" placeholder="Никнейм" id="${PREFIX}regNickname" disabled required>
@@ -36,7 +34,7 @@
             </div>
 
             <div class="d-flex gap-2 mb-3">
-              <button type="button" class="btn btn-outline-secondary flex-fill" id="${PREFIX}showLoginBtn"  style="display: none;">Ко входу</button>
+              <button type="button" class="btn btn-outline-secondary flex-fill" id="${PREFIX}showLoginBtn" style="display: none;">Ко входу</button>
               <button type="button" class="btn btn-outline-secondary flex-fill" id="${PREFIX}showRegBtn">К регистрации</button>
             </div>
             <button type="submit" class="btn-login w-100" id="${PREFIX}submitBtn">Войти</button>
@@ -74,7 +72,6 @@
   function closeModal() {
     overlay.classList.remove('active');
     form.reset();
-    // Сбрасываем ошибки и состояние кнопки
     removeError();
     submitBtn.disabled = false;
   }
@@ -88,7 +85,7 @@
     loginFields.style.display = 'block';
     regFields.style.display = 'none';
     showLoginBtn.style.display = 'none';
-    showRegBtn.style.display = 'block'
+    showRegBtn.style.display = 'block';
 
     loginNickname.required = true;
     loginPassword.required = true;
@@ -107,7 +104,6 @@
     submitBtn.textContent = 'Войти';
     currentMode = 'login';
 
-    // Сброс блокировки кнопки и ошибок
     submitBtn.disabled = false;
     removeError();
   }
@@ -135,7 +131,6 @@
     submitBtn.textContent = 'Зарегистрироваться';
     currentMode = 'reg';
 
-    // Сброс блокировки кнопки и ошибок
     submitBtn.disabled = false;
     removeError();
   }
@@ -143,144 +138,109 @@
   showLoginBtn.addEventListener('click', switchToLogin);
   showRegBtn.addEventListener('click', switchToReg);
 
+  async function fetchProfile() {
+    const profileUrl = `${window.API_BASE_URL}students/profile`;
+    const response = await fetch(profileUrl, {
+      method: 'GET',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => null);
+      throw new Error(errorData?.detail || 'Не удалось получить профиль');
+    }
+    return response.json();
+  }
+
   form.addEventListener('submit', async (e) => {
-      e.preventDefault();
+    e.preventDefault();
+    submitBtn.disabled = true;
+    removeError();
 
-      submitBtn.disabled = true;
+    let url, payload;
 
-      const existingError = document.getElementById(`${PREFIX}error`);
-      if (existingError) existingError.remove();
-
-      let url, payload;
-//      const main_url = 'http://localhost:8080/api/v1/';
+    try {
       if (currentMode === 'login') {
-        if (loginNickname.value.trim() === '' || loginPassword.value.trim() === '') {
-          showError('Заполните никнейм и пароль');
-          submitBtn.disabled = false;
-          return;
-        }
-        // Проверка длины пароля для входа
-        if (loginPassword.value.trim().length < 8) {
-          showError('Длина пароля должна быть не менее 8 символов');
-          submitBtn.disabled = false;
-          return;
-        }
-//        url = `${main_url}auth/login`;
-//        url = "/auth/login";
-        auth_url = `${window.API_BASE_URL}auth/login`;
-        payload = {
-          nickname: loginNickname.value.trim(),
-          password: loginPassword.value
-        };
-      } else {
-        if (regNickname.value.trim() === '' || regPassword.value.trim() === '') {
-          showError('Заполните обязательные поля');
-          submitBtn.disabled = false;
-          return;
-        }
-        if (regPassword.value !== regConfirm.value) {
-          showError('Пароли не совпадают');
-          submitBtn.disabled = false;
-          return;
-        }
-        if (regPassword.value.trim().length < 8 || regConfirm.value.trim().length < 8) {
-          showError('Длина пароля должна быть не менее 8 символов');
-          submitBtn.disabled = false;
-          return;
-        }
-//        url = `${main_url}auth/reg`;
-//        url = "/auth/reg";
-        auth_url = `${window.API_BASE_URL}auth/reg`;
-        payload = {
-          nickname: regNickname.value.trim(),
-          email: regEmail.value.trim() || undefined,
-          password: regPassword.value
-        };
-      }
+        const nickname = loginNickname.value.trim();
+        const password = loginPassword.value;
 
-//      try {
-//        const response = await fetch(url, {
-//          method: 'POST',
-//          headers: { 'Content-Type': 'application/json' },
-//          credentials: 'include',
-//          body: JSON.stringify(payload)
-//        });
-//
-//        const data = await response.json().catch(() => null);
-//
-//        if (!response.ok) {
-//          const errorMessage = data?.detail
-//            ? (Array.isArray(data.detail)
-//                ? data.detail.map(e => e.msg).join(', ')
-//                : data.detail)
-//            : `Ошибка сервера (${response.status})`;
-//          throw new Error(errorMessage);
-//        }
-//
-//        if (currentMode === 'login') {
-//          console.log('Вход выполнен:', data);
-//          if (!data.id && !data.user_id) {
-//                data.nickname = nickname;
-//                data.id = nickname;
-//            }
-//          closeModal();
-//          window.dispatchEvent(new CustomEvent('auth-changed', { detail: { loggedIn: true, user: data } }));
-//        } else {
-//          console.log('Регистрация успешна:', data);
-//          switchToLogin();
-//          loginNickname.value = regNickname.value;
-//          showError('Регистрация прошла успешно! Теперь войдите.', 'success');
-//          form.reset();  // очищаем поля регистрации, оставляя nickname
-//        }
-//      } catch (error) {
-//        console.error('Ошибка:', error);
-//        showError(error.message);
-//      } finally {
-//        // Всегда разблокируем кнопку после завершения запроса
-//        submitBtn.disabled = false;
-//      }
+        if (!nickname || !password) {
+          throw new Error('Заполните никнейм и пароль');
+        }
+        if (password.length < 8) {
+          throw new Error('Длина пароля должна быть не менее 8 символов');
+        }
 
-      try {
-          const response = await fetch(auth_url, {
+        url = `${window.API_BASE_URL}auth/login`;
+        payload = { nickname, password };
+
+        const loginResponse = await fetch(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
           body: JSON.stringify(payload)
         });
 
-        const data = await response.json().catch(() => null);
-
-        if (!response.ok) {
-          const errorMessage = data?.detail
-            ? (Array.isArray(data.detail)
-                ? data.detail.map(e => e.msg).join(', ')
-                : data.detail)
-            : `Ошибка сервера (${response.status})`;
+        if (!loginResponse.ok) {
+          const errorData = await loginResponse.json().catch(() => null);
+          const errorMessage = errorData?.detail
+            ? (Array.isArray(errorData.detail) ? errorData.detail.map(e => e.msg).join(', ') : errorData.detail)
+            : `Ошибка сервера (${loginResponse.status})`;
           throw new Error(errorMessage);
         }
 
-        if (currentMode === 'login') {
-          const nickname = loginNickname.value.trim();
-          // Временно, пока сервер не возвращает ID
-          if (!data.id && !data.user_id) {
-            data.id = nickname;      // чтобы header.js нашёл идентификатор
-          }
-          closeModal();
-          window.dispatchEvent(new CustomEvent('auth-changed', {
-            detail: { loggedIn: true, user: data }
-          }));
-        } else {
-          switchToLogin();
-          loginNickname.value = regNickname.value;
-          showError('Регистрация прошла успешно! Теперь войдите.', 'success');
-          form.reset();
-        }
-      } catch (error) {
-        console.error('Ошибка:', error);
-        showError(error.message);
-      } finally {
-        submitBtn.disabled = false;
+        // После успешного входа получаем профиль пользователя
+        const userProfile = await fetchProfile();
+        window.AppState.currentUser = userProfile;
+        window.dispatchEvent(new CustomEvent('auth-changed', { detail: { user: userProfile } }));
+        closeModal();
       }
+      else { // регистрация
+        const nickname = regNickname.value.trim();
+        const email = regEmail.value.trim() || undefined;
+        const password = regPassword.value;
+        const confirm = regConfirm.value;
+
+        if (!nickname || !password) {
+          throw new Error('Заполните обязательные поля');
+        }
+        if (password !== confirm) {
+          throw new Error('Пароли не совпадают');
+        }
+        if (password.length < 8) {
+          throw new Error('Длина пароля должна быть не менее 8 символов');
+        }
+
+        url = `${window.API_BASE_URL}auth/reg`;
+        payload = { nickname, email, password };
+
+        const regResponse = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify(payload)
+        });
+
+        if (!regResponse.ok) {
+          const errorData = await regResponse.json().catch(() => null);
+          const errorMessage = errorData?.detail
+            ? (Array.isArray(errorData.detail) ? errorData.detail.map(e => e.msg).join(', ') : errorData.detail)
+            : `Ошибка сервера (${regResponse.status})`;
+          throw new Error(errorMessage);
+        }
+
+        // Регистрация успешна, переключаем на форму входа
+        switchToLogin();
+        loginNickname.value = nickname;
+        showError('Регистрация прошла успешно! Теперь войдите.', 'success');
+        form.reset();
+      }
+    } catch (error) {
+      console.error('Ошибка:', error);
+      showError(error.message);
+    } finally {
+      submitBtn.disabled = false;
+    }
   });
 
   function showError(message, type = 'danger') {

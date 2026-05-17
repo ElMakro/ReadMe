@@ -1,19 +1,14 @@
 (function() {
-    // ========== ПЕРЕКЛЮЧЕНИЕ ТЕМЫ ==========
+    // Тема (оставляем как было)
+    const themeToggle = document.getElementById('themeToggle');
     const themeText = document.getElementById('themeText');
     const htmlElement = document.documentElement;
 
     function setTheme(newTheme) {
         htmlElement.setAttribute('data-theme', newTheme);
         localStorage.setItem('theme', newTheme);
-        updateThemeButton(newTheme);
-    }
-
-    function updateThemeButton(theme) {
-        if (theme === 'dark') {
-            themeText.textContent = 'Свет';
-        } else {
-            themeText.textContent = 'Тьма';
+        if (themeText) {
+            themeText.textContent = newTheme === 'dark' ? 'Свет' : 'Тьма';
         }
     }
 
@@ -25,47 +20,40 @@
 
     const savedTheme = localStorage.getItem('theme') || 'light';
     setTheme(savedTheme);
-
     if (themeToggle) {
         themeToggle.addEventListener('click', toggleTheme);
     }
 
-    // ========== КНОПКИ ВХОДА И ПРОФИЛЯ ==========
+    // Кнопки входа/профиля
     const loginBtn = document.getElementById('loginBtn');
     const profileBtn = document.getElementById('profileBtn');
 
-    // Видимость кнопок зависит только от loggedIn
     function updateAuthButtons() {
         if (!loginBtn || !profileBtn) return;
-        const isLoggedIn = localStorage.getItem('loggedIn') === 'true';
+        const isLoggedIn = window.Auth && window.Auth.isAuthenticated();
         loginBtn.style.display = isLoggedIn ? 'none' : '';
         profileBtn.style.display = isLoggedIn ? '' : 'none';
     }
 
-    updateAuthButtons();
+    if (window.Auth) {
+        updateAuthButtons();
+    } else {
+        document.addEventListener('auth-loaded', updateAuthButtons);
+    }
 
     if (loginBtn) {
-        loginBtn.addEventListener('click', function() {
+        loginBtn.addEventListener('click', () => {
             if (window.AuthModal && typeof window.AuthModal.open === 'function') {
                 window.AuthModal.open();
-            } else {
-                console.error('AuthModal не готов');
             }
         });
     }
 
-    // При клике на «Профиль» просто переходим на /me
     if (profileBtn) {
-        profileBtn.addEventListener('click', function() {
+        profileBtn.addEventListener('click', () => {
             window.location.href = '/me';
         });
     }
 
-    // Событие после успешного входа
-    window.addEventListener('auth-changed', function(e) {
-        if (e.detail && e.detail.loggedIn) {
-            localStorage.setItem('loggedIn', 'true');
-            updateAuthButtons();
-        }
-    });
+    window.addEventListener('auth-changed', updateAuthButtons);
 })();

@@ -39,5 +39,9 @@
 
 {% block scripts %}
 <script>window.API_BASE_URL = "{{ api_base_url }}";</script>
+<script>
+    window.COURSE_ID = "{{ course_id }}";
+    window.API_BASE_URL = "{{ api_base_url }}";
+</script>
 <script src="../static/course.js"></script>
 {% endblock %}

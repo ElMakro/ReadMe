@@ -1,66 +1,59 @@
 (function() {
     const courseId = window.COURSE_ID;
-    const courseTitle = window.COURSE_TITLE;
-
-    // Если переменные не заданы (например, при открытии без сервера), пробуем взять из URL
-    if (!courseId) {
-        const pathParts = window.location.pathname.split('/');
-        const idFromPath = parseInt(pathParts[pathParts.length - 1], 10);
-        if (!isNaN(idFromPath)) {
-            window.COURSE_ID = idFromPath;
-            window.COURSE_TITLE = `Курс ${idFromPath}`; // заглушка
-        }
-    }
-    // ========== 1. ПАРАМЕТРЫ КУРСА ==========
-    const totalSections = 3;
-    const topicsPerSection = 2;
-
-    // ========== 2. ГЕНЕРАЦИЯ ДАННЫХ КУРСА ==========
-    const demoContent = `
-        <h2>Демо-тема</h2>
-        <ul>
-            <li>Высокий Уровень Вовлечения Представителей Целевой Аудитории Является Четким Доказательством Простого Факта: Синтетическое Тестирование Требует Определения И Уточнения Первоочередных Требований.</li>
-            <li>Имеется Спорная Точка Зрения, Гласящая Примерно Следующее: Сторонники Тоталитаризма В Науке, Превозмогая Сложившуюся Непростую Экономическую Ситуацию, Преданы Социально-Демократической Анафеме.</li>
-        </ul>
-        <p><a href="/">Пример ссылки в контенте (переход на главную страницу)</a></p>
-    `;
-
-    function generateCourseData(sectionsCount, topicsCount) {
-        const sections = [];
-        for (let s = 1; s <= sectionsCount; s++) {
-            const sectionId = `section${s}`;
-            const topics = [];
-            for (let t = 1; t <= topicsCount; t++) {
-                const topicId = `topic${s}-${t}`;
-                topics.push({
-                    id: topicId,
-                    title: `Тема ${s}.${t}`,
-                    content: demoContent
-                });
-            }
-            sections.push({
-                id: sectionId,
-                title: `Раздел ${s}`,
-                topics: topics
-            });
-        }
-        return { sections };
-    }
-
-    const courseData = generateCourseData(totalSections, topicsPerSection);
-
-    // ========== 3. ГЕНЕРАЦИЯ МЕНЮ И УПРАВЛЕНИЕ КОНТЕНТОМ ==========
     const sectionList = document.getElementById('sectionList');
     const topicContent = document.getElementById('topicContent');
+    const checkYourselfBtn = document.getElementById('checkYourselfBtn');
 
-    let activeSectionId = null;
+    let sectionsData = [];
     let activeTopicId = null;
+    let activeSectionId = null;
+
+    async function loadCourseStructure() {
+        try {
+            // 1. Разделы курса
+            const sectionsResp = await fetch(`${window.API_BASE_URL}sections/by_course/${courseId}`, {
+                credentials: 'include'
+            });
+            if (!sectionsResp.ok) throw new Error('Не удалось загрузить разделы');
+            const sectionsDataResp = await sectionsResp.json();
+            let sections = sectionsDataResp.sections || [];
+            sections.sort((a,b) => a.order_number - b.order_number);
+
+            sectionsData = [];
+            for (const section of sections) {
+                const topicsResp = await fetch(`${window.API_BASE_URL}topics/by-section/${section.id}`, {
+                    credentials: 'include'
+                });
+                if (!topicsResp.ok) throw new Error(`Ошибка загрузки тем раздела ${section.id}`);
+                const topicsData = await topicsResp.json();
+                let topics = topicsData.topics || [];
+                topics.sort((a,b) => a.order_number - b.order_number);
+                sectionsData.push({
+                    id: section.id,
+                    name: section.name,
+                    order_number: section.order_number,
+                    topics: topics.map(t => ({ id: t.id, name: t.name, order_number: t.order_number }))
+                });
+            }
+            renderMenu();
+            if (sectionsData.length && sectionsData[0].topics.length) {
+                const firstSection = sectionsData[0];
+                const firstTopic = firstSection.topics[0];
+                showTopicContent(firstSection.id, firstTopic.id);
+                toggleSection(firstSection.id, true);
+            } else {
+                topicContent.innerHTML = '<p class="text-muted">Курс пока пуст. Добавьте разделы и темы.</p>';
+            }
+        } catch (err) {
+            console.error(err);
+            topicContent.innerHTML = '<p class="text-danger">Ошибка загрузки курса. Попробуйте позже.</p>';
+        }
+    }
 
     function renderMenu() {
         if (!sectionList) return;
         sectionList.innerHTML = '';
-
-        courseData.sections.forEach(section => {
+        sectionsData.forEach(section => {
             const sectionItem = document.createElement('li');
             sectionItem.className = 'list-group-item section-item';
             sectionItem.dataset.sectionId = section.id;
@@ -69,7 +62,7 @@
             toggleLink.href = '#';
             toggleLink.className = 'section-toggle';
             toggleLink.dataset.target = section.id;
-            toggleLink.innerHTML = `<span class="toggle-icon">▶</span> ${section.title}`;
+            toggleLink.innerHTML = `<span class="toggle-icon">▶</span> ${escapeHtml(section.name)}`;
 
             const topicsUl = document.createElement('ul');
             topicsUl.className = 'list-unstyled ps-4 mt-2 section-topics';
@@ -83,7 +76,7 @@
                 topicLink.className = 'topic-link';
                 topicLink.dataset.sectionId = section.id;
                 topicLink.dataset.topicId = topic.id;
-                topicLink.textContent = topic.title;
+                topicLink.textContent = topic.name;
                 topicLi.appendChild(topicLink);
                 topicsUl.appendChild(topicLi);
             });
@@ -92,83 +85,96 @@
             sectionItem.appendChild(topicsUl);
             sectionList.appendChild(sectionItem);
         });
+
+        document.querySelectorAll('.section-toggle').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const sid = btn.dataset.target;
+                const topicsUl = document.getElementById(`topics-${sid}`);
+                const icon = btn.querySelector('.toggle-icon');
+                const isHidden = topicsUl.style.display === 'none' || topicsUl.style.display === '';
+                topicsUl.style.display = isHidden ? 'block' : 'none';
+                icon.textContent = isHidden ? '▼' : '▶';
+            });
+        });
+
+        document.querySelectorAll('.topic-link').forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const sid = link.dataset.sectionId;
+                const tid = link.dataset.topicId;
+                showTopicContent(sid, tid);
+            });
+        });
     }
 
-    function showTopicContent(sectionId, topicId) {
-        const section = courseData.sections.find(s => s.id === sectionId);
-        if (!section) return;
-        const topic = section.topics.find(t => t.id === topicId);
-        if (!topic) return;
+    function toggleSection(sectionId, expand) {
+        const topicsUl = document.getElementById(`topics-${sectionId}`);
+        const toggle = document.querySelector(`.section-toggle[data-target="${sectionId}"]`);
+        if (topicsUl && toggle) {
+            topicsUl.style.display = expand ? 'block' : 'none';
+            const icon = toggle.querySelector('.toggle-icon');
+            if (icon) icon.textContent = expand ? '▼' : '▶';
+        }
+    }
 
-        topicContent.innerHTML = topic.content;
+    async function showTopicContent(sectionId, topicId) {
         activeSectionId = sectionId;
         activeTopicId = topicId;
         updateActiveMenuState();
+
+        try {
+            const resp = await fetch(`${window.API_BASE_URL}topics/get-rendered-content/${topicId}`, {
+                credentials: 'include'
+            });
+            if (!resp.ok) throw new Error('Не удалось загрузить содержимое темы');
+            const data = await resp.json();   // { blocks: [{type, rendered_content}] }
+            const blocks = data.blocks || [];
+            let html = '';
+            for (const block of blocks) {
+                if (block.type === 'markdown') {
+                    html += `<div class="markdown-block">${block.rendered_content}</div>`;
+                } else if (block.type === 'uml') {
+                    html += `<div class="uml-block"><pre>${escapeHtml(block.rendered_content)}</pre></div>`;
+                } else if (block.type === 'latex') {
+                    html += `<div class="latex-block">${block.rendered_content}</div>`;
+                } else {
+                    html += `<div>${escapeHtml(block.rendered_content)}</div>`;
+                }
+            }
+            topicContent.innerHTML = html || '<p class="text-muted">Нет содержимого</p>';
+        } catch (err) {
+            console.error(err);
+            topicContent.innerHTML = '<p class="text-danger">Ошибка загрузки содержимого темы</p>';
+        }
     }
 
     function updateActiveMenuState() {
         document.querySelectorAll('.section-toggle').forEach(el => el.classList.remove('active'));
         document.querySelectorAll('.topic-link').forEach(el => el.classList.remove('active'));
-
         if (activeSectionId) {
-            const sectionToggle = document.querySelector(`.section-toggle[data-target="${activeSectionId}"]`);
-            if (sectionToggle) sectionToggle.classList.add('active');
+            const toggle = document.querySelector(`.section-toggle[data-target="${activeSectionId}"]`);
+            if (toggle) toggle.classList.add('active');
         }
         if (activeTopicId && activeSectionId) {
-            const topicLink = document.querySelector(`.topic-link[data-section-id="${activeSectionId}"][data-topic-id="${activeTopicId}"]`);
-            if (topicLink) topicLink.classList.add('active');
+            const link = document.querySelector(`.topic-link[data-section-id="${activeSectionId}"][data-topic-id="${activeTopicId}"]`);
+            if (link) link.classList.add('active');
         }
     }
 
-    if (sectionList) {
-        sectionList.addEventListener('click', (e) => {
-            const toggle = e.target.closest('.section-toggle');
-            const topicLink = e.target.closest('.topic-link');
+    function escapeHtml(str) {
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
 
-            if (toggle) {
-                e.preventDefault();
-                const sectionId = toggle.dataset.target;
-                const topicsUl = document.getElementById(`topics-${sectionId}`);
-                const icon = toggle.querySelector('.toggle-icon');
-
-                if (topicsUl) {
-                    const isHidden = topicsUl.style.display === 'none' || topicsUl.style.display === '';
-                    topicsUl.style.display = isHidden ? 'block' : 'none';
-                    if (icon) icon.textContent = isHidden ? '▼' : '▶';
-                }
-            }
-
-            if (topicLink) {
-                e.preventDefault();
-                const sectionId = topicLink.dataset.sectionId;
-                const topicId = topicLink.dataset.topicId;
-                showTopicContent(sectionId, topicId);
-            }
+    if (checkYourselfBtn) {
+        checkYourselfBtn.addEventListener('click', () => {
+            alert('Функция в разработке');
         });
     }
 
-    function initCourseView() {
-        renderMenu();
-        if (courseData.sections.length > 0) {
-            const firstSection = courseData.sections[0];
-            if (firstSection.topics.length > 0) {
-                const firstTopic = firstSection.topics[0];
-                const topicsUl = document.getElementById(`topics-${firstSection.id}`);
-                if (topicsUl) topicsUl.style.display = 'block';
-                const toggle = document.querySelector(`.section-toggle[data-target="${firstSection.id}"]`);
-                if (toggle) {
-                    const icon = toggle.querySelector('.toggle-icon');
-                    if (icon) icon.textContent = '▼';
-                }
-                showTopicContent(firstSection.id, firstTopic.id);
-            } else {
-                activeSectionId = firstSection.id;
-                updateActiveMenuState();
-            }
-        }
-    }
-
-    initCourseView();
+    loadCourseStructure();
 })();
 
 // ========== ПЛАВАЮЩИЙ КОНСПЕКТ ==========

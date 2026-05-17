@@ -18,7 +18,6 @@
             return;
         }
 
-        // Получаем описание (если поле есть)
         const description = descInput ? descInput.value.trim() : "";
 
         saveBtn.disabled = true;
@@ -30,7 +29,8 @@
                 body: JSON.stringify({
                     name: name,
                     description: description,
-                    is_open: true
+                    is_public: true,
+                    is_content_public: true
                 })
             });
             if (!response.ok) {
@@ -46,12 +46,12 @@
         }
     });
 
-    // Добавить в create_course.js после получения элементов
     function autoResize(textarea) {
         textarea.style.height = 'auto';
         textarea.style.height = textarea.scrollHeight + 'px';
     }
-    descInput.addEventListener('input', function() { autoResize(this); });
-    // Вызвать один раз при загрузке
-    autoResize(descInput);
+    if (descInput) {
+        descInput.addEventListener('input', function() { autoResize(this); });
+        autoResize(descInput);
+    }
 })();
