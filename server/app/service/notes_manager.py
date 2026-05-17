@@ -1,7 +1,7 @@
 import uuid
 
 from fastapi import Depends
-from sqlalchemy import select, desc
+from sqlalchemy import desc, select
 
 from server.config.db_dependency import DBDependency
 from server.database.models import Notes, Topics
