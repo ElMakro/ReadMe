@@ -7,11 +7,13 @@ from server.app.api.openapi_docs import openapi_extra_authorization_cookie
 from server.app.service.courses_manager import CourseExistenceError
 from server.app.service.courses_service import (
     CourseOperationPermissionError,
+    CourseOwnerConflictError,
     CoursePrivacyLevelsError,
     CoursesService,
     UserEnrollmentError,
 )
 from server.app.service.depends import get_current_user
+from server.app.service.users_service import UserExistenceError
 from server.schemas.common import UNPROCESSABLE_ENTITY_ERROR_TEXT, PaginationParameters
 from server.schemas.courses import (
     CourseChangeProfessor,
@@ -227,13 +229,14 @@ async def get_controlled_courses(
 
 
 @courses_router.put(
-    "/{course_id}/change_professor",
+    "/{course_id}/change-professor",
     summary="Сменить преподавателя курса",
     response_description="Преподаватель курса успешно изменён",
     status_code=status.HTTP_204_NO_CONTENT,
     responses={
         status.HTTP_403_FORBIDDEN            : {
-            "description": "Пользователь не имеет прав на смену владельца курса",
+            "description": "Пользователь не имеет прав на смену владельца курса или новый преподаватель "
+                           "не имеет права вести курс.",
         },
         status.HTTP_404_NOT_FOUND            : {
             "description": "Курс или новый преподаватель не найдены",
@@ -264,7 +267,40 @@ async def change_course_professor(
     Сменить преподавателя курса.
     Только текущий преподаватель или администратор может передать права другому пользователю.
     """
-    pass
+    try:
+        await courses_service.change_course_professor(
+            user,
+            course_id,
+            new_professor_data.new_professor_id,
+        )
+    except CourseOperationPermissionError as error:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=str(
+                error,
+            ),
+        )
+    except CourseExistenceError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(
+                error,
+            ),
+        )
+    except UserExistenceError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(
+                error,
+            ),
+        )
+    except CourseOwnerConflictError as error:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(
+                error,
+            ),
+        )
 
 
 @courses_router.post(
