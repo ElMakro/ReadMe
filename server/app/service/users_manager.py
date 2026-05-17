@@ -50,6 +50,7 @@ class UsersManager:
             query = select(
                 self.model.id,
                 self.model.nickname,
+                self.model.role,
             ).where(self.model.id == user_id)
 
             result = await session.execute(query)

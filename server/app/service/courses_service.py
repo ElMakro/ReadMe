@@ -4,6 +4,8 @@ from fastapi import Depends
 
 from server.app.service.auth_handler import AuthHandler
 from server.app.service.courses_manager import CoursesManager
+from server.app.service.users_manager import UsersManager
+from server.app.service.users_service import UserExistenceError
 from server.enums.course_state import CourseState
 from server.enums.role import Role
 from server.schemas.courses import (
@@ -37,17 +39,28 @@ class UserEnrollmentError(
     pass
 
 
+class CourseOwnerConflictError(
+    ValueError,
+):
+    """Исключение, связанное с конфликтом владения курсом"""
+    pass
+
+
 class CoursesService:
     def __init__(
             self,
-            manager: CoursesManager = Depends(
+            courses_manager: CoursesManager = Depends(
                 CoursesManager,
+            ),
+            users_manager: UsersManager = Depends(
+                UsersManager,
             ),
             auth_handler: AuthHandler = Depends(
                 AuthHandler,
             ),
     ) -> None:
-        self.courses_manager = manager
+        self.courses_manager = courses_manager
+        self.users_manager = users_manager
         self.auth_handler = auth_handler
 
     async def get_courses_for_user(
@@ -294,4 +307,50 @@ class CoursesService:
         end = start + records_per_page
         paginated_courses = stated_courses[start:end]
 
-        return CoursesListSearchResponse.model_validate(paginated_courses)
+        return CoursesListSearchResponse.model_validate(
+            paginated_courses,
+        )
+
+    async def change_course_professor(
+            self,
+            user: UserVerification,
+            course_id: UUID,
+            new_professor_id: UUID,
+    ) -> None:
+        if user.role == Role.STUDENT:
+            raise CourseOperationPermissionError(
+                "Обучающиеся не имеют права на удаление курса!",
+            )
+
+        course = await self.courses_manager.get_course_by_id(
+            course_id,
+        )
+
+        if user.role == Role.PROFESSOR and course.professor_id != user.id:
+            raise CourseOperationPermissionError(
+                "Преподаватель может передать владение только тем курсом, который он ведёт!",
+            )
+
+        if course.professor_id == new_professor_id:
+            raise CourseOwnerConflictError(
+                "Пользователь уже является преподавателем курса!",
+            )
+
+        new_professor = await self.users_manager.get_user_by_id(
+            new_professor_id,
+        )
+
+        if new_professor is None:
+            raise UserExistenceError(
+                "Не найден пользователь с идентификатором нового преподавателя!",
+            )
+
+        if new_professor.role != Role.PROFESSOR:
+            raise CourseOperationPermissionError(
+                "У нового преподавателя нет права на ведение курса!",
+            )
+
+        await self.courses_manager.change_course_professor(
+            course_id,
+            new_professor_id,
+        )

@@ -14,6 +14,12 @@ from server.schemas.users import (
 )
 
 
+class UserExistenceError(
+    ValueError,
+):
+    """Исключение, связанное с существованием пользователя"""
+    pass
+
 class UsersService:
     def __init__(
             self,

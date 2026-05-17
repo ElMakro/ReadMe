@@ -237,7 +237,7 @@ class CoursesManager:
     ):
         # TODO: Доделать удаление связанных с курсом элементов
         async with self.db.db_session() as session, session.begin():
-            select_query = (
+            blocking_query = (
                 select(
                     self.courses_model,
                 )
@@ -248,15 +248,17 @@ class CoursesManager:
             )
 
             await session.execute(
-                select_query,
+                blocking_query,
+            )
+
+            query = delete(
+                self.courses_model,
+            ).where(
+                self.courses_model.id == course_id,
             )
 
             await session.execute(
-                delete(
-                    self.courses_model,
-                ).where(
-                    self.courses_model.id == course_id,
-                ),
+                query,
             )
 
     async def search_courses_by_name_prefix(
@@ -279,4 +281,36 @@ class CoursesManager:
 
             return CourseFullListResponse.model_validate(
                 courses,
+            )
+
+    async def change_course_professor(
+            self,
+            course_id: UUID,
+            new_professor_id: UUID,
+    ) -> None:
+        async with self.db.db_session() as session, session.begin():
+            blocking_query = (
+                select(
+                    self.courses_model,
+                )
+                .where(
+                    self.courses_model.id == course_id,
+                )
+                .with_for_update()
+            )
+
+            await session.execute(
+                blocking_query,
+            )
+
+            query = update(
+                self.courses_model,
+            ).where(
+                self.courses_model.id == course_id,
+            ).values(
+                professor_id=new_professor_id,
+            )
+
+            await session.execute(
+                query,
             )
