@@ -4,7 +4,7 @@
 
     async function fetchMyCourses() {
         try {
-            const response = await fetch(`${window.API_BASE_URL}courses/my`, {
+            const response = await fetch(`${window.API_BASE_URL}courses/followed-courses`, {
                 credentials: 'include'
             });
             if (!response.ok) throw new Error('Не удалось загрузить курсы');
@@ -18,7 +18,7 @@
 
     function renderCourses(courses) {
         if (!courses.length) {
-            grid.innerHTML = '<div class="col-12 text-center">У вас пока нет курсов. Создайте первый!</div>';
+            grid.innerHTML = '<div class="col-12 text-center">Вы пока не записались ни на один курс. Пора это исправить!</div>';
             return;
         }
         grid.innerHTML = '';

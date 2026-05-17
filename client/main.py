@@ -309,3 +309,13 @@ async def put_topic_content_proxy(request: Request, topic_id: str):
     async with httpx.AsyncClient() as client:
         resp = await client.put(f"{BACKEND_URL}topics/put-content/{topic_id}", json=body, cookies=request.cookies)
         return JSONResponse(content=resp.json(), status_code=resp.status_code)
+
+@client_app.get("/course/{course_id}/edit")
+async def edit_course_page(request: Request, course_id: str):
+    """Страница редактирования курса (использует ту же форму, что и создание)"""
+    return templates.TemplateResponse(request, "course_creation/create_course.html", {
+        "request": request,
+        "course_id": course_id,
+        "mode": "edit",
+        "api_base_url": BACKEND_URL
+    })

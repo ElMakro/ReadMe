@@ -741,3 +741,11 @@ a:hover {
     background: var(--accent);
     color: var(--bg-primary);
 }
+
+.section-name {
+    flex: 1;
+    margin-right: 10px;
+}
+.section-description {
+    margin-top: 8px;
+}

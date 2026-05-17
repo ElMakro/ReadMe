@@ -23,7 +23,7 @@
         // Для поиска используем эндпоинт search. Если search пустой, передаём пробел (или договориться с бэком)
         let searchTerm = search.trim();
         if (searchTerm === '') searchTerm = ' '; // костыль, если бэкенд не принимает пустую строку
-        const url = `${window.API_BASE_URL}courses/search/${encodeURIComponent(searchTerm)}?page=${page}&records_per_page=${limit}`;
+        const url = `${window.API_BASE_URL}courses/search/${encodeURIComponent(searchTerm)}`;
         try {
             const response = await fetch(url, { credentials: 'include' });
             if (!response.ok) throw new Error('Ошибка загрузки курсов');

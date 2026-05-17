@@ -1,6 +1,8 @@
 (function() {
     const titleInput = document.getElementById('courseTitle');
     const descInput = document.getElementById('courseDescription');
+    const isPublicSelect = document.getElementById('isPublic');
+    const isContentPublicSelect = document.getElementById('isContentPublic');
     const saveBtn = document.getElementById('saveCourseBtn');
     let isSaved = false;
 
@@ -19,6 +21,9 @@
         }
 
         const description = descInput ? descInput.value.trim() : "";
+        // Преобразуем строки "true"/"false" в булевы
+        const is_public = isPublicSelect.value === 'true';
+        const is_content_public = isContentPublicSelect.value === 'true';
 
         saveBtn.disabled = true;
         try {
@@ -29,8 +34,8 @@
                 body: JSON.stringify({
                     name: name,
                     description: description,
-                    is_public: true,
-                    is_content_public: true
+                    is_public: is_public,
+                    is_content_public: is_content_public
                 })
             });
             if (!response.ok) {

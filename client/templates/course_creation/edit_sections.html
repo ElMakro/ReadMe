@@ -1,4 +1,4 @@
-{# templates/edit_sections.html #}
+{# templates/course_creation/edit_sections.html #}
 {% extends "base.html" %}
 {% block title %}Редактирование разделов — ReadMe{% endblock %}
 
@@ -6,7 +6,7 @@
 <div class="container-xl py-4">
     <nav aria-label="breadcrumb" class="mb-4">
         <ol class="breadcrumb">
-            <li class="breadcrumb-item"><a href="/my-courses">Мои курсы</a></li>
+            <li class="breadcrumb-item"><a href="/my-courses">Мастерская курсов</a></li>
             <li class="breadcrumb-item active">Курс {{ course_id }}</li>
         </ol>
     </nav>
@@ -19,7 +19,7 @@
             </div>
             <button class="btn btn-outline-accent mb-4" id="addSectionBtn">+ Добавить раздел</button>
             <div class="d-flex justify-content-between">
-                <a href="/my-courses" class="btn btn-outline-secondary" id="backBtn">Назад</a>
+                <a href="/course/{{ course_id }}/edit" class="btn btn-outline-secondary" id="backBtn">Назад</a>
                 <button class="btn btn-accent" id="saveSectionsBtn">Сохранить</button>
             </div>
         </div>
@@ -29,7 +29,7 @@
 
 {% block scripts %}
 <script>
-    window.COURSE_ID = {{ course_id }};
+    window.COURSE_ID = "{{ course_id }}";
     window.API_BASE_URL = "{{ api_base_url }}";
 </script>
 <script src="../../static/course_creation/edit_sections.js"></script>
