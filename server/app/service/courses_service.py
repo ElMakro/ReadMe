@@ -4,8 +4,15 @@ from fastapi import Depends
 
 from server.app.service.auth_handler import AuthHandler
 from server.app.service.courses_manager import CoursesManager
+from server.enums.course_state import CourseState
 from server.enums.role import Role
-from server.schemas.courses import CourseIDMixin, CourseResponse, CoursesList
+from server.schemas.courses import (
+    CourseIDMixin,
+    CourseResponse,
+    CourseSearchResponse,
+    CoursesList,
+    CoursesListSearchResponse,
+)
 from server.schemas.users import UserVerification
 
 
@@ -229,3 +236,62 @@ class CoursesService:
         await self.courses_manager.delete_course(
             course_id,
         )
+
+    async def resolve_course_state(
+            self,
+            user_id: UUID | None,
+            course: CourseResponse,
+    ) -> CourseState | None:
+        if user_id is None:
+            return CourseState.ENROLLABLE if course.is_public else None
+
+        if user_id == course.professor_id:
+            return CourseState.CONTROLLED
+
+        assert user_id is not None
+
+        if await self.courses_manager.check_is_user_enrolled_on_course(
+                user_id,
+                course.id,
+        ):
+            return CourseState.ENROLLED
+
+        if course.is_public:
+            return CourseState.ENROLLABLE
+
+        return None
+
+    async def search_courses_by_name_prefix(
+            self,
+            user: UserVerification | None,
+            course_name_prefix: str,
+            page: int,
+            records_per_page: int,
+    ) -> CoursesListSearchResponse:
+
+        searched_courses = await self.courses_manager.search_courses_by_name_prefix(
+            course_name_prefix,
+        )
+
+        stated_courses = []
+
+        for course in searched_courses.root:
+            state = await self.resolve_course_state(
+                user.id if user else None,
+                course,
+            )
+
+            if state is not None:
+                stated_courses.append(
+                    CourseSearchResponse(
+                        id=course.id,
+                        name=course.name,
+                        state=state,
+                    ),
+                )
+
+        start = (page - 1) * records_per_page
+        end = start + records_per_page
+        paginated_courses = stated_courses[start:end]
+
+        return CoursesListSearchResponse.model_validate(paginated_courses)

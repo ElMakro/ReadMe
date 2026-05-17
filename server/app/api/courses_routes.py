@@ -1,7 +1,7 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Path, status
+from fastapi import APIRouter, Depends, HTTPException, Path, Request, status
 
 from server.app.api.openapi_docs import openapi_extra_authorization_cookie
 from server.app.service.courses_manager import CourseExistenceError
@@ -12,14 +12,15 @@ from server.app.service.courses_service import (
     UserEnrollmentError,
 )
 from server.app.service.depends import get_current_user
+from server.app.service.utils import get_token_from_cookies
 from server.schemas.common import UNPROCESSABLE_ENTITY_ERROR_TEXT, PaginationParameters
 from server.schemas.courses import (
     CourseChangeProfessor,
     CourseCreation,
-    CourseFullListResponse,
     CourseIDMixin,
     CourseResponse,
     CoursesList,
+    CoursesListSearchResponse,
     CourseUpdate,
 )
 from server.schemas.users import UserVerification
@@ -87,11 +88,11 @@ async def create_course(
 
 
 @courses_router.get(
-    "/search/{course_name_part}",
-    summary="Поиск курсов по названию",
+    "/search/{course_name_prefix}",
+    summary="Поиск курсов по началу названия.",
     response_description="Список курсов, соответствующих критериям поиска",
     status_code=status.HTTP_200_OK,
-    response_model=CourseFullListResponse,
+    response_model=CoursesListSearchResponse,
     responses={
         status.HTTP_422_UNPROCESSABLE_CONTENT: {
             "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
@@ -99,25 +100,64 @@ async def create_course(
     },
     openapi_extra=openapi_extra_authorization_cookie,
 )
-async def search_courses_by_name(
-        user: Annotated[UserVerification, Depends(
-            get_current_user,
-        )],
+async def search_courses_by_name_prefix(
         pagination_parameters: PaginationParameters = Depends(),
-        course_name_part: str = Path(
+        course_name_prefix: str = Path(
             ...,
-            description="Часть названия курса, по которой происходит поиск",
+            description="Начало названия курса, по которому происходит поиск",
             examples=["Назван"],
         ),
         courses_service: CoursesService = Depends(
             CoursesService,
         ),
-) -> CourseFullListResponse:
+) -> CoursesListSearchResponse:
     """
-    Пагинированный поиск курсов по части названия.
-    Возвращает курсы, в названии которых содержится указанная подстрока.
+    Пагинированный поиск курсов по началу названия. Требует авторизации для поиска по закрытым курсам.
     """
-    pass
+    return await courses_service.search_courses_by_name_prefix(
+        None,
+        course_name_prefix,
+        pagination_parameters.page,
+        pagination_parameters.records_per_page,
+    )
+
+
+@courses_router.get(
+    "/authorized-search/{course_name_prefix}",
+    summary="Поиск курсов по началу названия (с авторизацией).",
+    response_description="Список курсов, соответствующих критериям поиска",
+    status_code=status.HTTP_200_OK,
+    response_model=CoursesListSearchResponse,
+    responses={
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {
+            "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
+        },
+    },
+    openapi_extra=openapi_extra_authorization_cookie,
+)
+async def search_courses_by_name_prefix(
+        user: Annotated[UserVerification, Depends(
+            get_current_user,
+        )],
+        pagination_parameters: PaginationParameters = Depends(),
+        course_name_prefix: str = Path(
+            ...,
+            description="Начало названия курса, по которому происходит поиск",
+            examples=["Назван"],
+        ),
+        courses_service: CoursesService = Depends(
+            CoursesService,
+        ),
+) -> CoursesListSearchResponse:
+    """
+    Пагинированный поиск курсов по началу названия. Требует авторизации для поиска по закрытым курсам.
+    """
+    return await courses_service.search_courses_by_name_prefix(
+        user,
+        course_name_prefix,
+        pagination_parameters.page,
+        pagination_parameters.records_per_page,
+    )
 
 
 @courses_router.get(

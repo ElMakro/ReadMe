@@ -7,7 +7,7 @@ from sqlalchemy import delete, insert, select, update
 
 from server.config.db_dependency import DBDependency
 from server.database.models import Courses, CoursesForStudents
-from server.schemas.courses import CourseIDMixin, CourseResponse, CoursesList
+from server.schemas.courses import CourseFullListResponse, CourseIDMixin, CourseResponse, CoursesList
 
 
 class CourseExistenceError(
@@ -248,3 +248,25 @@ class CoursesManager:
                 query,
             )
             await session.commit()
+
+    async def search_courses_by_name_prefix(
+            self,
+            course_name_prefix: str,
+    ) -> CourseFullListResponse:
+        async with self.db.db_session() as session:
+            query = select(
+                self.courses_model,
+            ).where(
+                self.courses_model.name.ilike(
+                    f"{course_name_prefix}%",
+                ),
+            )
+            result = await session.execute(
+                query,
+            )
+
+            courses = result.scalars().all()
+
+            return CourseFullListResponse.model_validate(
+                courses,
+            )
