@@ -50,22 +50,10 @@ class MessageResponse(
 def convert_to_int(
         value,
 ):
-    if isinstance(
-            value,
-            str,
-    ):
-        return int(
-            value,
-        )
-    return value
+    return int(
+        value,
+    )
 
-
-RecordsPerPageType = Annotated[
-    Literal[5, 10, 15, 20, 30],
-    BeforeValidator(
-        convert_to_int,
-    ),
-]
 
 
 class PaginationParameters(
@@ -82,7 +70,12 @@ class PaginationParameters(
         examples=[1, 2, 3],
         default=1,
     )
-    records_per_page: RecordsPerPageType = Query(
+    records_per_page: Annotated[
+        Literal[5, 10, 15, 20, 30],
+        BeforeValidator(
+            convert_to_int,
+        ),
+    ] = Query(
         description="Количество записей на странице",
         default=10,
     )

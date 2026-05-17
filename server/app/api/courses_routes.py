@@ -1,7 +1,7 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Path, status
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
 
 from server.app.api.openapi_docs import openapi_extra_authorization_cookie
 from server.app.service.courses_manager import CourseExistenceError
@@ -89,7 +89,7 @@ async def create_course(
 
 
 @courses_router.get(
-    "/search/{course_name_prefix}",
+    "/search",
     summary="Поиск курсов по началу названия.",
     response_description="Список курсов, соответствующих критериям поиска",
     status_code=status.HTTP_200_OK,
@@ -103,8 +103,8 @@ async def create_course(
 )
 async def search_courses_by_name_prefix(
         pagination_parameters: PaginationParameters = Depends(),
-        course_name_prefix: str = Path(
-            ...,
+        course_name_prefix: str = Query(
+            "",
             description="Начало названия курса, по которому происходит поиск",
             examples=["Назван"],
         ),
@@ -124,7 +124,7 @@ async def search_courses_by_name_prefix(
 
 
 @courses_router.get(
-    "/authorized-search/{course_name_prefix}",
+    "/authorized-search",
     summary="Поиск курсов по началу названия (с авторизацией).",
     response_description="Список курсов, соответствующих критериям поиска",
     status_code=status.HTTP_200_OK,
@@ -141,8 +141,8 @@ async def authorized_search_courses_by_name_prefix(
             get_current_user,
         )],
         pagination_parameters: PaginationParameters = Depends(),
-        course_name_prefix: str = Path(
-            ...,
+        course_name_prefix: str = Query(
+            "",
             description="Начало названия курса, по которому происходит поиск",
             examples=["Назван"],
         ),
