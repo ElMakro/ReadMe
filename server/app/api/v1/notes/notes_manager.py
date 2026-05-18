@@ -3,9 +3,9 @@ import uuid
 from fastapi import Depends
 from sqlalchemy import desc, func, select
 
+from server.app.api.v1.notes.notes import NotesList
 from server.config.db_dependency import DBDependency
 from server.database.models import Notes, Topics
-from server.app.api.v1.notes.notes import NotesList
 
 
 class NotesManager:
