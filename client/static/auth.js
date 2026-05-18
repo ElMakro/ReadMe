@@ -12,7 +12,7 @@
         if (authCheckPending) return null;
         authCheckPending = true;
         try {
-            const response = await fetch(`${window.API_BASE_URL}students/profile`, {
+            const response = await fetch(`${window.API_BASE_URL}users/profile`, {
                 credentials: 'include'
             });
             if (response.ok) {

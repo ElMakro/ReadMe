@@ -21,14 +21,14 @@
 /* Глобальные CSS-переменные (зависят от data-theme) */
 :root,
 [data-theme="light"] {
-    --bg-primary: #FFF9EF;
-    --bg-secondary: #FFF4E2;
-    --text-primary: #4D3A2B;
-    --text-secondary: #9B8264;
-    --accent: #DEBA6B;
-    --accent-hover: #E8CB8C;
-    --border-color: #E7DBC2;
-    --bs-primary-rgb: 222, 186, 107;
+    --bg-primary: #FFFFFF;                /* белый — уже светлый */
+    --bg-secondary: #FFFBF5;              /* очень светлый кремовый (было #FFF4E2) */
+    --text-primary: #6B4C3A;              /* мягкий тёплый коричневый (было #4D3A2B) */
+    --text-secondary: #C4A98C;            /* светлый бежево-песочный (было #9B8264) */
+    --accent: #F0D69C;                    /* светлый золотистый (было #DEBA6B) */
+    --accent-hover: #F7E5BC;              /* ещё светлее для наведения (было #E8CB8C) */
+    --border-color: #F3EDE2;              /* почти бежевый, очень светлый (было #E7DBC2) */
+    --bs-primary-rgb: 240, 214, 156;      /* RGB для светлого акцента */
 }
 
 [data-theme="dark"] {

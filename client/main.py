@@ -14,6 +14,23 @@ templates = Jinja2Templates(directory="templates")
 # Реальный адрес бэкенда
 BACKEND_URL = "http://localhost:8080/api/v1/"
 
+# Добавьте эту функцию после импортов
+async def get_course_title(course_id: str, cookies: dict) -> str:
+    """Возвращает название курса по его ID, или None при ошибке."""
+    async with httpx.AsyncClient() as client:
+        try:
+            resp = await client.get(
+                f"{BACKEND_URL}courses/{course_id}",
+                cookies=cookies,
+                timeout=5.0
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                return data.get("name")
+        except Exception:
+            pass
+    return None
+
 # ========== СТРАНИЦЫ ==========
 
 @client_app.get("/client_healthcheck")
@@ -39,7 +56,7 @@ async def course_page(request: Request, course_id: str):  # course_id тепер
 
 @client_app.get("/me")
 async def profile_redirect(request: Request):
-    # Просто отдаём шаблон, данные загрузит JS через /students/profile
+    # Просто отдаём шаблон, данные загрузит JS через /users/profile
     return templates.TemplateResponse(request, "profile.html", {
         "request": request,
         "user": None,          # важно: шаблон должен быть готов к None
@@ -78,9 +95,11 @@ async def create_course_form(request: Request):
 
 @client_app.get("/course/{course_id}/sections")
 async def edit_sections(request: Request, course_id: str):
+    course_title = await get_course_title(course_id, request.cookies)
     return templates.TemplateResponse(request, "course_creation/edit_sections.html", {
         "request": request,
         "course_id": course_id,
+        "course_title": course_title,
         "api_base_url": BACKEND_URL
     })
 
@@ -140,10 +159,10 @@ async def logout_proxy(request: Request):
         return response
 
 # Профиль
-@client_app.get("/students/profile")
+@client_app.get("/users/profile")
 async def profile_proxy(request: Request):
     async with httpx.AsyncClient() as client:
-        resp = await client.get(f"{BACKEND_URL}students/profile", cookies=request.cookies)
+        resp = await client.get(f"{BACKEND_URL}users/profile", cookies=request.cookies)
         return JSONResponse(content=resp.json(), status_code=resp.status_code)
 
 # Курсы (поиск)
@@ -263,6 +282,13 @@ async def update_topic_content_proxy(request: Request, topic_id: str):
     body = await request.json()
     async with httpx.AsyncClient() as client:
         resp = await client.put(f"{BACKEND_URL}topics/put-content/{topic_id}", json=body, cookies=request.cookies)
+        return JSONResponse(content=resp.json(), status_code=resp.status_code)
+
+# Получение курса (GET)
+@client_app.get("/courses/{course_id}")
+async def get_course_proxy(request: Request, course_id: str):
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(f"{BACKEND_URL}courses/{course_id}", cookies=request.cookies)
         return JSONResponse(content=resp.json(), status_code=resp.status_code)
 
 # Обновление курса (PUT)

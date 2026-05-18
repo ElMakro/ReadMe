@@ -4,10 +4,29 @@
     const container = document.getElementById('sectionsList');
     const addBtn = document.getElementById('addSectionBtn');
     const saveBtn = document.getElementById('saveSectionsBtn');
+    const breadcrumbCourse = document.getElementById('courseTitleBreadcrumb')
 
     let sections = [];           // текущий список разделов на форме
     let originalSections = [];   // копия при загрузке для отслеживания удалений
     let hasUnsavedChanges = false;
+
+    // Загрузка названия курса
+    async function loadCourseTitle() {
+        if (!breadcrumbCourse) return;
+        try {
+            const res = await fetch(`${window.API_BASE_URL}courses/${courseId}`, {
+                credentials: 'include'
+            });
+            if (res.ok) {
+                const course = await res.json();
+                if (course && course.name) {
+                    breadcrumbCourse.textContent = course.name;
+                }
+            }
+        } catch (err) {
+            console.warn('Не удалось загрузить название курса:', err);
+        }
+    }
 
     window.addEventListener('beforeunload', (e) => {
         if (hasUnsavedChanges) {
@@ -213,5 +232,6 @@
         }
     });
 
+    loadCourseTitle();
     loadSections();
 })();

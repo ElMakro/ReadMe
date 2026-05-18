@@ -6,7 +6,7 @@
         profileContainer.innerHTML = '<div class="text-center">Загрузка...</div>';
         try {
             // Прямой запрос к бэкенду (или через прокси, если вы его оставили)
-            const response = await fetch(`${window.API_BASE_URL}students/profile`, {
+            const response = await fetch(`${window.API_BASE_URL}users/profile`, {
                 credentials: 'include'
             });
             if (response.ok) {
