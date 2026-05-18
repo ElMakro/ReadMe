@@ -1,9 +1,8 @@
 import os
-from uuid import UUID
 
 import httpx
-from fastapi import FastAPI, Query, Request, Response, status
-from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi import FastAPI, Request, Response, status
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -12,7 +11,7 @@ client_app = FastAPI()
 client_app.mount("/static", StaticFiles(directory=STATIC_PATH), name="static")
 templates = Jinja2Templates(directory="templates")
 
-# Реальный адрес бэкенда (из спецификации)
+# Реальный адрес бэкенда
 BACKEND_URL = "http://localhost:8080/api/v1/"
 
 # ========== СТРАНИЦЫ ==========
@@ -104,6 +103,17 @@ async def edit_blocks(request: Request, course_id: str, section_id: str, topic_i
         "api_base_url": BACKEND_URL
     })
 
+@client_app.get("/course/{course_id}/edit")
+async def edit_course_page(request: Request, course_id: str):
+    """Страница редактирования курса (использует ту же форму, что и создание)"""
+    return templates.TemplateResponse(request, "course_creation/create_course.html", {
+        "request": request,
+        "course_id": course_id,
+        "mode": "edit",
+        "api_base_url": BACKEND_URL
+    })
+
+
 # ========== ПРОКСИ ДЛЯ API ==========
 
 # Авторизация
@@ -137,15 +147,46 @@ async def profile_proxy(request: Request):
         return JSONResponse(content=resp.json(), status_code=resp.status_code)
 
 # Курсы (поиск)
-@client_app.get("/courses/search/{course_name_part}")
-async def search_courses_proxy(request: Request, course_name_part: str, page: int = 1, records_per_page: int = 10):
-    params = {"page": page, "records_per_page": records_per_page}
+@client_app.get("/courses/search")
+async def search_courses_proxy(
+    request: Request,
+    course_name_prefix: str = "",
+    page: int = 1,
+    records_per_page: int = 10
+):
+    params = {
+        "course_name_prefix": course_name_prefix,
+        "page": page,
+        "records_per_page": records_per_page
+    }
     async with httpx.AsyncClient() as client:
         resp = await client.get(
-            f"{BACKEND_URL}courses/search/{course_name_part}",
+            f"{BACKEND_URL}courses/search",
             params=params,
             cookies=request.cookies
         )
+        return JSONResponse(content=resp.json(), status_code=resp.status_code)
+
+@client_app.get("/courses/authorized-search")
+async def authorized_search_courses_proxy(
+    request: Request,
+    course_name_prefix: str = "",
+    page: int = 1,
+    records_per_page: int = 10
+):
+    params = {
+        "page": page,
+        "records_per_page": records_per_page
+    }
+    if course_name_prefix:
+        params["course_name_prefix"] = course_name_prefix
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(
+            f"{BACKEND_URL}courses/authorized-search",
+            params=params,
+            cookies=request.cookies
+        )
+        # Проксируем ответ как есть (бэкенд вернёт 401, если нет авторизации)
         return JSONResponse(content=resp.json(), status_code=resp.status_code)
 
 # Мои курсы (на которые подписан)
@@ -214,13 +255,6 @@ async def get_topics_proxy(request: Request, section_id: str):
 async def get_raw_content_proxy(request: Request, topic_id: str):
     async with httpx.AsyncClient() as client:
         resp = await client.get(f"{BACKEND_URL}topics/get-raw-content/{topic_id}", cookies=request.cookies)
-        return JSONResponse(content=resp.json(), status_code=resp.status_code)
-
-# Контент темы (рендеренный)
-@client_app.get("/topics/{topic_id}/rendered")
-async def get_rendered_content_proxy(request: Request, topic_id: str):
-    async with httpx.AsyncClient() as client:
-        resp = await client.get(f"{BACKEND_URL}topics/get-rendered-content/{topic_id}", cookies=request.cookies)
         return JSONResponse(content=resp.json(), status_code=resp.status_code)
 
 # Обновление контента темы
@@ -309,13 +343,3 @@ async def put_topic_content_proxy(request: Request, topic_id: str):
     async with httpx.AsyncClient() as client:
         resp = await client.put(f"{BACKEND_URL}topics/put-content/{topic_id}", json=body, cookies=request.cookies)
         return JSONResponse(content=resp.json(), status_code=resp.status_code)
-
-@client_app.get("/course/{course_id}/edit")
-async def edit_course_page(request: Request, course_id: str):
-    """Страница редактирования курса (использует ту же форму, что и создание)"""
-    return templates.TemplateResponse(request, "course_creation/create_course.html", {
-        "request": request,
-        "course_id": course_id,
-        "mode": "edit",
-        "api_base_url": BACKEND_URL
-    })

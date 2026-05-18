@@ -80,7 +80,6 @@
         const description = descInput.value.trim();
         const is_public = isPublicSelect.value === 'true';
         const is_content_public = isContentPublicSelect.value === 'true';
-
         const payload = { name, description, is_public, is_content_public };
         saveBtn.disabled = true;
 
@@ -105,16 +104,25 @@
             }
 
             if (!response.ok) {
-                const errData = await response.json().catch(() => ({}));
-                throw new Error(errData.detail || 'Ошибка сохранения курса');
+                let errorMsg = 'Ошибка сохранения курса';
+                try {
+                    const errData = await response.json();
+                    errorMsg = errData.detail || errorMsg;
+                } catch (_) {}
+                throw new Error(errorMsg);
             }
 
-            const data = await response.json();
             isSaved = true;
 
-            // После успешного сохранения перенаправляем на страницу разделов
-            const redirectCourseId = courseId || data.id;
-            window.location.href = `/course/${redirectCourseId}/sections`;
+            // Обработка ответа: для PUT (204) тела нет, для POST (201) есть JSON с id
+            if (response.status === 204) {
+                // Редактирование – перенаправляем на страницу разделов
+                window.location.href = `/course/${courseId}/sections`;
+            } else {
+                const data = await response.json();
+                const redirectCourseId = courseId || data.id;
+                window.location.href = `/course/${redirectCourseId}/sections`;
+            }
         } catch (err) {
             alert(err.message);
             saveBtn.disabled = false;
@@ -133,8 +141,12 @@
                 credentials: 'include'
             });
             if (!response.ok) {
-                const errData = await response.json().catch(() => ({}));
-                throw new Error(errData.detail || 'Ошибка удаления курса');
+                let errorMsg = 'Ошибка удаления курса';
+                try {
+                    const errData = await response.json();
+                    errorMsg = errData.detail || errorMsg;
+                } catch (_) {}
+                throw new Error(errorMsg);
             }
             isSaved = true;
             window.location.href = '/created-courses';
