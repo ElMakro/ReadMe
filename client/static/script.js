@@ -13,10 +13,21 @@
     let totalItems = null;        // null = неизвестно общее количество
     const limit = 10;            // records_per_page
 
-    function updateButtonsByAuth() {
+    function updateButtonsByAuthAndRole() {
         const isLoggedIn = window.Auth && window.Auth.isAuthenticated();
+
+        // Мои курсы – всем авторизованным
         if (myCoursesBtn) myCoursesBtn.style.display = isLoggedIn ? '' : 'none';
-        if (manageCoursesBtn) manageCoursesBtn.style.display = isLoggedIn ? '' : 'none';
+
+        // Мастерская курсов – только преподавателям и админам
+        let showManage = false;
+        if (isLoggedIn && window.Auth.getUser) {
+            const user = window.Auth.getUser();
+            if (user && (user.role === 'professor' || user.role === 'admin')) {
+                showManage = true;
+            }
+        }
+        if (manageCoursesBtn) manageCoursesBtn.style.display = showManage ? '' : 'none';
     }
 
     async function fetchCourses(page = 1, search = '') {
@@ -162,7 +173,7 @@
     }
 
     window.addEventListener('auth-changed', () => {
-        updateButtonsByAuth();
+        updateButtonsByAuthAndRole();
         // Сбросить поиск и загрузить первую страницу заново
         currentSearch = '';
         if (searchInput) searchInput.value = '';
@@ -171,7 +182,7 @@
 
     function init() {
         if (window.Auth && window.Auth.isAuthenticated !== undefined) {
-            updateButtonsByAuth();
+            updateButtonsByAuthAndRole();
         } else {
             document.addEventListener('auth-loaded', updateButtonsByAuth);
         }
