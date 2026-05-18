@@ -2,8 +2,8 @@ import uuid
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from server.app.api.v1.common_schemas import TimestampsMixin
 from server.config.constants import MAX_COURSE_DESCRIPTION_LENGTH
-from server.schemas.common import TimestampsMixin
 
 
 class SectionIDMixin(

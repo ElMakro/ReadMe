@@ -2,20 +2,19 @@ from uuid import UUID
 
 from fastapi import Depends
 
-from server.app.service.auth_handler import AuthHandler
-from server.app.service.courses_manager import CoursesManager
-from server.app.service.users_manager import UsersManager
-from server.app.service.users_service import UserExistenceError
-from server.enums.course_state import CourseState
-from server.enums.role import Role
-from server.schemas.courses import (
+from server.app.api.v1.auth.auth_manager import AuthManager
+from server.app.api.v1.courses.course_state import CourseState
+from server.app.api.v1.courses.courses import (
     CourseIDMixin,
     CourseResponse,
     CourseSearchResponse,
     CoursesList,
     CoursesListSearchResponse,
 )
-from server.schemas.users import UserVerification
+from server.app.api.v1.courses.courses_manager import CoursesManager
+from server.app.api.v1.users.users import UserVerification
+from server.app.api.v1.users.users_manager import UserExistenceError, UsersManager
+from server.enums.role import Role
 
 
 class CourseOperationPermissionError(
@@ -52,16 +51,16 @@ class CoursesService:
             courses_manager: CoursesManager = Depends(
                 CoursesManager,
             ),
+            auth_manager: AuthManager = Depends(
+                AuthManager,
+            ),
             users_manager: UsersManager = Depends(
                 UsersManager,
             ),
-            auth_handler: AuthHandler = Depends(
-                AuthHandler,
-            ),
     ) -> None:
         self.courses_manager = courses_manager
+        self.auth_manager = auth_manager
         self.users_manager = users_manager
-        self.auth_handler = auth_handler
 
     async def get_courses_for_user(
             self,
@@ -187,14 +186,14 @@ class CoursesService:
             new_is_public: bool | None,
             new_is_content_public: bool | None,
     ) -> None:
+        course = await self.courses_manager.get_course_by_id(
+            course_id,
+        )
+
         if user.role == Role.STUDENT:
             raise CourseOperationPermissionError(
                 "Обучающийся не имеет права на редактирование курса!",
             )
-
-        course = await self.courses_manager.get_course_by_id(
-            course_id,
-        )
 
         if user.role == Role.PROFESSOR and course.professor_id != user.id:
             raise CourseOperationPermissionError(

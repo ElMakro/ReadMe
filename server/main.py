@@ -2,7 +2,7 @@ import uvicorn
 from fastapi import FastAPI, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 
-from server.app.api import app_router
+from server.app.api import api_router
 from server.config.settings import settings
 
 app = FastAPI(
@@ -17,7 +17,7 @@ app.add_middleware(
     allow_methods=["*"],
 )
 app.include_router(
-    app_router,
+    api_router,
 )
 
 

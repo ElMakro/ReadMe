@@ -2,17 +2,17 @@ from typing import Annotated
 
 from fastapi import Depends, HTTPException, status
 
-from server.app.service.auth_handler import AuthHandler
-from server.app.service.users_manager import UsersManager
-from server.app.service.utils import get_token_from_cookies
+from server.app.api.v1.auth.auth_handler import AuthHandler
+from server.app.api.v1.auth.auth_manager import AuthManager
+from server.app.api.v1.users.users import UserVerification
+from server.app.common_dependencies.utils import get_token_from_cookies
 from server.enums.role import Role
-from server.schemas.users import UserVerification
 
 
 async def get_current_user(
         token: Annotated[str, Depends(get_token_from_cookies)],
         handler: AuthHandler = Depends(AuthHandler),
-        manager: UsersManager = Depends(UsersManager),
+        manager: AuthManager = Depends(AuthManager),
 ) -> UserVerification:
     decoded_token = await handler.decode_token(token=token)
     user_id = decoded_token.get("user_id")

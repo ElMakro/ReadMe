@@ -2,17 +2,17 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, status
 
-from server.app.service.depends import get_current_user
-from server.app.service.students_service import StudentsService
-from server.schemas.users import UserProfile, UserVerification
+from server.app.api.v1.users.users import UserProfile, UserVerification
+from server.app.api.v1.users.users_service import UsersService
+from server.app.common_dependencies.depends import get_current_user
 
-students_router = APIRouter(
-    prefix="/students",
-    tags=["Взаимодействие со студентами"],
+users_router = APIRouter(
+    prefix="/users",
+    tags=["Взаимодействие с пользователями"],
 )
 
 
-@students_router.get(
+@users_router.get(
     "/profile",
     summary="Профиль пользователя",
     status_code=status.HTTP_200_OK,
@@ -27,16 +27,20 @@ students_router = APIRouter(
         },
     },
 )
-async def student_profile(
-    user: Annotated[UserVerification, Depends(
-                get_current_user,
-            )],
-    student_service: StudentsService = Depends(StudentsService),
+async def user_profile(
+        user: Annotated[UserVerification, Depends(
+            get_current_user,
+        )],
+        users_service: UsersService = Depends(
+            UsersService,
+        ),
 ):
-    return student_service.get_info_for_user_profile(user)
+    return users_service.get_info_for_user_profile(
+        user,
+    )
 
 
-@students_router.post(
+@users_router.post(
     "/enroll",
     summary="Записать другого студента на курс",
     status_code=status.HTTP_204_NO_CONTENT,
@@ -47,7 +51,7 @@ async def enroll_other_student():
     pass
 
 
-@students_router.post(
+@users_router.post(
     "/unenroll",
     summary="Отписать другого студента от курса",
     status_code=status.HTTP_204_NO_CONTENT,

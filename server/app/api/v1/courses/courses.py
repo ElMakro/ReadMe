@@ -2,8 +2,8 @@ import uuid
 
 from pydantic import BaseModel, ConfigDict, Field, RootModel
 
-from server.enums.course_state import CourseState
-from server.schemas.common import TimestampsMixin
+from server.app.api.v1.common_schemas import TimestampsMixin
+from server.app.api.v1.courses.course_state import CourseState
 
 
 class CourseIDMixin(
