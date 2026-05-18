@@ -5,7 +5,7 @@ import jwt
 from fastapi import HTTPException, status
 from passlib.context import CryptContext
 
-from server.app.service.utils import CreatedTokenTuple
+from server.app.common_dependencies.utils import CreatedTokenTuple
 from server.config.settings import settings
 
 

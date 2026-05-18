@@ -3,8 +3,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from server.schemas.common import TimestampsMixin
-from server.schemas.sections import SectionIDMixin
+from server.app.api.v1.common_schemas import TimestampsMixin
+from server.app.api.v1.sections.sections import SectionIDMixin
 
 
 class TopicIDMixin(

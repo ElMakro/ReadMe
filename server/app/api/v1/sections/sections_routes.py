@@ -4,10 +4,8 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Path, status
 
 from server.app.api.openapi_docs import openapi_extra_authorization_cookie
-from server.app.service.depends import get_current_user
-from server.app.service.sections_service import SectionsService
-from server.schemas.common import UNPROCESSABLE_ENTITY_ERROR_TEXT
-from server.schemas.sections import (
+from server.app.api.v1.common_schemas import UNPROCESSABLE_ENTITY_ERROR_TEXT
+from server.app.api.v1.sections.sections import (
     SectionCreation,
     SectionIDMixin,
     SectionResponse,
@@ -15,7 +13,9 @@ from server.schemas.sections import (
     SectionsListResponse,
     SectionUpdate,
 )
-from server.schemas.users import UserVerification
+from server.app.api.v1.sections.sections_service import SectionsService
+from server.app.api.v1.users.users import UserVerification
+from server.app.common_dependencies.depends import get_current_user
 
 sections_router = APIRouter(
     prefix="/sections",

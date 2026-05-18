@@ -1,16 +1,16 @@
 import uuid
 
 from fastapi import Depends, HTTPException
-from sqlalchemy import insert, select
+from sqlalchemy import insert
 from sqlalchemy.exc import IntegrityError
 
+from server.app.api.v1.users.users import CreatedUserInfo, NewUser, StoredUserInfo
 from server.config.db_dependency import DBDependency
 from server.config.redis_dependency import RedisDependency
 from server.database.models import Users
-from server.schemas.users import CreatedUserInfo, NewUser, StoredUserInfo, UserInfo, UserVerification
 
 
-class UsersManager:
+class AuthManager:
     def __init__(self, db: DBDependency = Depends(DBDependency), redis: RedisDependency = Depends(RedisDependency)) \
             -> None:
         self.db = db
@@ -30,32 +30,6 @@ class UsersManager:
 
             user_data = result.scalar_one()
             return CreatedUserInfo.model_validate(user_data)
-
-    async def get_user_by_nickname(self, nickname: str) -> UserInfo | None:
-        async with self.db.db_session() as session:
-            query = select(
-                self.model.id,
-                self.model.nickname,
-                self.model.email,
-                self.model.role,
-                self.model.password
-            ).where(self.model.nickname == nickname)
-
-            result = await session.execute(query)
-            user = result.mappings().first()
-            return UserInfo(**user) if user else None
-
-    async def get_user_by_id(self, user_id: uuid.UUID) -> UserVerification | None:
-        async with self.db.db_session() as session:
-            query = select(
-                self.model.id,
-                self.model.nickname,
-                self.model.role,
-            ).where(self.model.id == user_id)
-
-            result = await session.execute(query)
-            user = result.mappings().one_or_none()
-            return UserVerification(**user) if user else None
 
     async def store_token(self, user_info: StoredUserInfo, user_id: uuid.UUID, session_id: str) -> None:
         async with self.redis.get_client() as client:

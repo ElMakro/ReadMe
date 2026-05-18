@@ -4,18 +4,8 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
 
 from server.app.api.openapi_docs import openapi_extra_authorization_cookie
-from server.app.service.courses_manager import CourseExistenceError
-from server.app.service.courses_service import (
-    CourseOperationPermissionError,
-    CourseOwnerConflictError,
-    CoursePrivacyLevelsError,
-    CoursesService,
-    UserEnrollmentError,
-)
-from server.app.service.depends import get_current_user
-from server.app.service.users_service import UserExistenceError
-from server.schemas.common import UNPROCESSABLE_ENTITY_ERROR_TEXT, PaginationParameters
-from server.schemas.courses import (
+from server.app.api.v1.common_schemas import UNPROCESSABLE_ENTITY_ERROR_TEXT, PaginationParameters
+from server.app.api.v1.courses.courses import (
     CourseChangeProfessor,
     CourseCreation,
     CourseIDMixin,
@@ -24,7 +14,17 @@ from server.schemas.courses import (
     CoursesListSearchResponse,
     CourseUpdate,
 )
-from server.schemas.users import UserVerification
+from server.app.api.v1.courses.courses_manager import CourseExistenceError
+from server.app.api.v1.courses.courses_service import (
+    CourseOperationPermissionError,
+    CourseOwnerConflictError,
+    CoursePrivacyLevelsError,
+    CoursesService,
+    UserEnrollmentError,
+)
+from server.app.api.v1.users.users import UserVerification
+from server.app.api.v1.users.users_manager import UserExistenceError
+from server.app.common_dependencies.depends import get_current_user
 
 courses_router = APIRouter(
     prefix="/courses",

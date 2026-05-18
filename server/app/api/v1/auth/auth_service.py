@@ -1,10 +1,9 @@
 from fastapi import Depends, HTTPException, Response, status
 
-from server.app.service.auth_handler import AuthHandler
-from server.app.service.users_manager import UsersManager
-from server.config.settings import settings
-from server.schemas.common import MessageResponse
-from server.schemas.users import (
+from server.app.api.v1.auth.auth_handler import AuthHandler
+from server.app.api.v1.auth.auth_manager import AuthManager
+from server.app.api.v1.common_schemas import MessageResponse
+from server.app.api.v1.users.users import (
     CreatedUserInfo,
     NewUser,
     StoredUserInfo,
@@ -12,27 +11,26 @@ from server.schemas.users import (
     UserRegistration,
     UserVerification,
 )
+from server.app.api.v1.users.users_manager import UsersManager
+from server.config.settings import settings
 
 
-class UserExistenceError(
-    ValueError,
-):
-    """Исключение, связанное с существованием пользователя"""
-    pass
-
-class UsersService:
+class AuthService:
     def __init__(
             self,
-            manager: UsersManager = Depends(
-                UsersManager,
+            auth_manager: AuthManager = Depends(
+                AuthManager,
             ),
             auth_handler: AuthHandler = Depends(
                 AuthHandler,
             ),
-    ) \
-            -> None:
-        self.manager = manager
+            users_manager: UsersManager = Depends(
+                UsersManager,
+            ),
+    ) -> None:
+        self.auth_manager = auth_manager
         self.auth_handler = auth_handler
+        self.users_manager = users_manager
 
     async def register_user(
             self,
@@ -46,7 +44,7 @@ class UsersService:
             nickname=user.nickname,
             password=hashed_password,
         )
-        return await self.manager.create_user(
+        return await self.auth_manager.create_user(
             user=new_user,
         )
 
@@ -55,7 +53,7 @@ class UsersService:
             user: UserAuthentication,
             response: Response,
     ) -> MessageResponse:
-        existing_user = await self.manager.get_user_by_nickname(
+        existing_user = await self.users_manager.get_user_by_nickname(
             user.nickname,
         )
         if existing_user is None or not await self.auth_handler.verify_password(
@@ -69,11 +67,12 @@ class UsersService:
         token, session_id = await self.auth_handler.create_token(
             existing_user.id,
         )
-        await self.manager.store_token(
-            user_info=StoredUserInfo(token=token,
-                                     nickname=existing_user.nickname,
-                                     email=existing_user.email,
-                                     role=existing_user.role,),
+        await self.auth_manager.store_token(
+            user_info=StoredUserInfo(
+                token=token,
+                nickname=existing_user.nickname,
+                email=existing_user.email,
+                role=existing_user.role, ),
             user_id=existing_user.id,
             session_id=session_id,
         )
@@ -95,7 +94,7 @@ class UsersService:
             user: UserVerification,
             response: Response,
     ) -> MessageResponse:
-        await self.manager.clear_token(
+        await self.auth_manager.clear_token(
             user_id=user.id,
             session_id=user.session_id,
         )

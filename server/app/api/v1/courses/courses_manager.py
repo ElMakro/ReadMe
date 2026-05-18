@@ -5,9 +5,9 @@ from uuid import UUID
 from fastapi import Depends
 from sqlalchemy import delete, insert, select, update
 
+from server.app.api.v1.courses.courses import CourseFullListResponse, CourseIDMixin, CourseResponse, CoursesList
 from server.config.db_dependency import DBDependency
 from server.database.models import Courses, CoursesForStudents
-from server.schemas.courses import CourseFullListResponse, CourseIDMixin, CourseResponse, CoursesList
 
 
 class CourseExistenceError(
