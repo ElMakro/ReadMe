@@ -2,11 +2,11 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, status
 
-from server.app.service.depends import get_current_user
-from server.app.service.notes_service import NotesService
-from server.schemas.common import UNPROCESSABLE_ENTITY_ERROR_TEXT, PaginationParameters
-from server.schemas.notes import NotesList
-from server.schemas.users import UserVerification
+from server.app.api.v1.common_schemas import UNPROCESSABLE_ENTITY_ERROR_TEXT, PaginationParameters
+from server.app.api.v1.users.users import UserVerification
+from server.app.common_dependencies.depends import get_current_user
+from server.app.api.v1.notes.notes_service import NotesService
+from server.app.api.v1.notes.notes import NotesList
 
 notes_router = APIRouter(
     prefix="/notes",
