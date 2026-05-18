@@ -139,7 +139,7 @@
   showRegBtn.addEventListener('click', switchToReg);
 
   async function fetchProfile() {
-    const profileUrl = `${window.API_BASE_URL}students/profile`;
+    const profileUrl = `${window.API_BASE_URL}users/profile`;
     const response = await fetch(profileUrl, {
       method: 'GET',
       credentials: 'include',

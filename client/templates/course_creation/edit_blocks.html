@@ -7,9 +7,9 @@
     <nav aria-label="breadcrumb" class="mb-4">
         <ol class="breadcrumb">
             <li class="breadcrumb-item"><a href="/my-courses">Мастерская курсов</a></li>
-            <li class="breadcrumb-item"><a href="/course/{{ course_id }}/sections">Курс {{ course_id }}</a></li>
-            <li class="breadcrumb-item"><a href="/course/{{ course_id }}/section/{{ section_id }}/topics">Раздел {{ section_id }}</a></li>
-            <li class="breadcrumb-item active">Тема {{ topic_id }}</li>
+            <li class="breadcrumb-item" id="courseTitleBreadcrumb"><a href="/course/{{ course_id }}/sections">Загрузка...</a></li>
+            <li class="breadcrumb-item" id="sectionTitleBreadcrumb"><a href="/course/{{ course_id }}/section/{{ section_id }}/topics">Загрузка...</a></li>
+            <li class="breadcrumb-item active" id="topicTitleBreadcrumb">Загрузка...</li>
         </ol>
     </nav>
 
