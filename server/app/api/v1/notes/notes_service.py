@@ -1,8 +1,8 @@
 from fastapi import Depends
 
-from server.app.service.notes_manager import NotesManager
-from server.schemas.notes import NotesList
-from server.schemas.users import UserVerification
+from server.app.api.v1.notes.notes_manager import NotesManager
+from server.app.api.v1.notes.notes import NotesList
+from server.app.api.v1.users.users import UserVerification
 
 
 class NotesService:

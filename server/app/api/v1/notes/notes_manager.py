@@ -5,7 +5,7 @@ from sqlalchemy import desc, func, select
 
 from server.config.db_dependency import DBDependency
 from server.database.models import Notes, Topics
-from server.schemas.notes import NotesList
+from server.app.api.v1.notes.notes import NotesList
 
 
 class NotesManager:
