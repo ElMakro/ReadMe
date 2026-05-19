@@ -147,6 +147,11 @@
     async function saveSections() {
         saveBtn.disabled = true;
         try {
+            const emptyNames = sections.filter(s => !s.name.trim());
+            if (emptyNames.length > 0) {
+                alert('У всех разделов должно быть указано название. Пожалуйста, заполните пустые поля.');
+                return false;
+            }
             const currentIds = sections.filter(s => s.id !== null).map(s => s.id);
             const toDelete = originalSections.filter(orig => !currentIds.includes(orig.id));
             for (const del of toDelete) {
@@ -218,8 +223,6 @@
         if (section.id) {
             if (hasUnsavedChanges && !confirm('Есть несохранённые изменения. Перейти всё равно?')) return;
             window.location.href = `/course/${courseId}/section/${section.id}/topics`;
-        } else {
-            alert('Сначала сохраните раздел');
         }
     });
 
