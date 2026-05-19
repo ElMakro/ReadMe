@@ -1,19 +1,21 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Path, status
+from fastapi import APIRouter, Depends, HTTPException, Path, status
 
 from server.app.api.openapi_docs import openapi_extra_authorization_cookie
-from server.app.api.v1.common_schemas import UNPROCESSABLE_ENTITY_ERROR_TEXT
+from server.app.api.v1.common_schemas import UNPROCESSABLE_ENTITY_ERROR_TEXT, SwapContentOrder
+from server.app.api.v1.courses.courses_manager import ObjectExistenceError
+from server.app.api.v1.courses.courses_service import OperationPermissionError
 from server.app.api.v1.sections.sections import (
     SectionCreation,
     SectionIDMixin,
     SectionResponse,
     SectionsFullListResponse,
-    SectionsListResponse,
     SectionUpdate,
 )
-from server.app.api.v1.sections.sections_service import SectionsService
+from server.app.api.v1.sections.sections_manager import DifferentSourcesContentSwapError
+from server.app.api.v1.sections.sections_service import OrderNumberConflictError, SectionsService
 from server.app.api.v1.users.users import UserVerification
 from server.app.common_dependencies.depends import get_current_user
 
@@ -58,7 +60,151 @@ async def create_section(
     Создать новый раздел в курсе.
     Порядковый номер определяет отображение разделов.
     """
-    pass
+    try:
+        return await sections_service.create_section(
+            user,
+            section_data.course_id,
+            section_data.name,
+            section_data.description,
+            section_data.order_number,
+        )
+    except OperationPermissionError as error:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=str(
+                error,
+            ),
+        )
+    except ObjectExistenceError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(
+                error,
+            ),
+        )
+    except OrderNumberConflictError as error:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(
+                error,
+            ),
+        )
+
+
+@sections_router.get(
+    "/by_course/{course_id}",
+    summary="Получить список разделов по идентификатору курса",
+    response_description="Список разделов курса",
+    status_code=status.HTTP_200_OK,
+    response_model=SectionsFullListResponse,
+    responses={
+        status.HTTP_403_FORBIDDEN            : {
+            "description": "Пользователь не имеет прав на просмотр разделов этого курса",
+        },
+        status.HTTP_404_NOT_FOUND            : {
+            "description": "Курса с таким ID не существует",
+        },
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {
+            "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
+        },
+    },
+    openapi_extra=openapi_extra_authorization_cookie,
+)
+async def get_sections_by_course_id(
+        user: Annotated[UserVerification, Depends(
+            get_current_user,
+        )],
+        course_id: UUID = Path(
+            ...,
+            description="Уникальный идентификатор курса",
+        ),
+        sections_service: SectionsService = Depends(
+            SectionsService,
+        ),
+) -> SectionsFullListResponse:
+    """
+    Получить все разделы курса, отсортированные по порядковому номеру.
+    Возвращает полные данные о разделах.
+    """
+    try:
+        return await sections_service.get_sections_by_course_id(
+            user,
+            course_id,
+        )
+    except OperationPermissionError as error:
+        raise HTTPException(
+            status_code=status.HTTP_403_NOT_FOUND,
+            detail=str(
+                error,
+            ),
+        )
+    except ObjectExistenceError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(
+                error,
+            ),
+        )
+
+
+@sections_router.put(
+    "/swap",
+    summary="Обменять порядковые номера между разделами",
+    response_description="Порядковые номера успешно обменены",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={
+        status.HTTP_403_FORBIDDEN            : {
+            "description": "У пользователя нет прав на редактирование этого раздела",
+        },
+        status.HTTP_404_NOT_FOUND            : {
+            "description": "Раздела с таким идентификатором не существует",
+        },
+        status.HTTP_409_CONFLICT             : {
+            "description": "Обмен между разделами разных курсов запрещён",
+        },
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {
+            "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
+        },
+    },
+    openapi_extra=openapi_extra_authorization_cookie,
+)
+async def swap_sections(
+        user: Annotated[UserVerification, Depends(
+            get_current_user,
+        )],
+        sections_swap: SwapContentOrder,
+        sections_service: SectionsService = Depends(
+            SectionsService,
+        ),
+) -> None:
+    """Обменять порядковые номера между разделами."""
+    try:
+        await sections_service.swap_sections(
+            user,
+            sections_swap.first_element_id,
+            sections_swap.second_element_id,
+        )
+    except OperationPermissionError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(
+                error,
+            ),
+        )
+    except ObjectExistenceError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(
+                error,
+            ),
+        )
+    except DifferentSourcesContentSwapError as error:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(
+                error,
+            ),
+        )
 
 
 @sections_router.get(
@@ -93,100 +239,38 @@ async def get_section_by_id(
         ),
 ) -> SectionResponse:
     """Получить полную информацию о разделе по его идентификатору."""
-    pass
-
-
-@sections_router.get(
-    "/by_course/{course_id}",
-    summary="Получить список разделов по идентификатору курса",
-    response_description="Список разделов курса",
-    status_code=status.HTTP_200_OK,
-    response_model=SectionsFullListResponse,
-    responses={
-        status.HTTP_403_FORBIDDEN            : {
-            "description": "Пользователь не имеет прав на просмотр разделов этого курса",
-        },
-        status.HTTP_404_NOT_FOUND            : {
-            "description": "Курса с таким ID не существует",
-        },
-        status.HTTP_422_UNPROCESSABLE_CONTENT: {
-            "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
-        },
-    },
-    openapi_extra=openapi_extra_authorization_cookie,
-)
-async def get_sections_by_course(
-        user: Annotated[UserVerification, Depends(
-            get_current_user,
-        )],
-        course_id: UUID = Path(
-            ...,
-            description="Уникальный идентификатор курса",
-        ),
-        sections_service: SectionsService = Depends(
-            SectionsService,
-        ),
-) -> SectionsFullListResponse:
-    """
-    Получить все разделы курса, отсортированные по порядковому номеру.
-    Возвращает полные данные о разделах.
-    """
-    pass
-
-
-@sections_router.get(
-    "/by_course/{course_id}/ids",
-    summary="Получить список ID разделов по ID курса",
-    response_description="Список ID разделов курса",
-    status_code=status.HTTP_200_OK,
-    response_model=SectionsListResponse,
-    responses={
-        status.HTTP_403_FORBIDDEN            : {
-            "description": "Пользователь не имеет прав на просмотр разделов этого курса",
-        },
-        status.HTTP_404_NOT_FOUND            : {
-            "description": "Курса с таким ID не существует",
-        },
-        status.HTTP_422_UNPROCESSABLE_CONTENT: {
-            "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
-        },
-    },
-    openapi_extra=openapi_extra_authorization_cookie,
-)
-async def get_section_ids_by_course(
-        user: Annotated[UserVerification, Depends(
-            get_current_user,
-        )],
-        course_id: UUID = Path(
-            ...,
-            description="Уникальный идентификатор курса",
-        ),
-        sections_service: SectionsService = Depends(
-            SectionsService,
-        ),
-) -> SectionsListResponse:
-    """
-    Получить только ID разделов курса, отсортированные по порядковому номеру.
-    Полезно для получения списка ID для дальнейших запросов.
-    """
-    pass
+    try:
+        return await sections_service.get_section_by_id(
+            user,
+            section_id,
+        )
+    except OperationPermissionError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(
+                error,
+            ),
+        )
+    except ObjectExistenceError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(
+                error,
+            ),
+        )
 
 
 @sections_router.put(
     "/{section_id}",
     summary="Обновить данные о разделе",
     response_description="Данные раздела успешно обновлены",
-    status_code=status.HTTP_200_OK,
-    response_model=SectionResponse,
+    status_code=status.HTTP_204_NO_CONTENT,
     responses={
         status.HTTP_403_FORBIDDEN            : {
             "description": "У пользователя нет прав на редактирование этого раздела",
         },
         status.HTTP_404_NOT_FOUND            : {
             "description": "Раздела с таким ID не существует",
-        },
-        status.HTTP_409_CONFLICT             : {
-            "description": "Раздел с таким order_number уже существует в этом курсе",
         },
         status.HTTP_422_UNPROCESSABLE_CONTENT: {
             "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
@@ -198,7 +282,7 @@ async def update_section(
         user: Annotated[UserVerification, Depends(
             get_current_user,
         )],
-        section_data: SectionUpdate,
+        section_update: SectionUpdate,
         section_id: UUID = Path(
             ...,
             description="Уникальный идентификатор раздела",
@@ -206,9 +290,29 @@ async def update_section(
         sections_service: SectionsService = Depends(
             SectionsService,
         ),
-) -> SectionResponse:
+) -> None:
     """Обновить информацию о разделе."""
-    pass
+    try:
+        await sections_service.update_section(
+            user,
+            section_id,
+            section_update.name,
+            section_update.description,
+        )
+    except OperationPermissionError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(
+                error,
+            ),
+        )
+    except ObjectExistenceError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(
+                error,
+            ),
+        )
 
 
 @sections_router.delete(
@@ -245,37 +349,22 @@ async def delete_section(
     Удалить раздел и все связанные с ним темы.
     Только преподаватель курса может удалить раздел.
     """
-    pass
-
-
-@sections_router.put(
-    "/put-content/{section_id}",
-    summary="Установить контент оглавления раздела",
-    status_code=status.HTTP_204_NO_CONTENT,
-    responses={
-        status.HTTP_403_FORBIDDEN            : {
-            "description": "Пользователь не имеет прав на установление контента",
-        },
-        status.HTTP_404_NOT_FOUND            : {
-            "description": "Раздела с таким идентификатором не существует",
-        },
-        status.HTTP_422_UNPROCESSABLE_CONTENT: {
-            "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
-        },
-    },
-    deprecated=True,
-    openapi_extra=openapi_extra_authorization_cookie,
-)
-async def put_section_content(
-        user: Annotated[UserVerification, Depends(
-            get_current_user,
-        )],
-        section_id: UUID = Path(
-            ...,
-            description="Уникальный идентификатор раздела",
-        ),
-        sections_service: SectionsService = Depends(
-            SectionsService,
-        ),
-):
-    pass
+    try:
+        await sections_service.delete_section(
+            user,
+            section_id,
+        )
+    except OperationPermissionError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(
+                error,
+            ),
+        )
+    except ObjectExistenceError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(
+                error,
+            ),
+        )

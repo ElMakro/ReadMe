@@ -14,12 +14,12 @@ from server.app.api.v1.courses.courses import (
     CoursesListSearchResponse,
     CourseUpdate,
 )
-from server.app.api.v1.courses.courses_manager import CourseExistenceError
+from server.app.api.v1.courses.courses_manager import ObjectExistenceError
 from server.app.api.v1.courses.courses_service import (
-    CourseOperationPermissionError,
     CourseOwnerConflictError,
     CoursePrivacyLevelsError,
     CoursesService,
+    OperationPermissionError,
     UserEnrollmentError,
 )
 from server.app.api.v1.users.users import UserVerification
@@ -72,7 +72,7 @@ async def create_course(
             course_data.is_public,
             course_data.is_content_public,
         )
-    except CourseOperationPermissionError as error:
+    except OperationPermissionError as error:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=str(
@@ -273,14 +273,14 @@ async def change_course_professor(
             course_id,
             new_professor_data.new_professor_id,
         )
-    except CourseOperationPermissionError as error:
+    except OperationPermissionError as error:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=str(
                 error,
             ),
         )
-    except CourseExistenceError as error:
+    except ObjectExistenceError as error:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(
@@ -342,14 +342,14 @@ async def self_enroll_on_course(
             user,
             course_id,
         )
-    except CourseOperationPermissionError as error:
+    except OperationPermissionError as error:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=str(
                 error,
             ),
         )
-    except CourseExistenceError as error:
+    except ObjectExistenceError as error:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(
@@ -398,7 +398,7 @@ async def self_unenroll_from_course(
             user,
             course_id,
         )
-    except CourseExistenceError as error:
+    except ObjectExistenceError as error:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(
@@ -444,14 +444,14 @@ async def get_course_by_id(
             user,
             course_id,
         )
-    except CourseOperationPermissionError as error:
+    except OperationPermissionError as error:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=str(
                 error,
             ),
         )
-    except CourseExistenceError as error:
+    except ObjectExistenceError as error:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(
@@ -504,14 +504,14 @@ async def update_course(
             course_update.is_public,
             course_update.is_content_public,
         )
-    except CourseOperationPermissionError as error:
+    except OperationPermissionError as error:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=str(
                 error,
             ),
         )
-    except CourseExistenceError as error:
+    except ObjectExistenceError as error:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(
@@ -566,14 +566,14 @@ async def delete_course(
             user,
             course_id,
         )
-    except CourseOperationPermissionError as error:
+    except OperationPermissionError as error:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=str(
                 error,
             ),
         )
-    except CourseExistenceError as error:
+    except ObjectExistenceError as error:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(

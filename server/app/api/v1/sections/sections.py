@@ -1,6 +1,6 @@
 import uuid
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, RootModel
 
 from server.app.api.v1.common_schemas import TimestampsMixin
 from server.config.constants import MAX_COURSE_DESCRIPTION_LENGTH
@@ -86,12 +86,6 @@ class SectionUpdate(
         description="Описание раздела",
         examples=["Описание раздела"],
     )
-    order_number: int | None = Field(
-        None,
-        description="Порядковый номер",
-        ge=0,
-        examples=[1],
-    )
 
 
 class SectionResponse(
@@ -111,41 +105,8 @@ class SectionResponse(
     )
 
 
-class SectionsListResponse(
-    BaseModel,
-):
-    """Список ID разделов курса"""
-    model_config = ConfigDict(
-        from_attributes=True,
-        extra="ignore",
-    )
-
-    section_ids: list[uuid.UUID] = Field(
-        ...,
-        description="Список уникальных идентификаторов разделов",
-        examples=[[uuid.uuid4()]],
-    )
-    total: int = Field(
-        ...,
-        ge=0,
-        description="Количество разделов",
-        examples=[1],
-    )
-
-
 class SectionsFullListResponse(
-    BaseModel,
+    RootModel[list[SectionResponse]],
 ):
-    """Полный список разделов курса"""
-    model_config = ConfigDict(
-        from_attributes=True,
-        extra="ignore",
-    )
-
-    sections: list[SectionResponse]
-    total: int = Field(
-        ...,
-        ge=0,
-        description="Количество разделов",
-        examples=[1],
-    )
+    """Список разделов курса, с полной информацией о них"""
+    pass
