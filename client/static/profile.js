@@ -26,9 +26,6 @@
     function renderProfile(user) {
         profileContainer.innerHTML = `
             <div class="row mb-5">
-                <div class="col-lg-4 text-center mb-4 mb-lg-0">
-                    <img src="https://via.placeholder.com/150" class="profile-photo" width="200" alt="Фото">
-                </div>
                 <div class="col-lg-8">
                     <h3 class="mb-4">Мои Данные</h3>
                     <div class="data-item d-flex align-items-center mb-3">
