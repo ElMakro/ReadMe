@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import CheckConstraint, ForeignKey, String, Text
+from sqlalchemy import CheckConstraint, ForeignKey, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, validates
 
 from server.config.constants import MAX_NOTE_LENGTH
@@ -20,6 +20,7 @@ class Notes(IDMixin, TimestampsMixin, Base):
             f"length(content) <= {MAX_NOTE_LENGTH}",
             name="length_check"
         ),
+        UniqueConstraint('student_id', 'topic_id', name='uq_student_topic'),
     )
 
     @validates("content")
