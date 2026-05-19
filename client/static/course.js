@@ -1,57 +1,113 @@
+// static/course.js
 (function() {
     const courseId = window.COURSE_ID;
     const sectionList = document.getElementById('sectionList');
     const topicContent = document.getElementById('topicContent');
     const checkYourselfBtn = document.getElementById('checkYourselfBtn');
 
-    let sectionsData = [];
+    let courseMeta = null;        // { name, description, ... }
+    let sectionsData = [];         // [{ id, name, order_number, topics: [...] }]
     let activeTopicId = null;
     let activeSectionId = null;
     window.activeSectionId = null;
     window.activeTopicId = null;
 
-    (async function setPageTitle() {
-        const courseName = await window.getCourseName(courseId);
-        if (courseName) {
-            document.title = `${courseName} — ReadMe`;
+    // 1. Загрузка курса
+    async function loadCourse() {
+        const resp = await fetch(`${window.API_BASE_URL}courses/${courseId}`, {
+            credentials: 'include'
+        });
+        if (!resp.ok) throw new Error(`Ошибка загрузки курса: ${resp.status}`);
+        const data = await resp.json();
+        courseMeta = {
+            id: data.id,
+            name: data.name,
+            description: data.description,
+            is_public: data.is_public,
+            is_content_public: data.is_content_public,
+            professor_id: data.professor_id
+        };
+        // Устанавливаем заголовок страницы
+        document.title = `${courseMeta.name} — ReadMe`;
+        // Если есть элемент с названием курса на странице (например, h1), обновляем
+        const courseTitleEl = document.getElementById('courseTitle');
+        if (courseTitleEl) courseTitleEl.textContent = courseMeta.name;
+        return courseMeta;
+    }
+
+    // 2. Загрузка разделов курса
+    async function loadSections() {
+        const resp = await fetch(`${window.API_BASE_URL}sections/by_course/${courseId}`, {
+            credentials: 'include'
+        });
+        if (!resp.ok) {
+            // Логируем статус и текст ошибки для отладки
+            console.error(`Ошибка загрузки разделов: ${resp.status} ${resp.statusText}`);
+            // Возвращаем пустой массив, чтобы интерфейс не сломался
+            return [];
         }
-    })();
+        const data = await resp.json();
+        // На случай, если data = null или не содержит sections
+        let sections = data?.sections || [];
+        sections.sort((a, b) => a.order_number - b.order_number);
+        return sections;
+    }
 
-    async function loadCourseStructure() {
+    // 3. Загрузка тем для одного раздела
+    async function loadTopicsForSection(sectionId) {
+        const resp = await fetch(`${window.API_BASE_URL}topics/by-section/${sectionId}`, {
+            credentials: 'include'
+        });
+        if (!resp.ok) {
+            console.error(`Ошибка загрузки разделов: ${resp.status} ${resp.statusText}`);
+            return [];
+        }
+        const data = await resp.json(); // { topics: [...], total }
+        let topics = data?.topics || [];
+        topics.sort((a, b) => a.order_number - b.order_number);
+        return topics; // массив объектов TopicResponse
+    }
+
+    // 4. Основная функция: загружаем всё последовательно
+    async function loadFullCourseStructure() {
         try {
-            // 1. Разделы курса
-            const sectionsResp = await fetch(`${window.API_BASE_URL}sections/by_course/${courseId}`, {
-                credentials: 'include'
-            });
-            if (!sectionsResp.ok) throw new Error('Не удалось загрузить разделы');
-            const sectionsDataResp = await sectionsResp.json();
-            let sections = sectionsDataResp.sections || [];
-            sections.sort((a,b) => a.order_number - b.order_number);
+            // 1. Загружаем курс
+            await loadCourse();
 
-            sectionsData = [];
-            for (const section of sections) {
-                const topicsResp = await fetch(`${window.API_BASE_URL}topics/by-section/${section.id}`, {
-                    credentials: 'include'
-                });
-                if (!topicsResp.ok) throw new Error(`Ошибка загрузки тем раздела ${section.id}`);
-                const topicsData = await topicsResp.json();
-                let topics = topicsData.topics || [];
-                topics.sort((a,b) => a.order_number - b.order_number);
-                sectionsData.push({
-                    id: section.id,
-                    name: section.name,
-                    order_number: section.order_number,
-                    topics: topics.map(t => ({ id: t.id, name: t.name, order_number: t.order_number }))
-                });
-            }
-            renderMenu();
-            if (sectionsData.length && sectionsData[0].topics.length) {
-                const firstSection = sectionsData[0];
-                const firstTopic = firstSection.topics[0];
-                showTopicContent(firstSection.id, firstTopic.id);
-                toggleSection(firstSection.id, true);
-            } else {
-                topicContent.innerHTML = '<p class="text-muted">Курс пока пуст. Добавьте разделы и темы.</p>';
+            // 2. Загружаем разделы и темы
+            let sections = [];
+            try {
+                sections = await loadSections();
+
+                const sectionsWithTopics = [];
+                for (const section of sections) {
+                    const topics = await loadTopicsForSection(section.id);
+                    sectionsWithTopics.push({
+                        id: section.id,
+                        name: section.name,
+                        order_number: section.order_number,
+                        topics: topics.map(t => ({
+                            id: t.id,
+                            name: t.name,
+                            order_number: t.order_number
+                        }))
+                    });
+                }
+                sectionsData = sectionsWithTopics;
+
+                renderMenu();
+
+                if (sectionsData.length && sectionsData[0].topics.length) {
+                    const firstSection = sectionsData[0];
+                    const firstTopic = firstSection.topics[0];
+                    showTopicContent(firstSection.id, firstTopic.id);
+                    toggleSection(firstSection.id, true);
+                } else {
+                    topicContent.innerHTML = '<p class="text-muted">Курс пока пуст.</p>';
+                }
+            } catch (e) {
+                console.warn('Не удалось загрузить разделы, показываем пустой список', e);
+                topicContent.innerHTML = '<p class="text-warning">Не удалось загрузить структуру курса. Попробуйте обновить страницу.</p>';
             }
         } catch (err) {
             console.error(err);
@@ -59,6 +115,7 @@
         }
     }
 
+    // Рендер меню (без изменений, но использует sectionsData)
     function renderMenu() {
         if (!sectionList) return;
         sectionList.innerHTML = '';
@@ -95,6 +152,11 @@
             sectionList.appendChild(sectionItem);
         });
 
+        // Обработчики кликов (как у вас)
+        attachMenuEventListeners();
+    }
+
+    function attachMenuEventListeners() {
         document.querySelectorAll('.section-toggle').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 e.preventDefault();
@@ -137,7 +199,7 @@
                 credentials: 'include'
             });
             if (!resp.ok) throw new Error('Не удалось загрузить содержимое темы');
-            const data = await resp.json();   // { blocks: [{type, rendered_content}] }
+            const data = await resp.json();
             const blocks = data.blocks || [];
             let html = '';
             for (const block of blocks) {
@@ -183,7 +245,8 @@
         });
     }
 
-    loadCourseStructure();
+    // Запускаем загрузку
+    loadFullCourseStructure();
 })();
 
 // ========== ПЛАВАЮЩЕЕ ОКНО КОНСПЕКТА ==========
