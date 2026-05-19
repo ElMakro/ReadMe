@@ -7,6 +7,15 @@
     let sectionsData = [];
     let activeTopicId = null;
     let activeSectionId = null;
+    window.activeSectionId = null;
+    window.activeTopicId = null;
+
+    (async function setPageTitle() {
+        const courseName = await window.getCourseName(courseId);
+        if (courseName) {
+            document.title = `${courseName} — ReadMe`;
+        }
+    })();
 
     async function loadCourseStructure() {
         try {
@@ -177,169 +186,255 @@
     loadCourseStructure();
 })();
 
-// ========== ПЛАВАЮЩИЙ КОНСПЕКТ ==========
-(function initFloatingFeatures() {
+// ========== ПЛАВАЮЩЕЕ ОКНО КОНСПЕКТА ==========
+(function() {
     const win = document.getElementById('floatingWindow');
-    const header = document.getElementById('windowHeader');
-    const closeBtn = document.getElementById('closeWindowBtn');
     const tabBtn = document.getElementById('floatingTabButton');
+    const closeBtn = document.getElementById('closeWindowBtn');
+    const saveBtn = document.getElementById('saveConspectBtn');
+    const textarea = win?.querySelector('.conspect-content');
+    const header = document.getElementById('windowHeader');
+    if (!win || !tabBtn) return;
 
-    if (!win || !header || !tabBtn) return;
+    let isOpen = false;
 
-    tabBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        if (win.style.display === 'none' || win.style.display === '') {
-            win.style.display = 'block';
-            const rect = win.getBoundingClientRect();
-            const maxX = window.innerWidth - rect.width;
-            const maxY = window.innerHeight - rect.height;
-            let left = parseInt(win.style.left) || 100;
-            let top = parseInt(win.style.top) || 100;
-            left = Math.min(Math.max(0, left), maxX);
-            top = Math.min(Math.max(0, top), maxY);
-            win.style.left = left + 'px';
-            win.style.top = top + 'px';
+    function getContainerBounds() {
+        const mainContent = document.querySelector('.main-content');
+        if (!mainContent) return { left: 20, top: 20, right: window.innerWidth - 20, bottom: window.innerHeight - 20 };
+        const rect = mainContent.getBoundingClientRect();
+        return {
+            left: rect.left + 10,
+            top: rect.top + 10,
+            right: rect.right - 10,
+            bottom: rect.bottom - 10
+        };
+    }
+
+    function getStorageKey() {
+        let course = window.COURSE_ID;
+        let topic = window.activeTopicId;
+        return course && topic ? `conspect_${course}_${topic}` : null;
+    }
+    function loadConspect() {
+        let key = getStorageKey();
+        if (key && textarea) textarea.value = localStorage.getItem(key) || '';
+    }
+    function saveConspect() {
+        let key = getStorageKey();
+        if (key && textarea) localStorage.setItem(key, textarea.value);
+        if (saveBtn) {
+            saveBtn.textContent = '✓';
+            setTimeout(() => { saveBtn.textContent = '💾'; }, 600);
         }
-    });
-
-    if (closeBtn) {
-        closeBtn.addEventListener('click', () => { win.style.display = 'none'; });
     }
 
-    let isDraggingWin = false;
-    let startX, startY, startLeft, startTop;
-    function onMouseDown(e) {
-        if (!header.contains(e.target)) return;
-        isDraggingWin = true;
-        startX = e.clientX;
-        startY = e.clientY;
-        startLeft = parseInt(win.style.left) || 0;
-        startTop = parseInt(win.style.top) || 0;
-        document.addEventListener('mousemove', onMouseMove);
-        document.addEventListener('mouseup', onMouseUp);
-        e.preventDefault();
+    function saveWinState() {
+        let left = parseFloat(win.style.left);
+        let top = parseFloat(win.style.top);
+        let width = win.offsetWidth;
+        let height = win.offsetHeight;
+        if (!isNaN(left) && !isNaN(top))
+            localStorage.setItem('conspect_window', JSON.stringify({ left, top, width, height }));
     }
+    function loadWinState() {
+        let saved = localStorage.getItem('conspect_window');
+        if (saved) {
+            let { left, top, width, height } = JSON.parse(saved);
+            if (left) win.style.left = left + 'px';
+            if (top) win.style.top = top + 'px';
+            if (width && width >= 200) win.style.width = width + 'px';
+            if (height && height >= 150) win.style.height = height + 'px';
+        } else {
+            let bounds = getContainerBounds();
+            let width = 320, height = 280;
+            win.style.width = width + 'px';
+            win.style.height = height + 'px';
+            win.style.left = (bounds.right - width - 20) + 'px';
+            win.style.top = (bounds.bottom - height - 20) + 'px';
+            win.style.right = 'auto';
+            win.style.bottom = 'auto';
+        }
+    }
+
+    function clampPosition(left, top, width, height) {
+        let bounds = getContainerBounds();
+        return {
+            left: Math.min(bounds.right - width, Math.max(bounds.left, left)),
+            top: Math.min(bounds.bottom - height, Math.max(bounds.top, top))
+        };
+    }
+    function applyClampedPosition() {
+        let left = parseFloat(win.style.left);
+        let top = parseFloat(win.style.top);
+        let width = win.offsetWidth;
+        let height = win.offsetHeight;
+        let clamped = clampPosition(left, top, width, height);
+        if (clamped.left !== left) win.style.left = clamped.left + 'px';
+        if (clamped.top !== top) win.style.top = clamped.top + 'px';
+    }
+
+    // --- DRAG (без задержки) ---
+    let dragging = false;
+    let dragStartX = 0, dragStartY = 0, dragStartLeft = 0, dragStartTop = 0;
     function onMouseMove(e) {
-        if (!isDraggingWin) return;
-        let newLeft = startLeft + (e.clientX - startX);
-        let newTop = startTop + (e.clientY - startY);
-        const maxX = window.innerWidth - win.offsetWidth;
-        const maxY = window.innerHeight - win.offsetHeight;
-        newLeft = Math.min(Math.max(0, newLeft), maxX);
-        newTop = Math.min(Math.max(0, newTop), maxY);
-        win.style.left = newLeft + 'px';
-        win.style.top = newTop + 'px';
+        if (!dragging) return;
+        let newLeft = dragStartLeft + (e.clientX - dragStartX);
+        let newTop = dragStartTop + (e.clientY - dragStartY);
+        let width = win.offsetWidth;
+        let height = win.offsetHeight;
+        let clamped = clampPosition(newLeft, newTop, width, height);
+        win.style.left = clamped.left + 'px';
+        win.style.top = clamped.top + 'px';
+        win.style.right = 'auto';
+        win.style.bottom = 'auto';
     }
     function onMouseUp() {
-        isDraggingWin = false;
+        if (dragging) saveWinState();
+        dragging = false;
         document.removeEventListener('mousemove', onMouseMove);
         document.removeEventListener('mouseup', onMouseUp);
+        document.body.style.userSelect = '';
     }
-    header.addEventListener('mousedown', onMouseDown);
+    if (header) {
+        header.addEventListener('mousedown', (e) => {
+            if (e.target.closest('.btn-close-window') || e.target.closest('.btn-save-conspect')) return;
+            dragging = true;
+            dragStartX = e.clientX;
+            dragStartY = e.clientY;
+            dragStartLeft = parseFloat(win.style.left);
+            dragStartTop = parseFloat(win.style.top);
+            if (isNaN(dragStartLeft)) dragStartLeft = 20;
+            if (isNaN(dragStartTop)) dragStartTop = 20;
+            document.body.style.userSelect = 'none';
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
+            e.preventDefault();
+        });
+    }
 
-    let isDraggingBtn = false;
-    let btnStartY, btnStartTop;
-    function getBtnTop() {
-        let top = parseFloat(window.getComputedStyle(tabBtn).top);
-        return isNaN(top) ? tabBtn.getBoundingClientRect().top : top;
-    }
-    function onBtnMouseDown(e) {
-        isDraggingBtn = true;
-        btnStartTop = getBtnTop();
-        btnStartY = e.clientY;
-        document.addEventListener('mousemove', onBtnMouseMove);
-        document.addEventListener('mouseup', onBtnMouseUp);
-        e.preventDefault();
+    // --- RESIZE (8 направлений) ---
+    const directions = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'];
+    let resizing = false;
+    let resizeDir = null;
+    let resizeStartX = 0, resizeStartY = 0;
+    let resizeStartWidth = 0, resizeStartHeight = 0;
+    let resizeStartLeft = 0, resizeStartTop = 0;
+
+    function startResize(e, dir) {
         e.stopPropagation();
-    }
-    function onBtnMouseMove(e) {
-        if (!isDraggingBtn) return;
-        let dy = e.clientY - btnStartY;
-        let newTop = btnStartTop + dy;
-        const btnHeight = tabBtn.offsetHeight;
-        newTop = Math.min(Math.max(0, newTop), window.innerHeight - btnHeight);
-        tabBtn.style.top = newTop + 'px';
-    }
-    function onBtnMouseUp() {
-        isDraggingBtn = false;
-        document.removeEventListener('mousemove', onBtnMouseMove);
-        document.removeEventListener('mouseup', onBtnMouseUp);
-    }
-    tabBtn.addEventListener('mousedown', onBtnMouseDown);
-
-    function onBtnTouchStart(e) {
+        resizing = true;
+        resizeDir = dir;
+        resizeStartX = e.clientX;
+        resizeStartY = e.clientY;
+        resizeStartWidth = win.offsetWidth;
+        resizeStartHeight = win.offsetHeight;
+        resizeStartLeft = parseFloat(win.style.left);
+        resizeStartTop = parseFloat(win.style.top);
+        if (isNaN(resizeStartLeft)) resizeStartLeft = 20;
+        if (isNaN(resizeStartTop)) resizeStartTop = 20;
+        document.body.style.userSelect = 'none';
+        document.addEventListener('mousemove', onResizeMove);
+        document.addEventListener('mouseup', stopResize);
         e.preventDefault();
-        const touch = e.touches[0];
-        btnStartTop = getBtnTop();
-        btnStartY = touch.clientY;
-        isDraggingBtn = true;
-        document.addEventListener('touchmove', onBtnTouchMove);
-        document.addEventListener('touchend', onBtnTouchEnd);
     }
-    function onBtnTouchMove(e) {
-        if (!isDraggingBtn) return;
-        e.preventDefault();
-        const touch = e.touches[0];
-        let dy = touch.clientY - btnStartY;
-        let newTop = btnStartTop + dy;
-        const btnHeight = tabBtn.offsetHeight;
-        newTop = Math.min(Math.max(0, newTop), window.innerHeight - btnHeight);
-        tabBtn.style.top = newTop + 'px';
-    }
-    function onBtnTouchEnd() {
-        isDraggingBtn = false;
-        document.removeEventListener('touchmove', onBtnTouchMove);
-        document.removeEventListener('touchend', onBtnTouchEnd);
-    }
-    tabBtn.addEventListener('touchstart', onBtnTouchStart);
+    function onResizeMove(e) {
+        if (!resizing) return;
+        let dx = e.clientX - resizeStartX;
+        let dy = e.clientY - resizeStartY;
+        let newWidth = resizeStartWidth;
+        let newHeight = resizeStartHeight;
+        let newLeft = resizeStartLeft;
+        let newTop = resizeStartTop;
 
-    window.addEventListener('resize', () => {
-        let top = getBtnTop();
-        const maxTop = window.innerHeight - tabBtn.offsetHeight;
-        if (top > maxTop) tabBtn.style.top = maxTop + 'px';
-        if (top < 0) tabBtn.style.top = '0px';
+        const minW = 200, minH = 150;
+        const maxW = window.innerWidth * 0.9;
+        const maxH = window.innerHeight * 0.9;
+
+        if (resizeDir.includes('e')) newWidth = Math.min(maxW, Math.max(minW, resizeStartWidth + dx));
+        if (resizeDir.includes('w')) {
+            let possibleWidth = resizeStartWidth - dx;
+            if (possibleWidth >= minW && possibleWidth <= maxW) {
+                newWidth = possibleWidth;
+                newLeft = resizeStartLeft + dx;
+            }
+        }
+        if (resizeDir.includes('s')) newHeight = Math.min(maxH, Math.max(minH, resizeStartHeight + dy));
+        if (resizeDir.includes('n')) {
+            let possibleHeight = resizeStartHeight - dy;
+            if (possibleHeight >= minH && possibleHeight <= maxH) {
+                newHeight = possibleHeight;
+                newTop = resizeStartTop + dy;
+            }
+        }
+
+        // Ограничение по контейнеру
+        let bounds = getContainerBounds();
+        win.style.width = newWidth + 'px';
+        win.style.height = newHeight + 'px';
+        let finalLeft = newLeft;
+        let finalTop = newTop;
+        if (finalLeft < bounds.left) finalLeft = bounds.left;
+        if (finalTop < bounds.top) finalTop = bounds.top;
+        if (finalLeft + newWidth > bounds.right) finalLeft = bounds.right - newWidth;
+        if (finalTop + newHeight > bounds.bottom) finalTop = bounds.bottom - newHeight;
+        win.style.left = finalLeft + 'px';
+        win.style.top = finalTop + 'px';
+    }
+    function stopResize() {
+        if (resizing) saveWinState();
+        resizing = false;
+        document.removeEventListener('mousemove', onResizeMove);
+        document.removeEventListener('mouseup', stopResize);
+        document.body.style.userSelect = '';
+    }
+
+    // Создаём ручки ресайза, если их нет
+    directions.forEach(dir => {
+        let handle = win.querySelector(`.resize-handle.${dir}`);
+        if (!handle) {
+            handle = document.createElement('div');
+            handle.className = `resize-handle ${dir}`;
+            win.appendChild(handle);
+        }
+        handle.addEventListener('mousedown', (e) => startResize(e, dir));
     });
 
-    const resizeHandle = document.getElementById('resizeHandle');
-    if (resizeHandle) {
-        let isResizing = false;
-        let startResizeX, startResizeY, startWidth, startHeight;
-
-        function onResizeMouseDown(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            isResizing = true;
-            startResizeX = e.clientX;
-            startResizeY = e.clientY;
-            startWidth = win.offsetWidth;
-            startHeight = win.offsetHeight;
-            document.addEventListener('mousemove', onResizeMouseMove);
-            document.addEventListener('mouseup', onResizeMouseUp);
-        }
-
-        function onResizeMouseMove(e) {
-            if (!isResizing) return;
-            const deltaX = e.clientX - startResizeX;
-            const deltaY = e.clientY - startResizeY;
-            let newWidth = startWidth + deltaX;
-            let newHeight = startHeight + deltaY;
-            newWidth = Math.max(200, newWidth);
-            newHeight = Math.max(150, newHeight);
-            const rect = win.getBoundingClientRect();
-            const maxWidth = window.innerWidth - rect.left;
-            const maxHeight = window.innerHeight - rect.top;
-            newWidth = Math.min(newWidth, maxWidth);
-            newHeight = Math.min(newHeight, maxHeight);
-            win.style.width = newWidth + 'px';
-            win.style.height = newHeight + 'px';
-        }
-
-        function onResizeMouseUp() {
-            isResizing = false;
-            document.removeEventListener('mousemove', onResizeMouseMove);
-            document.removeEventListener('mouseup', onResizeMouseUp);
-        }
-
-        resizeHandle.addEventListener('mousedown', onResizeMouseDown);
+    // --- Открытие / закрытие ---
+    function openWin() {
+        win.style.display = 'flex';
+        isOpen = true;
+        loadWinState();
+        loadConspect();
+        applyClampedPosition();
     }
+    function closeWin() {
+        win.style.display = 'none';
+        isOpen = false;
+    }
+    function toggleWin() { isOpen ? closeWin() : openWin(); }
+
+    tabBtn.addEventListener('click', toggleWin);
+    if (closeBtn) closeBtn.addEventListener('click', closeWin);
+    if (saveBtn) saveBtn.addEventListener('click', saveConspect);
+
+    // Авто-сохранение при вводе (по желанию)
+    if (textarea) textarea.addEventListener('input', () => {}); // пусто, можно раскомментировать saveConspect()
+
+    // Следим за сменой темы
+    let oldShow = window.showTopicContent;
+    if (oldShow) {
+        window.showTopicContent = async function(sid, tid) {
+            await oldShow(sid, tid);
+            if (isOpen) loadConspect();
+        };
+    } else {
+        setInterval(() => { if (isOpen && window.activeTopicId) loadConspect(); }, 500);
+    }
+
+    window.addEventListener('resize', () => {
+        if (isOpen) applyClampedPosition();
+    });
+
+    win.style.display = 'none';
+    isOpen = false;
 })();

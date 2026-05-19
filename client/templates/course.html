@@ -28,10 +28,12 @@
 <div id="floatingWindow" class="floating-window" style="display: none;">
     <div id="windowHeader" class="window-header">
         <span>Конспект</span>
-        <button id="closeWindowBtn" class="btn-close-window">✕</button>
+        <div style="display: flex; gap: 8px;">
+            <button id="saveConspectBtn" class="btn-save-conspect" style="background: none; border: none; color: var(--text-secondary); cursor: pointer;">💾</button>
+            <button id="closeWindowBtn" class="btn-close-window">✕</button>
+        </div>
     </div>
     <textarea class="conspect-content" placeholder="Напишите здесь свои мысли..."></textarea>
-    <div id="resizeHandle" class="resize-handle"></div>
 </div>
 
 <div id="floatingTabButton" class="floating-tab-button">📌</div>
@@ -43,5 +45,6 @@
     window.COURSE_ID = "{{ course_id }}";
     window.API_BASE_URL = "{{ api_base_url }}";
 </script>
+<script src="../../static/course_creation/course_helpers.js"></script>
 <script src="../static/course.js"></script>
 {% endblock %}

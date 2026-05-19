@@ -3,30 +3,10 @@
     const container = document.getElementById('blocksList');
     const addBtn = document.getElementById('addBlockBtn');
     const saveBtn = document.getElementById('saveBlocksBtn');
-    const breadcrumbCourse = document.getElementById('courseTitleBreadcrumb')
-    const breadcrumbSection = document.getElementById('sectionTitleBreadcrumb')
-    const breadcrumbTitle = document.getElementById('titleTitleBreadcrumb')
 
     let blocks = [];
     let originalBlocks = [];
     let hasUnsaved = false;
-
-    async function loadCourseTitle() {
-        if (!breadcrumbCourse) return;
-        try {
-            const res = await fetch(`${window.API_BASE_URL}courses/${courseId}`, {
-                credentials: 'include'
-            });
-            if (res.ok) {
-                const course = await res.json();
-                if (course && course.name) {
-                    breadcrumbCourse.textContent = course.name;
-                }
-            }
-        } catch (err) {
-            console.warn('Не удалось загрузить название курса:', err);
-        }
-    }
 
     window.addEventListener('beforeunload', (e) => {
         if (hasUnsaved) e.preventDefault(), e.returnValue = '';
@@ -79,6 +59,7 @@
             container.appendChild(card);
         });
         attachEvents();
+//        window.initAutoResize(container);
     }
 
     function attachEvents() {
@@ -171,6 +152,9 @@
         return div.innerHTML;
     }
 
-    loadCourseTitle();
+
     loadBlocks();
+    window.updateCourseBreadcrumb(window.COURSE_ID);
+    window.updateSectionBreadcrumb(window.SECTION_ID);
+    window.updateTopicBreadcrumb(window.TOPIC_ID);
 })();

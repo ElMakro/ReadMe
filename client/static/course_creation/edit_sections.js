@@ -4,28 +4,25 @@
     const container = document.getElementById('sectionsList');
     const addBtn = document.getElementById('addSectionBtn');
     const saveBtn = document.getElementById('saveSectionsBtn');
-    const breadcrumbCourse = document.getElementById('courseTitleBreadcrumb')
 
     let sections = [];           // текущий список разделов на форме
     let originalSections = [];   // копия при загрузке для отслеживания удалений
     let hasUnsavedChanges = false;
 
-    // Загрузка названия курса
-    async function loadCourseTitle() {
-        if (!breadcrumbCourse) return;
-        try {
-            const res = await fetch(`${window.API_BASE_URL}courses/${courseId}`, {
-                credentials: 'include'
-            });
-            if (res.ok) {
-                const course = await res.json();
-                if (course && course.name) {
-                    breadcrumbCourse.textContent = course.name;
-                }
-            }
-        } catch (err) {
-            console.warn('Не удалось загрузить название курса:', err);
-        }
+    // Функция автоматического растяжения textarea по высоте
+    function autoResizeTextarea(textarea) {
+        textarea.style.height = 'auto';
+        textarea.style.height = textarea.scrollHeight + 'px';
+    }
+
+    // Применяем авто-растяжение ко всем textarea внутри контейнера
+    function bindAutoResize(containerElement) {
+        const textareas = containerElement.querySelectorAll('.section-description');
+        textareas.forEach(ta => {
+            ta.removeEventListener('input', () => autoResizeTextarea(ta));
+            ta.addEventListener('input', () => autoResizeTextarea(ta));
+            autoResizeTextarea(ta); // сразу подстроим под начальное значение
+        });
     }
 
     window.addEventListener('beforeunload', (e) => {
@@ -49,7 +46,6 @@
                 throw new Error(errorMsg);
             }
             const data = await res.json();
-            // Защита от null или отсутствия поля sections
             sections = (data && Array.isArray(data.sections)) ? data.sections.map(s => ({
                 id: s.id,
                 name: s.name,
@@ -81,12 +77,13 @@
                         <input type="text" class="form-control section-name mb-2" value="${escapeHtml(sec.name)}" data-idx="${idx}" placeholder="Название раздела" style="flex: 1;">
                         <button class="btn btn-sm btn-outline-danger delete-section ms-2" data-idx="${idx}">🗑️</button>
                     </div>
-                    <textarea class="form-control section-description" rows="2" data-idx="${idx}" placeholder="Описание раздела (необязательно)">${escapeHtml(sec.description)}</textarea>
+                    <textarea class="form-control section-description" rows="1" data-idx="${idx}" placeholder="Описание раздела (необязательно)">${escapeHtml(sec.description)}</textarea>
                 </div>
             `;
             container.appendChild(div);
         });
         attachEvents();
+        bindAutoResize(container); // Применяем авто-растяжение после рендера
     }
 
     function attachEvents() {
@@ -114,12 +111,13 @@
         const idx = parseInt(e.target.dataset.idx);
         sections[idx].description = e.target.value;
         markUnsaved();
+        // Авто-растяжение срабатывает отдельно через bindAutoResize, но можно вызвать и здесь
+        autoResizeTextarea(e.target);
     }
 
     function handleDelete(e) {
         const idx = parseInt(e.target.dataset.idx);
         sections.splice(idx, 1);
-        // перенумеровать порядок
         sections.forEach((sec, i) => sec.order_number = i + 1);
         renderSections();
         markUnsaved();
@@ -141,7 +139,6 @@
     addBtn.addEventListener('click', addSection);
 
     function markUnsaved() {
-        // Просто сравниваем строковые представления для упрощения
         const currentStr = JSON.stringify(sections.map(s => ({ id: s.id, name: s.name, desc: s.description, order: s.order_number })));
         const origStr = JSON.stringify(originalSections.map(s => ({ id: s.id, name: s.name, desc: s.description, order: s.order_number })));
         hasUnsavedChanges = currentStr !== origStr;
@@ -150,7 +147,6 @@
     async function saveSections() {
         saveBtn.disabled = true;
         try {
-            // 1. Удалить разделы, которых нет в текущем списке
             const currentIds = sections.filter(s => s.id !== null).map(s => s.id);
             const toDelete = originalSections.filter(orig => !currentIds.includes(orig.id));
             for (const del of toDelete) {
@@ -161,7 +157,6 @@
                 if (!res.ok) throw new Error(`Ошибка удаления раздела ${del.id}`);
             }
 
-            // 2. Создать новые разделы
             for (const sec of sections.filter(s => s.id === null && s.name.trim() !== '')) {
                 const res = await fetch(`${window.API_BASE_URL}sections/create-section`, {
                     method: 'POST',
@@ -178,10 +173,8 @@
                     const err = await res.json();
                     throw new Error(err.detail || 'Ошибка создания раздела');
                 }
-                // id получим при перезагрузке
             }
 
-            // 3. Обновить существующие разделы (все, у которых есть id)
             for (const sec of sections.filter(s => s.id !== null)) {
                 const payload = {
                     name: sec.name,
@@ -200,7 +193,6 @@
                 }
             }
 
-            // 4. Перезагрузить список с сервера
             await loadSections();
             alert('Разделы успешно сохранены');
         } catch (err) {
@@ -218,7 +210,6 @@
         return div.innerHTML;
     }
 
-    // Клик по названию раздела (только для существующих) → переход к темам
     container.addEventListener('click', (e) => {
         const nameInput = e.target.closest('.section-name');
         if (!nameInput) return;
@@ -232,6 +223,6 @@
         }
     });
 
-    loadCourseTitle();
     loadSections();
+    window.updateCourseBreadcrumb(window.COURSE_ID);
 })();
