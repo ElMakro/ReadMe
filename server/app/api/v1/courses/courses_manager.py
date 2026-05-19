@@ -1,5 +1,4 @@
 import uuid
-from datetime import datetime
 from uuid import UUID
 
 from fastapi import Depends
@@ -10,10 +9,10 @@ from server.config.db_dependency import DBDependency
 from server.database.models import Courses, CoursesForStudents
 
 
-class CourseExistenceError(
+class ObjectExistenceError(
     ValueError,
 ):
-    """Исключение, связанное с отсутствием курса"""
+    """Исключение, связанное с отсутствием объекта"""
     pass
 
 
@@ -134,7 +133,7 @@ class CoursesManager:
             course = result.scalars().one_or_none()
 
         if course is None:
-            raise CourseExistenceError(
+            raise ObjectExistenceError(
                 "Курса с таким ID не существует!",
             )
 
@@ -223,7 +222,6 @@ class CoursesManager:
                 description=description,
                 is_public=is_public,
                 is_content_public=is_content_public,
-                updated_at=datetime.now(),
             )
 
             await session.execute(
@@ -234,9 +232,8 @@ class CoursesManager:
     async def delete_course(
             self,
             course_id: UUID,
-    ):
-        # TODO: Доделать удаление связанных с курсом элементов
-        async with self.db.db_session() as session, session.begin():
+    ) -> None:
+        async with self.db.db_session() as session:
             blocking_query = (
                 select(
                     self.courses_model,
@@ -260,6 +257,8 @@ class CoursesManager:
             await session.execute(
                 query,
             )
+
+            await session.commit()
 
     async def search_courses_by_name_prefix(
             self,
@@ -288,7 +287,7 @@ class CoursesManager:
             course_id: UUID,
             new_professor_id: UUID,
     ) -> None:
-        async with self.db.db_session() as session, session.begin():
+        async with self.db.db_session() as session:
             blocking_query = (
                 select(
                     self.courses_model,
@@ -314,3 +313,5 @@ class CoursesManager:
             await session.execute(
                 query,
             )
+
+            await session.commit()

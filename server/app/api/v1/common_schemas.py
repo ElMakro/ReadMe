@@ -1,5 +1,7 @@
+import uuid
 from datetime import datetime
 from typing import Annotated, Literal
+from uuid import UUID
 
 from fastapi import Query
 from pydantic import BaseModel, BeforeValidator, ConfigDict, Field
@@ -55,7 +57,6 @@ def convert_to_int(
     )
 
 
-
 class PaginationParameters(
     BaseModel,
 ):
@@ -78,4 +79,25 @@ class PaginationParameters(
     ] = Query(
         description="Количество записей на странице",
         default=10,
+    )
+
+
+class SwapContentOrder(
+    BaseModel,
+):
+    """Схема запроса на обмен порядковыми номерами элементов объектов системы"""
+    model_config = ConfigDict(
+        from_attributes=True,
+        extra="ignore",
+    )
+
+    first_element_id: UUID = Field(
+        ...,
+        description="Идентификатор первого элемента",
+        examples=[uuid.uuid4()],
+    )
+    second_element_id: UUID = Field(
+        ...,
+        description="Идентификатор второго элемента",
+        examples=[uuid.uuid4()],
     )

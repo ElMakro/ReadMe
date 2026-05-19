@@ -17,10 +17,10 @@ from server.app.api.v1.users.users_manager import UserExistenceError, UsersManag
 from server.enums.role import Role
 
 
-class CourseOperationPermissionError(
+class OperationPermissionError(
     ValueError,
 ):
-    """Исключение, связанное с наличием у пользователя прав на операцию над курсом"""
+    """Исключение, связанное с наличием у пользователя прав на операцию над объектом информационной системы"""
     pass
 
 
@@ -98,7 +98,7 @@ class CoursesService:
             is_content_public: bool,
     ) -> CourseIDMixin:
         if user.role == Role.STUDENT:
-            raise CourseOperationPermissionError(
+            raise OperationPermissionError(
                 "Обучающийся не имеет права на создание курса!",
             )
 
@@ -124,6 +124,9 @@ class CoursesService:
             course_id,
         )
 
+        if user.role == Role.ADMIN:
+            return course
+
         if course.is_public:
             return course
 
@@ -136,7 +139,7 @@ class CoursesService:
         ):
             return course
 
-        raise CourseOperationPermissionError(
+        raise OperationPermissionError(
             "Пользователь не имеет доступа к данному курсу!",
         )
 
@@ -191,12 +194,12 @@ class CoursesService:
         )
 
         if user.role == Role.STUDENT:
-            raise CourseOperationPermissionError(
+            raise OperationPermissionError(
                 "Обучающийся не имеет права на редактирование курса!",
             )
 
         if user.role == Role.PROFESSOR and course.professor_id != user.id:
-            raise CourseOperationPermissionError(
+            raise OperationPermissionError(
                 "Преподаватель может изменить только тот курс, который он ведёт!",
             )
 
@@ -232,7 +235,7 @@ class CoursesService:
             course_id: UUID,
     ):
         if user.role == Role.STUDENT:
-            raise CourseOperationPermissionError(
+            raise OperationPermissionError(
                 "Обучающийся не имеет права на удаление курса!",
             )
 
@@ -241,7 +244,7 @@ class CoursesService:
         )
 
         if user.role == Role.PROFESSOR and course.professor_id != user.id:
-            raise CourseOperationPermissionError(
+            raise OperationPermissionError(
                 "Преподаватель может удалить только тот курс, который он ведёт!",
             )
 
@@ -317,7 +320,7 @@ class CoursesService:
             new_professor_id: UUID,
     ) -> None:
         if user.role == Role.STUDENT:
-            raise CourseOperationPermissionError(
+            raise OperationPermissionError(
                 "Обучающиеся не имеют права на удаление курса!",
             )
 
@@ -326,7 +329,7 @@ class CoursesService:
         )
 
         if user.role == Role.PROFESSOR and course.professor_id != user.id:
-            raise CourseOperationPermissionError(
+            raise OperationPermissionError(
                 "Преподаватель может передать владение только тем курсом, который он ведёт!",
             )
 
@@ -345,7 +348,7 @@ class CoursesService:
             )
 
         if new_professor.role != Role.PROFESSOR:
-            raise CourseOperationPermissionError(
+            raise OperationPermissionError(
                 "У нового преподавателя нет права на ведение курса!",
             )
 
