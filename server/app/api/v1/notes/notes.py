@@ -16,6 +16,23 @@ class NoteById(
         examples=[uuid.uuid4()],
     )
 
+
+class ShortNoteInfo(
+    NoteById,
+):
+    model_config = ConfigDict(
+        from_attributes=True,
+        extra='ignore',
+    )
+
+    name: str = Field(
+        description="Название конспекта"
+    )
+    content: str = Field(
+        description="Содержание конспекта"
+    )
+
+
 class NoteInfo(
     NoteById,
 ):
