@@ -284,13 +284,6 @@ async def update_topic_content_proxy(request: Request, topic_id: str):
         resp = await client.put(f"{BACKEND_URL}topics/put-content/{topic_id}", json=body, cookies=request.cookies)
         return JSONResponse(content=resp.json(), status_code=resp.status_code)
 
-# Получение курса (GET)
-@client_app.get("/courses/{course_id}")
-async def get_course_proxy(request: Request, course_id: str):
-    async with httpx.AsyncClient() as client:
-        resp = await client.get(f"{BACKEND_URL}courses/{course_id}", cookies=request.cookies)
-        return JSONResponse(content=resp.json(), status_code=resp.status_code)
-
 # Обновление курса (PUT)
 @client_app.put("/courses/{course_id}")
 async def update_course_proxy(request: Request, course_id: str):
