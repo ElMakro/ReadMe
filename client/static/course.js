@@ -287,7 +287,9 @@
         if (key && textarea) localStorage.setItem(key, textarea.value);
         if (saveBtn) {
             saveBtn.textContent = '✓';
-            setTimeout(() => { saveBtn.textContent = '💾'; }, 600);
+            setTimeout(() => { saveBtn.textContent = 'Сохранить'; }, 600);
+
+
         }
     }
 
