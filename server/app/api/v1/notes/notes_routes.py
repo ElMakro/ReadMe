@@ -11,7 +11,7 @@ from server.app.api.v1.common_schemas import (
     PaginationParameters,
 )
 from server.app.api.v1.notes.exceptions import NoteAlreadyExistsError, NoteFieldsMismatchError, NoteNotFoundError
-from server.app.api.v1.notes.notes import NoteById, NotesList, SaveParameters, ShortNoteInfo
+from server.app.api.v1.notes.notes import CreateNote, NoteById, NotesList, ShortNoteInfo, UpdateNote
 from server.app.api.v1.notes.notes_service import NotesService
 from server.app.api.v1.users.users import UserVerification
 from server.app.common_dependencies.depends import get_auth_user
@@ -73,7 +73,7 @@ async def get_note_for_topic(
     }
 )
 async def create_note(
-    save_params: SaveParameters,
+    create_params: CreateNote,
     user: Annotated[UserVerification, Depends(
                 get_auth_user,
         )],
@@ -82,7 +82,7 @@ async def create_note(
         ),
 ) -> NoteById:
     try:
-        return await notes_service.create_note(user.id, save_params)
+        return await notes_service.create_note(user.id, create_params)
     except NoteAlreadyExistsError as error:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -107,7 +107,7 @@ async def create_note(
     }
 )
 async def update_note(
-    save_params: SaveParameters,
+    update_params: UpdateNote,
     user: Annotated[UserVerification, Depends(
                 get_auth_user,
         )],
@@ -116,7 +116,7 @@ async def update_note(
         ),
 ):
     try:
-        return await notes_service.update_note(user.id, save_params)
+        return await notes_service.update_note(user.id, update_params)
     except NoteFieldsMismatchError as error:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,

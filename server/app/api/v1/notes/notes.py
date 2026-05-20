@@ -17,7 +17,7 @@ class NoteById(
     )
 
 
-class SaveParameters(
+class CreateNote(
     BaseModel,
 ):
     model_config = ConfigDict(
@@ -25,8 +25,29 @@ class SaveParameters(
         extra='ignore',
     )
 
-    note_id: uuid.UUID | None = Field(
-        default=None,
+    topic_id: uuid.UUID = Field(
+        description="Идентификатор темы",
+        examples=[uuid.uuid4()],
+    )
+
+    name: str = Field(
+        description="Название конспекта"
+    )
+
+    content: str = Field(
+        description="Содержание конспекта"
+    )
+
+
+class UpdateNote(
+    BaseModel,
+):
+    model_config = ConfigDict(
+        from_attributes=True,
+        extra='ignore',
+    )
+
+    note_id: uuid.UUID = Field(
         description="Идентификатор конспекта",
         examples=[uuid.uuid4()],
     )
