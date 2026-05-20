@@ -10,10 +10,12 @@ from server.enums.role import Role
 
 
 async def get_current_user(
-        token: Annotated[str, Depends(get_token_from_cookies)],
+        token: Annotated[str | None, Depends(get_token_from_cookies)],
         handler: AuthHandler = Depends(AuthHandler),
         manager: AuthManager = Depends(AuthManager),
-) -> UserVerification:
+) -> UserVerification | None:
+    if token is None:
+        return None
     decoded_token = await handler.decode_token(token=token)
     user_id = decoded_token.get("user_id")
     session_id = decoded_token.get("session_id")
@@ -21,6 +23,14 @@ async def get_current_user(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Токен недействителен.")
     return UserVerification(id=user_id, role=user_info.role, email=user_info.email,
                             nickname=user_info.nickname, session_id=session_id)
+
+
+async def get_auth_user(
+        user: UserVerification | None = Depends(get_current_user),
+) -> UserVerification:
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Пользователь не произвёл вход.")
+    return user
 
 
 async def check_role(

@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, status
 
 from server.app.api.v1.users.users import UserProfile, UserVerification
 from server.app.api.v1.users.users_service import UsersService
-from server.app.common_dependencies.depends import get_current_user
+from server.app.common_dependencies.depends import get_auth_user
 
 users_router = APIRouter(
     prefix="/users",
@@ -28,8 +28,8 @@ users_router = APIRouter(
     },
 )
 async def user_profile(
-        user: Annotated[UserVerification, Depends(
-            get_current_user,
+        user: Annotated[UserVerification | None, Depends(
+            get_auth_user,
         )],
         users_service: UsersService = Depends(
             UsersService,

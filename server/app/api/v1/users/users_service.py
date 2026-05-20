@@ -13,6 +13,7 @@ class UsersService:
             self,
             user: UserVerification,
     ) -> UserProfile:
+        print(user, "HEREEEEEEEEEEEEEEE")
         return UserProfile(
             id=user.id,
             nickname=user.nickname,

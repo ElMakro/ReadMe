@@ -6,7 +6,7 @@ from server.app.api.openapi_docs import openapi_extra_authorization_cookie
 from server.app.api.v1.auth.auth_service import AuthService
 from server.app.api.v1.common_schemas import MessageResponse
 from server.app.api.v1.users.users import CreatedUserInfo, UserAuthentication, UserRegistration, UserVerification
-from server.app.common_dependencies.depends import get_current_user
+from server.app.common_dependencies.depends import get_auth_user
 
 auth_router = APIRouter(
     prefix="/auth",
@@ -76,7 +76,7 @@ async def login(
 async def logout(
         response: Response,
         user: Annotated[UserVerification, Depends(
-            get_current_user,
+            get_auth_user,
         )],
         auth_service: AuthService = Depends(
             AuthService,
