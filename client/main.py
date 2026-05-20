@@ -276,14 +276,6 @@ async def get_raw_content_proxy(request: Request, topic_id: str):
         resp = await client.get(f"{BACKEND_URL}topics/get-raw-content/{topic_id}", cookies=request.cookies)
         return JSONResponse(content=resp.json(), status_code=resp.status_code)
 
-# Обновление контента темы
-@client_app.put("/topics/{topic_id}/content")
-async def update_topic_content_proxy(request: Request, topic_id: str):
-    body = await request.json()
-    async with httpx.AsyncClient() as client:
-        resp = await client.put(f"{BACKEND_URL}topics/put-content/{topic_id}", json=body, cookies=request.cookies)
-        return JSONResponse(content=resp.json(), status_code=resp.status_code)
-
 # Обновление курса (PUT)
 @client_app.put("/courses/{course_id}")
 async def update_course_proxy(request: Request, course_id: str):

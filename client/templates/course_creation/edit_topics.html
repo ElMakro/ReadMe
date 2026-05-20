@@ -1,4 +1,4 @@
-{# templates/edit_topics.html #}
+{# templates/course_creation/edit_topics.html #}
 {% extends "base.html" %}
 {% block title %}Редактирование тем — ReadMe{% endblock %}
 
@@ -6,7 +6,7 @@
 <div class="container-xl py-4">
     <nav aria-label="breadcrumb" class="mb-4">
         <ol class="breadcrumb">
-            <li class="breadcrumb-item"><a href="/my-courses">Мастерская курсов</a></li>
+            <li class="breadcrumb-item"><a href="/created-courses">Мастерская курсов</a></li>
             <li class="breadcrumb-item" id="courseTitleBreadcrumb"><a href="/course/{{ course_id }}/sections">Загрузка...</a></li>
             <li class="breadcrumb-item active" id="sectionTitleBreadcrumb">Загрузка...</li>
         </ol>
@@ -19,7 +19,6 @@
             <button class="btn btn-outline-accent mb-4" id="addTopicBtn">+ Добавить тему</button>
             <div class="d-flex justify-content-between">
                 <a href="/course/{{ course_id }}/sections" class="btn btn-outline-secondary">Назад</a>
-                <button class="btn btn-accent" id="saveTopicsBtn">Сохранить</button>
             </div>
         </div>
     </div>
@@ -28,10 +27,10 @@
 
 {% block scripts %}
 <script>
-    window.COURSE_ID = {{ course_id }};
-    window.SECTION_ID = {{ section_id }};
+    window.COURSE_ID = "{{ course_id }}";
+    window.SECTION_ID = "{{ section_id }}";
     window.API_BASE_URL = "{{ api_base_url }}";
 </script>
-<script src="../../static/course_creation/course_helpers.js"></script>
-<script src="../../static/course_creation/edit_topics.js"></script>
+<script src="/static/course_creation/course_helpers.js"></script>
+<script src="/static/course_creation/edit_topics.js"></script>
 {% endblock %}

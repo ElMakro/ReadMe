@@ -3,60 +3,61 @@
     const courseId = window.COURSE_ID;
     const container = document.getElementById('sectionsList');
     const addBtn = document.getElementById('addSectionBtn');
-    const saveBtn = document.getElementById('saveSectionsBtn');
 
-    let sections = [];           // текущий список разделов на форме
-    let originalSections = [];   // копия при загрузке для отслеживания удалений
-    let hasUnsavedChanges = false;
+    let sections = [];
+    let originalSections = [];
 
-    // Функция автоматического растяжения textarea по высоте
-    function autoResizeTextarea(textarea) {
-        textarea.style.height = 'auto';
-        textarea.style.height = textarea.scrollHeight + 'px';
+    // Обрезаем описание до wordLimit слов (как в списке курсов)
+    function truncateWords(text, wordLimit) {
+        if (!text) return '';
+        const words = text.trim().split(/\s+/);
+        if (words.length <= wordLimit) return text;
+        return words.slice(0, wordLimit).join(' ') + '...';
     }
 
-    // Применяем авто-растяжение ко всем textarea внутри контейнера
-    function bindAutoResize(containerElement) {
-        const textareas = containerElement.querySelectorAll('.section-description');
-        textareas.forEach(ta => {
-            ta.removeEventListener('input', () => autoResizeTextarea(ta));
-            ta.addEventListener('input', () => autoResizeTextarea(ta));
-            autoResizeTextarea(ta); // сразу подстроим под начальное значение
-        });
+    function showMessage(text, isError = false) {
+        const msgDiv = document.getElementById('toastMessage') || (() => {
+            const div = document.createElement('div');
+            div.id = 'toastMessage';
+            div.style.position = 'fixed';
+            div.style.bottom = '20px';
+            div.style.right = '20px';
+            div.style.zIndex = '9999';
+            div.style.padding = '12px 20px';
+            div.style.borderRadius = '8px';
+            div.style.backgroundColor = isError ? '#dc3545' : '#198754';
+            div.style.color = 'white';
+            div.style.boxShadow = '0 2px 10px rgba(0,0,0,0.2)';
+            div.style.transition = 'opacity 0.3s';
+            document.body.appendChild(div);
+            return div;
+        })();
+        msgDiv.textContent = text;
+        msgDiv.style.backgroundColor = isError ? '#dc3545' : '#198754';
+        msgDiv.style.opacity = '1';
+        setTimeout(() => {
+            msgDiv.style.opacity = '0';
+            setTimeout(() => msgDiv.remove(), 300);
+        }, 2000);
     }
-
-    window.addEventListener('beforeunload', (e) => {
-        if (hasUnsavedChanges) {
-            e.preventDefault();
-            e.returnValue = '';
-        }
-    });
 
     async function loadSections() {
         try {
             const res = await fetch(`${window.API_BASE_URL}sections/by_course/${courseId}`, {
                 credentials: 'include'
             });
-            if (!res.ok) {
-                let errorMsg = `HTTP ${res.status}`;
-                try {
-                    const errData = await res.json();
-                    errorMsg = errData.detail || errorMsg;
-                } catch(e) {}
-                throw new Error(errorMsg);
-            }
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const data = await res.json();
-            sections = (data && Array.isArray(data.sections)) ? data.sections.map(s => ({
+            let sectionsArray = Array.isArray(data) ? data : (data.items || data.sections || []);
+            sections = sectionsArray.map(s => ({
                 id: s.id,
                 name: s.name,
                 description: s.description || '',
-                order_number: s.order_number,
-                isNew: false
-            })) : [];
+                order_number: s.order_number
+            }));
             sections.sort((a,b) => a.order_number - b.order_number);
             originalSections = JSON.parse(JSON.stringify(sections));
             renderSections();
-            hasUnsavedChanges = false;
         } catch (err) {
             console.error(err);
             container.innerHTML = `<div class="text-danger">Ошибка загрузки разделов: ${err.message}</div>`;
@@ -68,163 +69,204 @@
 
     function renderSections() {
         container.innerHTML = '';
-        sections.forEach((sec, idx) => {
-            const div = document.createElement('div');
-            div.className = 'card mb-3 bg-secondary border-0 shadow-sm';
-            div.innerHTML = `
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-start mb-2">
-                        <input type="text" class="form-control section-name mb-2" value="${escapeHtml(sec.name)}" data-idx="${idx}" placeholder="Название раздела" style="flex: 1;">
-                        <button class="btn btn-sm btn-outline-danger delete-section ms-2" data-idx="${idx}">🗑️</button>
+        sections.forEach((sec) => {
+            const card = document.createElement('div');
+            card.className = 'list-group-item list-group-item-action border mb-2 rounded';
+            card.style.cursor = 'pointer';
+            card.setAttribute('data-section-id', sec.id);
+
+            const shortDescription = truncateWords(sec.description, 15);
+
+            card.innerHTML = `
+                <div class="d-flex justify-content-between align-items-start">
+                    <div class="flex-grow-1">
+                        <strong>${escapeHtml(sec.name)}</strong>
+                        ${shortDescription ? `<div class="text-secondary small mt-1">${escapeHtml(shortDescription)}</div>` : ''}
                     </div>
-                    <textarea class="form-control section-description" rows="1" data-idx="${idx}" placeholder="Описание раздела (необязательно)">${escapeHtml(sec.description)}</textarea>
+                    <span class="text-secondary edit-section-trigger" data-id="${sec.id}" style="cursor: pointer;">✎ редактировать</span>
                 </div>
             `;
-            container.appendChild(div);
+
+            const editTrigger = card.querySelector('.edit-section-trigger');
+            editTrigger.addEventListener('click', (e) => {
+                e.stopPropagation();
+                openEditMode(sec);
+            });
+
+            // Переход к темам только при клике на саму карточку (не на кнопку)
+            card.addEventListener('click', (e) => {
+                if (card.querySelector('.save-section-edit, .cancel-edit, .delete-section')) {
+                    e.stopPropagation();
+                    return;
+                }
+                window.location.href = `/course/${courseId}/section/${sec.id}/topics`;
+            });
+
+            container.appendChild(card);
         });
-        attachEvents();
-        bindAutoResize(container); // Применяем авто-растяжение после рендера
     }
 
-    function attachEvents() {
-        document.querySelectorAll('.section-name').forEach(inp => {
-            inp.removeEventListener('input', handleNameChange);
-            inp.addEventListener('input', handleNameChange);
-        });
-        document.querySelectorAll('.section-description').forEach(ta => {
-            ta.removeEventListener('input', handleDescChange);
-            ta.addEventListener('input', handleDescChange);
-        });
-        document.querySelectorAll('.delete-section').forEach(btn => {
-            btn.removeEventListener('click', handleDelete);
-            btn.addEventListener('click', handleDelete);
-        });
-    }
+    function openEditMode(sec) {
+        // Находим карточку по data-section-id
+        const card = container.querySelector(`.list-group-item[data-section-id="${sec.id}"]`);
+        if (!card) return;
 
-    function handleNameChange(e) {
-        const idx = parseInt(e.target.dataset.idx);
-        sections[idx].name = e.target.value;
-        markUnsaved();
-    }
+        // Сохраняем оригинальные данные для отмены (на случай, если нужны)
+        const originalName = sec.name;
+        const originalDesc = sec.description;
 
-    function handleDescChange(e) {
-        const idx = parseInt(e.target.dataset.idx);
-        sections[idx].description = e.target.value;
-        markUnsaved();
-        // Авто-растяжение срабатывает отдельно через bindAutoResize, но можно вызвать и здесь
-        autoResizeTextarea(e.target);
-    }
+        card.style.cursor = 'default';
+        card.innerHTML = `
+            <div class="p-2">
+                <div class="mb-3">
+                    <label class="form-label">Название раздела</label>
+                    <input type="text" class="form-control section-name-edit" value="${escapeHtml(sec.name)}" placeholder="Введите название раздела">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Описание раздела</label>
+                    <textarea class="form-control section-description-edit" rows="3" placeholder="Введите описание раздела">${escapeHtml(sec.description)}</textarea>
+                </div>
+                <div class="d-flex justify-content-between align-items-center">
+                    <button class="btn btn-danger delete-section">Удалить раздел</button>
+                    <div>
+                        <button class="btn btn-outline-secondary cancel-edit me-2">Отмена</button>
+                        <button class="btn btn-accent save-section-edit">Сохранить изменения</button>
+                    </div>
+                </div>
+            </div>
+        `;
 
-    function handleDelete(e) {
-        const idx = parseInt(e.target.dataset.idx);
-        sections.splice(idx, 1);
-        sections.forEach((sec, i) => sec.order_number = i + 1);
-        renderSections();
-        markUnsaved();
+        const nameInput = card.querySelector('.section-name-edit');
+        const descTextarea = card.querySelector('.section-description-edit');
+        const saveBtn = card.querySelector('.save-section-edit');
+        const cancelBtn = card.querySelector('.cancel-edit');
+        const delBtn = card.querySelector('.delete-section');
+
+        saveBtn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const newName = nameInput.value.trim();
+            if (!newName) {
+                showMessage('Название раздела не может быть пустым', true);
+                return;
+            }
+            const newDesc = descTextarea.value.trim();
+
+            if (sec.id) {
+                try {
+                    const res = await fetch(`${window.API_BASE_URL}sections/${sec.id}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
+                        body: JSON.stringify({ name: newName, description: newDesc })
+                    });
+                    if (!res.ok) throw new Error('Ошибка обновления');
+                    sec.name = newName;
+                    sec.description = newDesc;
+                    const orig = originalSections.find(s => s.id === sec.id);
+                    if (orig) {
+                        orig.name = newName;
+                        orig.description = newDesc;
+                    }
+                    renderSections();
+                    showMessage('Раздел обновлён');
+                } catch (err) {
+                    showMessage(err.message, true);
+                }
+            } else {
+                try {
+                    const res = await fetch(`${window.API_BASE_URL}sections/create-section`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
+                        body: JSON.stringify({
+                            name: newName,
+                            description: newDesc,
+                            order_number: sec.order_number,
+                            course_id: courseId
+                        })
+                    });
+                    if (!res.ok) throw new Error('Ошибка создания раздела');
+                    const data = await res.json();
+                    sec.id = data.id;
+                    sec.name = newName;
+                    sec.description = newDesc;
+                    originalSections.push({ ...sec });
+                    renderSections();
+                    showMessage('Раздел создан');
+                } catch (err) {
+                    showMessage(err.message, true);
+                }
+            }
+        });
+
+        cancelBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (sec.id) {
+                const orig = originalSections.find(s => s.id === sec.id);
+                if (orig) {
+                    sec.name = orig.name;
+                    sec.description = orig.description;
+                }
+                renderSections();
+            } else {
+                const idx = sections.findIndex(s => s.id === null && s === sec);
+                if (idx !== -1) sections.splice(idx, 1);
+                renderSections();
+            }
+        });
+
+        delBtn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            if (sec.id) {
+                if (!confirm('Удалить раздел? Все темы внутри будут также удалены.')) return;
+                try {
+                    const res = await fetch(`${window.API_BASE_URL}sections/${sec.id}`, {
+                        method: 'DELETE',
+                        credentials: 'include'
+                    });
+                    if (!res.ok) throw new Error('Ошибка удаления');
+                    const index = sections.findIndex(s => s.id === sec.id);
+                    if (index !== -1) sections.splice(index, 1);
+                    originalSections = originalSections.filter(s => s.id !== sec.id);
+                    renderSections();
+                    showMessage('Раздел удалён');
+                } catch (err) {
+                    showMessage(err.message, true);
+                }
+            } else {
+                const index = sections.findIndex(s => s.id === null && s === sec);
+                if (index !== -1) sections.splice(index, 1);
+                renderSections();
+            }
+        });
     }
 
     function addSection() {
         const newOrder = sections.length + 1;
-        sections.push({
+        const newSection = {
             id: null,
             name: '',
             description: '',
-            order_number: newOrder,
-            isNew: true
-        });
+            order_number: newOrder
+        };
+        sections.push(newSection);
         renderSections();
-        markUnsaved();
+        // Автоматически открываем редактирование для нового раздела
+        setTimeout(() => {
+            const newCard = container.querySelector(`.list-group-item:last-child`);
+            const editTrigger = newCard?.querySelector('.edit-section-trigger');
+            if (editTrigger) editTrigger.click();
+        }, 50);
     }
 
     addBtn.addEventListener('click', addSection);
 
-    function markUnsaved() {
-        const currentStr = JSON.stringify(sections.map(s => ({ id: s.id, name: s.name, desc: s.description, order: s.order_number })));
-        const origStr = JSON.stringify(originalSections.map(s => ({ id: s.id, name: s.name, desc: s.description, order: s.order_number })));
-        hasUnsavedChanges = currentStr !== origStr;
-    }
-
-    async function saveSections() {
-        saveBtn.disabled = true;
-        try {
-            const emptyNames = sections.filter(s => !s.name.trim());
-            if (emptyNames.length > 0) {
-                alert('У всех разделов должно быть указано название. Пожалуйста, заполните пустые поля.');
-                return false;
-            }
-            const currentIds = sections.filter(s => s.id !== null).map(s => s.id);
-            const toDelete = originalSections.filter(orig => !currentIds.includes(orig.id));
-            for (const del of toDelete) {
-                const res = await fetch(`${window.API_BASE_URL}sections/${del.id}`, {
-                    method: 'DELETE',
-                    credentials: 'include'
-                });
-                if (!res.ok) throw new Error(`Ошибка удаления раздела ${del.id}`);
-            }
-
-            for (const sec of sections.filter(s => s.id === null && s.name.trim() !== '')) {
-                const res = await fetch(`${window.API_BASE_URL}sections/create-section`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify({
-                        name: sec.name,
-                        description: sec.description,
-                        order_number: sec.order_number,
-                        course_id: courseId
-                    })
-                });
-                if (!res.ok) {
-                    const err = await res.json();
-                    throw new Error(err.detail || 'Ошибка создания раздела');
-                }
-            }
-
-            for (const sec of sections.filter(s => s.id !== null)) {
-                const payload = {
-                    name: sec.name,
-                    description: sec.description,
-                    order_number: sec.order_number
-                };
-                const res = await fetch(`${window.API_BASE_URL}sections/${sec.id}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify(payload)
-                });
-                if (!res.ok) {
-                    const err = await res.json();
-                    throw new Error(err.detail || `Ошибка обновления раздела ${sec.id}`);
-                }
-            }
-
-            await loadSections();
-            alert('Разделы успешно сохранены');
-        } catch (err) {
-            alert('Ошибка сохранения: ' + err.message);
-        } finally {
-            saveBtn.disabled = false;
-        }
-    }
-
-    saveBtn.addEventListener('click', saveSections);
-
     function escapeHtml(str) {
+        if (!str) return '';
         const div = document.createElement('div');
         div.textContent = str;
         return div.innerHTML;
     }
-
-    container.addEventListener('click', (e) => {
-        const nameInput = e.target.closest('.section-name');
-        if (!nameInput) return;
-        const idx = parseInt(nameInput.dataset.idx);
-        const section = sections[idx];
-        if (section.id) {
-            if (hasUnsavedChanges && !confirm('Есть несохранённые изменения. Перейти всё равно?')) return;
-            window.location.href = `/course/${courseId}/section/${section.id}/topics`;
-        }
-    });
 
     loadSections();
     window.updateCourseBreadcrumb(window.COURSE_ID);
