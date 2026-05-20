@@ -58,7 +58,7 @@ async def get_note_for_topic(
 
 
 @notes_router.post(
-    path="create-note",
+    path="/create-note",
     summary="Сохранить конспект",
     response_description="Конспект успешно добавлен",
     status_code=status.HTTP_201_CREATED,
@@ -93,7 +93,7 @@ async def create_note(
 
 
 @notes_router.put(
-    path="update-note",
+    path="/update-note",
     summary="Обновить конспект",
     response_description="Конспект успешно обновлён",
     status_code=status.HTTP_204_NO_CONTENT,
@@ -126,7 +126,7 @@ async def update_note(
         )
 
 @notes_router.delete(
-    path="delete-note/{id}",
+    path="/delete-note/{id}",
     summary="Удалить конспект",
     response_description="Конспект успешно удалён",
     status_code=status.HTTP_204_NO_CONTENT,
