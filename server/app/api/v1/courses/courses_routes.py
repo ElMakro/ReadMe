@@ -24,7 +24,7 @@ from server.app.api.v1.courses.courses_service import (
 )
 from server.app.api.v1.users.users import UserVerification
 from server.app.api.v1.users.users_manager import UserExistenceError
-from server.app.common_dependencies.depends import get_current_user
+from server.app.common_dependencies.depends import get_auth_user, get_current_user
 
 courses_router = APIRouter(
     prefix="/courses",
@@ -178,7 +178,7 @@ async def authorized_search_courses_by_name_prefix(
 )
 async def get_followed_courses(
         user: Annotated[UserVerification, Depends(
-            get_current_user,
+            get_auth_user,
         )],
         pagination_parameters: PaginationParameters = Depends(),
         courses_service: CoursesService = Depends(

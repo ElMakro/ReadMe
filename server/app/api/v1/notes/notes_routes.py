@@ -6,7 +6,7 @@ from server.app.api.v1.common_schemas import UNPROCESSABLE_ENTITY_ERROR_TEXT, Pa
 from server.app.api.v1.notes.notes import NotesList
 from server.app.api.v1.notes.notes_service import NotesService
 from server.app.api.v1.users.users import UserVerification
-from server.app.common_dependencies.depends import get_current_user
+from server.app.common_dependencies.depends import get_auth_user
 
 notes_router = APIRouter(
     prefix="/notes",
@@ -31,7 +31,7 @@ notes_router = APIRouter(
 )
 async def get_my_notes(
     user: Annotated[UserVerification, Depends(
-            get_current_user,
+            get_auth_user,
     )],
     pagination_parameters: PaginationParameters = Depends(),
     notes_service: NotesService = Depends(
