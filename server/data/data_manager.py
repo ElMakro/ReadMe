@@ -1,6 +1,6 @@
 from pathlib import Path
-from uuid import UUID
 from shutil import rmtree
+from uuid import UUID
 
 from server.app.api.v1.courses.courses_manager import CoursesManager
 from server.app.api.v1.sections.sections_manager import SectionsManager
