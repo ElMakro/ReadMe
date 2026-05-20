@@ -1,252 +1,266 @@
-// static/course.js
+// ========== ОСНОВНАЯ ЛОГИКА ОТОБРАЖЕНИЯ КУРСА ==========
 (function() {
-    const courseId = window.COURSE_ID;
+    const courseTitleHeader = document.getElementById('courseTitleHeader');
     const sectionList = document.getElementById('sectionList');
     const topicContent = document.getElementById('topicContent');
     const checkYourselfBtn = document.getElementById('checkYourselfBtn');
 
-    let courseMeta = null;        // { name, description, ... }
-    let sectionsData = [];         // [{ id, name, order_number, topics: [...] }]
-    let activeTopicId = null;
-    let activeSectionId = null;
-    window.activeSectionId = null;
-    window.activeTopicId = null;
-
-    // 1. Загрузка курса
-    async function loadCourse() {
-        const resp = await fetch(`${window.API_BASE_URL}courses/${courseId}`, {
-            credentials: 'include'
-        });
-        if (!resp.ok) throw new Error(`Ошибка загрузки курса: ${resp.status}`);
-        const data = await resp.json();
-        courseMeta = {
-            id: data.id,
-            name: data.name,
-            description: data.description,
-            is_public: data.is_public,
-            is_content_public: data.is_content_public,
-            professor_id: data.professor_id
-        };
-        // Устанавливаем заголовок страницы
-        document.title = `${courseMeta.name} — ReadMe`;
-        // Если есть элемент с названием курса на странице (например, h1), обновляем
-        const courseTitleEl = document.getElementById('courseTitle');
-        if (courseTitleEl) courseTitleEl.textContent = courseMeta.name;
-        return courseMeta;
-    }
-
-    // 2. Загрузка разделов курса
-    async function loadSections() {
-        const resp = await fetch(`${window.API_BASE_URL}sections/by_course/${courseId}`, {
-            credentials: 'include'
-        });
-        if (!resp.ok) {
-            // Логируем статус и текст ошибки для отладки
-            console.error(`Ошибка загрузки разделов: ${resp.status} ${resp.statusText}`);
-            // Возвращаем пустой массив, чтобы интерфейс не сломался
-            return [];
-        }
-        const data = await resp.json();
-        // На случай, если data = null или не содержит sections
-        let sections = data?.sections || [];
-        sections.sort((a, b) => a.order_number - b.order_number);
-        return sections;
-    }
-
-    // 3. Загрузка тем для одного раздела
-    async function loadTopicsForSection(sectionId) {
-        const resp = await fetch(`${window.API_BASE_URL}topics/by-section/${sectionId}`, {
-            credentials: 'include'
-        });
-        if (!resp.ok) {
-            console.error(`Ошибка загрузки разделов: ${resp.status} ${resp.statusText}`);
-            return [];
-        }
-        const data = await resp.json(); // { topics: [...], total }
-        let topics = data?.topics || [];
-        topics.sort((a, b) => a.order_number - b.order_number);
-        return topics; // массив объектов TopicResponse
-    }
-
-    // 4. Основная функция: загружаем всё последовательно
-    async function loadFullCourseStructure() {
-        try {
-            // 1. Загружаем курс
-            await loadCourse();
-
-            // 2. Загружаем разделы и темы
-            let sections = [];
-            try {
-                sections = await loadSections();
-
-                const sectionsWithTopics = [];
-                for (const section of sections) {
-                    const topics = await loadTopicsForSection(section.id);
-                    sectionsWithTopics.push({
-                        id: section.id,
-                        name: section.name,
-                        order_number: section.order_number,
-                        topics: topics.map(t => ({
-                            id: t.id,
-                            name: t.name,
-                            order_number: t.order_number
-                        }))
-                    });
-                }
-                sectionsData = sectionsWithTopics;
-
-                renderMenu();
-
-                if (sectionsData.length && sectionsData[0].topics.length) {
-                    const firstSection = sectionsData[0];
-                    const firstTopic = firstSection.topics[0];
-                    showTopicContent(firstSection.id, firstTopic.id);
-                    toggleSection(firstSection.id, true);
-                } else {
-                    topicContent.innerHTML = '<p class="text-muted">Курс пока пуст.</p>';
-                }
-            } catch (e) {
-                console.warn('Не удалось загрузить разделы, показываем пустой список', e);
-                topicContent.innerHTML = '<p class="text-warning">Не удалось загрузить структуру курса. Попробуйте обновить страницу.</p>';
-            }
-        } catch (err) {
-            console.error(err);
-            topicContent.innerHTML = '<p class="text-danger">Ошибка загрузки курса. Попробуйте позже.</p>';
-        }
-    }
-
-    // Рендер меню (без изменений, но использует sectionsData)
-    function renderMenu() {
-        if (!sectionList) return;
-        sectionList.innerHTML = '';
-        sectionsData.forEach(section => {
-            const sectionItem = document.createElement('li');
-            sectionItem.className = 'list-group-item section-item';
-            sectionItem.dataset.sectionId = section.id;
-
-            const toggleLink = document.createElement('a');
-            toggleLink.href = '#';
-            toggleLink.className = 'section-toggle';
-            toggleLink.dataset.target = section.id;
-            toggleLink.innerHTML = `<span class="toggle-icon">▶</span> ${escapeHtml(section.name)}`;
-
-            const topicsUl = document.createElement('ul');
-            topicsUl.className = 'list-unstyled ps-4 mt-2 section-topics';
-            topicsUl.id = `topics-${section.id}`;
-            topicsUl.style.display = 'none';
-
-            section.topics.forEach(topic => {
-                const topicLi = document.createElement('li');
-                const topicLink = document.createElement('a');
-                topicLink.href = '#';
-                topicLink.className = 'topic-link';
-                topicLink.dataset.sectionId = section.id;
-                topicLink.dataset.topicId = topic.id;
-                topicLink.textContent = topic.name;
-                topicLi.appendChild(topicLink);
-                topicsUl.appendChild(topicLi);
-            });
-
-            sectionItem.appendChild(toggleLink);
-            sectionItem.appendChild(topicsUl);
-            sectionList.appendChild(sectionItem);
-        });
-
-        // Обработчики кликов (как у вас)
-        attachMenuEventListeners();
-    }
-
-    function attachMenuEventListeners() {
-        document.querySelectorAll('.section-toggle').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                e.preventDefault();
-                const sid = btn.dataset.target;
-                const topicsUl = document.getElementById(`topics-${sid}`);
-                const icon = btn.querySelector('.toggle-icon');
-                const isHidden = topicsUl.style.display === 'none' || topicsUl.style.display === '';
-                topicsUl.style.display = isHidden ? 'block' : 'none';
-                icon.textContent = isHidden ? '▼' : '▶';
-            });
-        });
-
-        document.querySelectorAll('.topic-link').forEach(link => {
-            link.addEventListener('click', (e) => {
-                e.preventDefault();
-                const sid = link.dataset.sectionId;
-                const tid = link.dataset.topicId;
-                showTopicContent(sid, tid);
-            });
-        });
-    }
-
-    function toggleSection(sectionId, expand) {
-        const topicsUl = document.getElementById(`topics-${sectionId}`);
-        const toggle = document.querySelector(`.section-toggle[data-target="${sectionId}"]`);
-        if (topicsUl && toggle) {
-            topicsUl.style.display = expand ? 'block' : 'none';
-            const icon = toggle.querySelector('.toggle-icon');
-            if (icon) icon.textContent = expand ? '▼' : '▶';
-        }
-    }
-
-    async function showTopicContent(sectionId, topicId) {
-        activeSectionId = sectionId;
-        activeTopicId = topicId;
-        updateActiveMenuState();
-
-        try {
-            const resp = await fetch(`${window.API_BASE_URL}topics/get-rendered-content/${topicId}`, {
-                credentials: 'include'
-            });
-            if (!resp.ok) throw new Error('Не удалось загрузить содержимое темы');
-            const data = await resp.json();
-            const blocks = data.blocks || [];
-            let html = '';
-            for (const block of blocks) {
-                if (block.type === 'markdown') {
-                    html += `<div class="markdown-block">${block.rendered_content}</div>`;
-                } else if (block.type === 'uml') {
-                    html += `<div class="uml-block"><pre>${escapeHtml(block.rendered_content)}</pre></div>`;
-                } else if (block.type === 'latex') {
-                    html += `<div class="latex-block">${block.rendered_content}</div>`;
-                } else {
-                    html += `<div>${escapeHtml(block.rendered_content)}</div>`;
-                }
-            }
-            topicContent.innerHTML = html || '<p class="text-muted">Нет содержимого</p>';
-        } catch (err) {
-            console.error(err);
-            topicContent.innerHTML = '<p class="text-danger">Ошибка загрузки содержимого темы</p>';
-        }
-    }
-
-    function updateActiveMenuState() {
-        document.querySelectorAll('.section-toggle').forEach(el => el.classList.remove('active'));
-        document.querySelectorAll('.topic-link').forEach(el => el.classList.remove('active'));
-        if (activeSectionId) {
-            const toggle = document.querySelector(`.section-toggle[data-target="${activeSectionId}"]`);
-            if (toggle) toggle.classList.add('active');
-        }
-        if (activeTopicId && activeSectionId) {
-            const link = document.querySelector(`.topic-link[data-section-id="${activeSectionId}"][data-topic-id="${activeTopicId}"]`);
-            if (link) link.classList.add('active');
-        }
-    }
+    let currentCourse = null;
+    let currentTopicId = null;
+    const renderedCache = new Map();
 
     function escapeHtml(str) {
+        if (!str) return '';
         const div = document.createElement('div');
         div.textContent = str;
         return div.innerHTML;
     }
 
-    if (checkYourselfBtn) {
+    // Описание курса
+    function showCourseDescription() {
+        if (!currentCourse) {
+            topicContent.innerHTML = '<p class="text-muted">Информация о курсе загружается...</p>';
+            return;
+        }
+        const html = `
+            <div class="course-description-block">
+                <h2>${escapeHtml(currentCourse.name)}</h2>
+                <p>${escapeHtml(currentCourse.description || 'Описание отсутствует')}</p>
+            </div>
+        `;
+        topicContent.innerHTML = html;
+        currentTopicId = null;
+        window.activeTopicId = null;
+        document.querySelectorAll('.topic-link').forEach(link => link.classList.remove('active'));
+    }
+
+    // Описание раздела
+    function showSectionDescription(sectionId, sectionName, sectionDescription) {
+        const html = `
+            <div class="section-description-block">
+                <h2>${escapeHtml(sectionName)}</h2>
+                <p>${escapeHtml(sectionDescription || 'Описание отсутствует')}</p>
+            </div>
+        `;
+        topicContent.innerHTML = html;
+        currentTopicId = null;
+        window.activeTopicId = null;
+        document.querySelectorAll('.topic-link').forEach(link => link.classList.remove('active'));
+    }
+
+    // Загрузка и отображение темы
+    async function displayTopic(topicId, topicName) {
+        if (!topicId) return;
+        topicContent.innerHTML = '<div class="text-muted">Загрузка...</div>';
+        currentTopicId = topicId;
+        window.activeTopicId = topicId;
+
+        if (renderedCache.has(topicId)) {
+            renderTopicContent(renderedCache.get(topicId));
+            return;
+        }
+
+        try {
+            const url = `${window.API_BASE_URL}topics/${topicId}/rendered`;
+            const resp = await fetch(url, { credentials: 'include' });
+            if (!resp.ok) {
+                if (resp.status === 401 || resp.status === 403) {
+                    topicContent.innerHTML = '<p class="text-danger">Для просмотра этой темы необходимо <a href="/">войти в систему</a>.</p>';
+                    return;
+                }
+                throw new Error(`HTTP ${resp.status}`);
+            }
+            const data = await resp.json();
+            renderedCache.set(topicId, data);
+            renderTopicContent(data);
+        } catch (err) {
+            console.error('Ошибка загрузки темы:', err);
+            topicContent.innerHTML = '<p class="text-muted">Содержимое темы временно недоступно.</p>';
+        }
+    }
+
+    function renderTopicContent(contentData) {
+        if (!contentData || !contentData.blocks || contentData.blocks.length === 0) {
+            topicContent.innerHTML = '<p class="text-muted">Тема не содержит контента.</p>';
+            return;
+        }
+        let html = '<div class="topic-blocks">';
+        for (const block of contentData.blocks) {
+            let blockHtml = block.rendered_content || '<p class="text-muted">(пустой блок)</p>';
+            html += `<div class="topic-block topic-block-type-${block.type}">${blockHtml}</div>`;
+        }
+        html += '</div>';
+        topicContent.innerHTML = html;
+
+        if (window.MathJax) MathJax.typesetPromise && MathJax.typesetPromise();
+        if (window.mermaid) mermaid.init && mermaid.init(undefined, document.querySelectorAll('.topic-block-type-uml'));
+    }
+
+    // Построение бокового меню
+    async function buildSidebar() {
+        if (!sectionList) return;
+        sectionList.innerHTML = '<li class="list-group-item text-muted">Загрузка...</li>';
+
+        try {
+            const url = `${window.API_BASE_URL}sections/by_course/${window.COURSE_ID}`;
+            const resp = await fetch(url, { credentials: 'include' });
+            if (!resp.ok) {
+                if (resp.status === 401 || resp.status === 403) {
+                    sectionList.innerHTML = '<li class="list-group-item text-danger">Для просмотра содержания курса необходимо <a href="/">войти</a>.</li>';
+                    return;
+                }
+                throw new Error(`Sections HTTP ${resp.status}`);
+            }
+            const sections = await resp.json();
+            if (!sections || sections.length === 0) {
+                sectionList.innerHTML = '<li class="list-group-item text-muted">В курсе пока нет разделов.</li>';
+                return;
+            }
+
+            sections.sort((a, b) => a.order_number - b.order_number);
+            sectionList.innerHTML = '';
+
+            for (const section of sections) {
+                const li = document.createElement('li');
+                li.className = 'list-group-item section-item p-0';
+
+                const toggle = document.createElement('div');
+                toggle.className = 'section-toggle';
+                toggle.innerHTML = `<span class="toggle-icon">▼</span><span>${escapeHtml(section.name)}</span>`;
+                toggle.style.cursor = 'pointer';
+
+                const topicsContainer = document.createElement('div');
+                topicsContainer.className = 'section-topics';
+                topicsContainer.style.display = 'block';
+
+                // Загружаем темы раздела
+                try {
+                    const topicsUrl = `${window.API_BASE_URL}topics/by-section/${section.id}`;
+                    const topicsResp = await fetch(topicsUrl, { credentials: 'include' });
+                    if (!topicsResp.ok) {
+                        if (topicsResp.status === 401 || topicsResp.status === 403) {
+                            topicsContainer.innerHTML = '<div class="text-danger small p-2">Недостаточно прав для загрузки тем</div>';
+                        } else {
+                            topicsContainer.innerHTML = '<div class="text-muted small p-2">Ошибка загрузки тем</div>';
+                        }
+                    } else {
+                        const data = await topicsResp.json();
+                        const topics = data.topics || [];
+                        topics.sort((a, b) => a.order_number - b.order_number);
+                        if (topics.length === 0) {
+                            topicsContainer.innerHTML = '<div class="text-muted small p-2">Нет тем</div>';
+                        } else {
+                            const ul = document.createElement('ul');
+                            ul.className = 'list-unstyled mb-0';
+                            for (const topic of topics) {
+                                const liTopic = document.createElement('li');
+                                const link = document.createElement('a');
+                                link.href = '#';
+                                link.className = 'topic-link';
+                                link.dataset.topicId = topic.id;
+                                link.textContent = topic.name;
+                                link.addEventListener('click', (e) => {
+                                    e.preventDefault();
+                                    document.querySelectorAll('.topic-link').forEach(l => l.classList.remove('active'));
+                                    link.classList.add('active');
+                                    displayTopic(topic.id, topic.name);
+                                });
+                                liTopic.appendChild(link);
+                                ul.appendChild(liTopic);
+                            }
+                            topicsContainer.appendChild(ul);
+                        }
+                    }
+                } catch (err) {
+                    console.error(`Ошибка тем раздела ${section.id}:`, err);
+                    topicsContainer.innerHTML = '<div class="text-muted small p-2">Темы недоступны</div>';
+                }
+
+                // Обработчик клика по разделу: показать описание раздела и переключить сворачивание
+                let expanded = true;
+                const sectionToggleHandler = () => {
+                    showSectionDescription(section.id, section.name, section.description);
+                    expanded = !expanded;
+                    topicsContainer.style.display = expanded ? 'block' : 'none';
+                    const icon = toggle.querySelector('.toggle-icon');
+                    if (icon) icon.textContent = expanded ? '▼' : '▶';
+                };
+                toggle.addEventListener('click', sectionToggleHandler);
+
+                li.appendChild(toggle);
+                li.appendChild(topicsContainer);
+                sectionList.appendChild(li);
+            }
+        } catch (err) {
+            console.error('Ошибка загрузки разделов:', err);
+            sectionList.innerHTML = '<li class="list-group-item text-muted">Не удалось загрузить разделы</li>';
+        }
+    }
+
+    async function loadCourseInfo() {
+        if (!courseTitleHeader) return;
+        courseTitleHeader.textContent = 'Загрузка...';
+        try {
+            const url = `${window.API_BASE_URL}courses/${window.COURSE_ID}`;
+            const resp = await fetch(url, { credentials: 'include' });
+            if (!resp.ok) {
+                if (resp.status === 401 || resp.status === 403) {
+                    topicContent.innerHTML = '<div class="alert alert-warning">Для просмотра этого курса необходимо <a href="/">войти в систему</a>.</div>';
+                    courseTitleHeader.textContent = 'Доступ ограничен';
+                    if (sectionList) sectionList.innerHTML = '<li class="list-group-item text-muted">Содержимое курса недоступно</li>';
+                    return;
+                }
+                throw new Error(`Course HTTP ${resp.status}`);
+            }
+            currentCourse = await resp.json();
+            courseTitleHeader.textContent = escapeHtml(currentCourse.name);
+            // После успешной загрузки курса показываем его описание и пытаемся загрузить разделы
+            showCourseDescription();
+            await buildSidebar();  // бэкенд сам решит, можно ли показывать разделы
+        } catch (err) {
+            console.error('Ошибка загрузки курса:', err);
+            courseTitleHeader.textContent = 'Курс не найден';
+            topicContent.innerHTML = '<p class="text-muted">Не удалось загрузить курс. Попробуйте позже.</p>';
+        }
+    }
+
+    function setupCheckYourself() {
+        if (!checkYourselfBtn) return;
         checkYourselfBtn.addEventListener('click', () => {
-            alert('Функция в разработке');
+            if (currentTopicId) {
+                alert(`Функция «Проверить себя» для темы ID: ${currentTopicId} в разработке.`);
+            } else {
+                alert('Сначала выберите тему из меню.');
+            }
         });
     }
 
-    // Запускаем загрузку
-    loadFullCourseStructure();
+    function setupCourseTitleClick() {
+        if (!courseTitleHeader) return;
+        courseTitleHeader.style.cursor = 'pointer';
+        courseTitleHeader.addEventListener('click', () => {
+            if (currentCourse) {
+                showCourseDescription();
+                document.querySelectorAll('.topic-link').forEach(link => link.classList.remove('active'));
+            }
+        });
+    }
+
+    async function init() {
+        if (!window.COURSE_ID) {
+            console.error('COURSE_ID не задан');
+            return;
+        }
+        await loadCourseInfo();
+        setupCheckYourself();
+        setupCourseTitleClick();
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
 })();
 
 // ========== ПЛАВАЮЩЕЕ ОКНО КОНСПЕКТА ==========
@@ -288,8 +302,6 @@
         if (saveBtn) {
             saveBtn.textContent = '✓';
             setTimeout(() => { saveBtn.textContent = 'Сохранить'; }, 600);
-
-
         }
     }
 
@@ -338,7 +350,7 @@
         if (clamped.top !== top) win.style.top = clamped.top + 'px';
     }
 
-    // --- DRAG (без задержки) ---
+    // DRAG
     let dragging = false;
     let dragStartX = 0, dragStartY = 0, dragStartLeft = 0, dragStartTop = 0;
     function onMouseMove(e) {
@@ -377,7 +389,7 @@
         });
     }
 
-    // --- RESIZE (8 направлений) ---
+    // RESIZE
     const directions = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'];
     let resizing = false;
     let resizeDir = null;
@@ -432,7 +444,6 @@
             }
         }
 
-        // Ограничение по контейнеру
         let bounds = getContainerBounds();
         win.style.width = newWidth + 'px';
         win.style.height = newHeight + 'px';
@@ -453,7 +464,6 @@
         document.body.style.userSelect = '';
     }
 
-    // Создаём ручки ресайза, если их нет
     directions.forEach(dir => {
         let handle = win.querySelector(`.resize-handle.${dir}`);
         if (!handle) {
@@ -464,7 +474,6 @@
         handle.addEventListener('mousedown', (e) => startResize(e, dir));
     });
 
-    // --- Открытие / закрытие ---
     function openWin() {
         win.style.display = 'flex';
         isOpen = true;
@@ -482,10 +491,8 @@
     if (closeBtn) closeBtn.addEventListener('click', closeWin);
     if (saveBtn) saveBtn.addEventListener('click', saveConspect);
 
-    // Авто-сохранение при вводе (по желанию)
-    if (textarea) textarea.addEventListener('input', () => {}); // пусто, можно раскомментировать saveConspect()
+    if (textarea) textarea.addEventListener('input', () => {}); // можно добавить автосохранение
 
-    // Следим за сменой темы
     let oldShow = window.showTopicContent;
     if (oldShow) {
         window.showTopicContent = async function(sid, tid) {
