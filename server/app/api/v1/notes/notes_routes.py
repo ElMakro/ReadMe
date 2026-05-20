@@ -1,10 +1,17 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Path, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Path, Response, status
 
-from server.app.api.v1.common_schemas import UNPROCESSABLE_ENTITY_ERROR_TEXT, PaginationParameters
-from server.app.api.v1.notes.notes import NotesList, ShortNoteInfo
+from server.app.api.v1.common_schemas import (
+    NOTE_ALREADY_EXISTS_ERROR_TEXT,
+    NOTE_FIELDS_MISMATCH_ERROR_TEXT,
+    NOTE_NOT_FOUND_ERROR_TEXT,
+    UNPROCESSABLE_ENTITY_ERROR_TEXT,
+    PaginationParameters,
+)
+from server.app.api.v1.notes.exceptions import NoteAlreadyExistsError, NoteFieldsMismatchError, NoteNotFoundError
+from server.app.api.v1.notes.notes import NoteById, NotesList, SaveParameters, ShortNoteInfo
 from server.app.api.v1.notes.notes_service import NotesService
 from server.app.api.v1.users.users import UserVerification
 from server.app.common_dependencies.depends import get_auth_user
@@ -32,7 +39,7 @@ notes_router = APIRouter(
 )
 async def get_note_for_topic(
     user: Annotated[UserVerification, Depends(
-                get_current_user,
+                get_auth_user,
         )],
     notes_service: NotesService = Depends(
             NotesService,
@@ -48,6 +55,111 @@ async def get_note_for_topic(
     if (note := await notes_service.get_note_for_topic(user.id, topic_id)) is None:
         return Response(status_code=status.HTTP_204_NO_CONTENT)
     return note
+
+
+@notes_router.post(
+    path="create-note",
+    summary="Сохранить конспект",
+    response_description="Конспект успешно добавлен",
+    status_code=status.HTTP_201_CREATED,
+    response_model=NoteById,
+    responses={
+        status.HTTP_401_UNAUTHORIZED: {
+            "description": "Пользователь не произвёл вход",
+        },
+        status.HTTP_409_CONFLICT: {
+            "description": NOTE_ALREADY_EXISTS_ERROR_TEXT,
+        }
+    }
+)
+async def create_note(
+    save_params: SaveParameters,
+    user: Annotated[UserVerification, Depends(
+                get_auth_user,
+        )],
+    notes_service: NotesService = Depends(
+            NotesService,
+        ),
+) -> NoteById:
+    try:
+        return await notes_service.create_note(user.id, save_params)
+    except NoteAlreadyExistsError as error:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(
+                error,
+            ),
+        )
+
+
+@notes_router.put(
+    path="update-note",
+    summary="Обновить конспект",
+    response_description="Конспект успешно обновлён",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={
+        status.HTTP_401_UNAUTHORIZED: {
+            "description": "Пользователь не произвёл вход",
+        },
+        status.HTTP_409_CONFLICT: {
+            "description": NOTE_FIELDS_MISMATCH_ERROR_TEXT,
+        }
+    }
+)
+async def update_note(
+    save_params: SaveParameters,
+    user: Annotated[UserVerification, Depends(
+                get_auth_user,
+        )],
+    notes_service: NotesService = Depends(
+            NotesService,
+        ),
+):
+    try:
+        return await notes_service.update_note(user.id, save_params)
+    except NoteFieldsMismatchError as error:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(
+                error,
+            ),
+        )
+
+@notes_router.delete(
+    path="delete-note/{id}",
+    summary="Удалить конспект",
+    response_description="Конспект успешно удалён",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={
+        status.HTTP_401_UNAUTHORIZED: {
+            "description": "Пользователь не произвёл вход",
+        },
+        status.HTTP_404_NOT_FOUND: {
+            "description": NOTE_NOT_FOUND_ERROR_TEXT,
+        }
+    }
+)
+async def delete_note(
+    user: Annotated[UserVerification, Depends(
+                get_auth_user,
+        )],
+    notes_service: NotesService = Depends(
+            NotesService,
+        ),
+    note_id: uuid.UUID = Path(
+            ...,
+            description="Уникальный идентификатор конспекта",
+        ),
+):
+    try:
+        return await notes_service.delete_note(note_id=note_id, user_id=user.id)
+    except NoteNotFoundError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(
+                error,
+            )
+        )
 
 
 @notes_router.get(
