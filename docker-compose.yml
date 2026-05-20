@@ -55,6 +55,11 @@ services:
                 limits:
                     cpus: '1'
                     memory: 1G
+        logging:
+            driver: json-file
+            options:
+                max-size: "10m"
+                max-file: "3"
 
     redis-database:
         image: redis:7.4.8-alpine3.21
@@ -79,6 +84,11 @@ services:
                 limits:
                     cpus: "0.5"
                     memory: 512M
+        logging:
+            driver: json-file
+            options:
+                max-size: "10m"
+                max-file: "3"
 
     postgres-database-backups:
         image: prodrigestivill/postgres-backup-local:18-alpine-d257e5d
@@ -98,9 +108,19 @@ services:
         depends_on:
             postgres-database:
                 condition: service_healthy
+        deploy:
+            resources:
+                limits:
+                    cpus: "0.5"
+                    memory: 256M
+        logging:
+            driver: json-file
+            options:
+                max-size: "10m"
+                max-file: "3"
 
     database-manager:
-#        image: readmeivtyarsu/readme-database-manager:dev-main-1.1.0
+        #        image: readmeivtyarsu/readme-database-manager:dev-main-1.1.0
         build:
             context: .
             dockerfile: database_manager/Dockerfile
@@ -122,9 +142,19 @@ services:
                 condition: service_healthy
             redis-database:
                 condition: service_healthy
+        deploy:
+            resources:
+                limits:
+                    cpus: "0.5"
+                    memory: 256M
+        logging:
+            driver: json-file
+            options:
+                max-size: "10m"
+                max-file: "3"
 
     auto-migrations:
-#        image: readmeivtyarsu/readme-database-manager:dev-main-1.1.0
+        #        image: readmeivtyarsu/readme-database-manager:dev-main-1.1.0
         build:
             context: .
             dockerfile: database_manager/Dockerfile
@@ -150,9 +180,19 @@ services:
             postgres-database:
                 condition: service_healthy
         restart: "no"
+        deploy:
+            resources:
+                limits:
+                    cpus: "0.5"
+                    memory: 256M
+        logging:
+            driver: json-file
+            options:
+                max-size: "10m"
+                max-file: "3"
 
     client:
-#        image: readmeivtyarsu/readme-client:dev-main-1.1.0
+        #        image: readmeivtyarsu/readme-client:dev-main-1.1.0
         build:
             context: client
             dockerfile: Dockerfile
@@ -167,6 +207,16 @@ services:
         depends_on:
             server:
                 condition: service_healthy
+        deploy:
+            resources:
+                limits:
+                    cpus: "1"
+                    memory: 512M
+        logging:
+            driver: json-file
+            options:
+                max-size: "10m"
+                max-file: "3"
 
     server:
         build:
@@ -189,6 +239,8 @@ services:
             - SECRET_KEY=${SECRET_KEY}
         networks:
             - readme-network
+        volumes:
+            - readme-content:/content/server/data/content
         depends_on:
             postgres-database:
                 condition: service_healthy
@@ -199,6 +251,16 @@ services:
         ports:
             - "${SERVER_PORT}:${SERVER_PORT}"
         restart: unless-stopped
+        deploy:
+            resources:
+                limits:
+                    cpus: "1"
+                    memory: 512M
+        logging:
+            driver: json-file
+            options:
+                max-size: "10m"
+                max-file: "3"
 
 networks:
     readme-network:
@@ -208,3 +270,4 @@ volumes:
     readme-postgres-database-data:
     readme-postgres-database-backups:
     readme-redis-database-data:
+    readme-content:
