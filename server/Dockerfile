@@ -11,6 +11,8 @@ ENV PYTHONBUFFERED=1 \
     PATH="/home/readmeserveruser/.local/bin:$PATH" \
     PYTHONPATH=/content
 
+RUN mkdir server/data/content && chown readmeserveruser:readmeservergroup server/data/content
+
 USER readmeserveruser
 
 COPY --chown=readmeserveruser:readmeservergroup requirements.txt .

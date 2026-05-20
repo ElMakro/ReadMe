@@ -8,9 +8,9 @@ if [ -d /backups ]; then
     if [ "$CURRENT_PERMS" != "777" ]; then
         echo "Setting permissions for /backups..."
         chmod 777 /backups
-        echo "✓ Backup directory permissions set to 777"
+        echo "Backup directory permissions set to 777"
     else
-        echo "✓ Backup directory permissions already correct (777)"
+        echo "Backup directory permissions already correct (777)"
     fi
 else
     echo "ℹ Backup directory (/backups) not mounted, skipping"
