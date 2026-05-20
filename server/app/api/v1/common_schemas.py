@@ -9,6 +9,9 @@ from pydantic import BaseModel, BeforeValidator, ConfigDict, Field
 FORBIDDEN_ERROR_TEXT = "Недостаточно прав для выполнения операции"
 NOT_FOUND_ERROR_TEXT = "Запрашиваемый ресурс не найден"
 UNPROCESSABLE_ENTITY_ERROR_TEXT = "Ошибка валидации входных данных"
+NOTE_ALREADY_EXISTS_ERROR_TEXT = "Конспект к этой теме уже существует"
+NOTE_FIELDS_MISMATCH_ERROR_TEXT = "Поле note_id не соответствует сочетанию полей student_id и topic_id"
+NOTE_NOT_FOUND_ERROR_TEXT = "Конспект не найден или принадлежит другому пользователю"
 
 
 class CreatedAtMixin:

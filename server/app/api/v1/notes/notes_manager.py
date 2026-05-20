@@ -1,9 +1,16 @@
 import uuid
 
 from fastapi import Depends
-from sqlalchemy import desc, func, select
+from sqlalchemy import delete, desc, func, insert, select, update
+from sqlalchemy.exc import IntegrityError
 
-from server.app.api.v1.notes.notes import NotesList, ShortNoteInfo
+from server.app.api.v1.common_schemas import (
+    NOTE_ALREADY_EXISTS_ERROR_TEXT,
+    NOTE_FIELDS_MISMATCH_ERROR_TEXT,
+    NOTE_NOT_FOUND_ERROR_TEXT,
+)
+from server.app.api.v1.notes.exceptions import NoteAlreadyExistsException, NoteFieldsMismatch, NoteNotFound
+from server.app.api.v1.notes.notes import NoteById, NotesList, ShortNoteInfo
 from server.config.db_dependency import DBDependency
 from server.database.models import Notes, Topics
 
@@ -27,6 +34,57 @@ class NotesManager:
             if (note := (await session.execute(query)).one_or_none()) is None:
                 return None
             return ShortNoteInfo.model_validate(note)
+
+    async def update_note(self, note_id: uuid.UUID, user_id: uuid.UUID, topic_id: uuid.UUID, name: str, content: str) \
+            -> None:
+        async with self.db.db_session() as session:
+            query = update(
+                self.notes_model
+            ).where(
+                self.notes_model.id == note_id,
+                self.notes_model.student_id == user_id,
+                self.notes_model.topic_id == topic_id,
+            ).values(
+                name=name,
+                content=content,
+            ).returning(
+                self.notes_model.id,
+            )
+            if (await session.execute(query)).scalar_one_or_none() is None:
+                raise NoteFieldsMismatch(NOTE_FIELDS_MISMATCH_ERROR_TEXT)
+            return
+
+    async def create_note(self, user_id: uuid.UUID, topic_id: uuid.UUID, name: str, content: str) -> NoteById:
+        async with self.db.db_session() as session:
+            query = insert(
+                self.notes_model
+            ).values(
+                student_id=user_id,
+                topic_id=topic_id,
+                name=name,
+                content=content,
+            ).returning(self.notes_model.id)
+            try:
+                result = await session.execute(query)
+            except IntegrityError:
+                raise NoteAlreadyExistsException(NOTE_ALREADY_EXISTS_ERROR_TEXT)
+            await session.commit()
+            data = result.scalar_one()
+            return NoteById.model_validate(data)
+
+    async def delete_note(self, note_id: uuid.UUID, user_id: uuid.UUID) -> None:
+        async with self.db.db_session() as session:
+            query = delete(
+                self.notes_model
+            ).where(
+                self.notes_model.id == note_id,
+                self.notes_model.student_id == user_id,
+            )
+            result = await session.execute(query)
+            await session.commit()
+            if not result.rowcount:
+                raise NoteNotFound(NOTE_NOT_FOUND_ERROR_TEXT)
+            return
 
     async def get_notes_for_user(self, user_id: uuid.UUID, offset: int, limit: int) -> NotesList:
         async with (self.db.db_session() as session):
