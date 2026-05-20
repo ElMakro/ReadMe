@@ -9,7 +9,7 @@ from server.app.api.v1.common_schemas import (
     NOTE_FIELDS_MISMATCH_ERROR_TEXT,
     NOTE_NOT_FOUND_ERROR_TEXT,
 )
-from server.app.api.v1.notes.exceptions import NoteAlreadyExistsException, NoteFieldsMismatch, NoteNotFound
+from server.app.api.v1.notes.exceptions import NoteAlreadyExistsError, NoteFieldsMismatchError, NoteNotFoundError
 from server.app.api.v1.notes.notes import NoteById, NotesList, ShortNoteInfo
 from server.config.db_dependency import DBDependency
 from server.database.models import Notes, Topics
@@ -51,7 +51,7 @@ class NotesManager:
                 self.notes_model.id,
             )
             if (await session.execute(query)).scalar_one_or_none() is None:
-                raise NoteFieldsMismatch(NOTE_FIELDS_MISMATCH_ERROR_TEXT)
+                raise NoteFieldsMismatchError(NOTE_FIELDS_MISMATCH_ERROR_TEXT)
             return
 
     async def create_note(self, user_id: uuid.UUID, topic_id: uuid.UUID, name: str, content: str) -> NoteById:
@@ -67,7 +67,7 @@ class NotesManager:
             try:
                 result = await session.execute(query)
             except IntegrityError:
-                raise NoteAlreadyExistsException(NOTE_ALREADY_EXISTS_ERROR_TEXT)
+                raise NoteAlreadyExistsError(NOTE_ALREADY_EXISTS_ERROR_TEXT)
             await session.commit()
             data = result.scalar_one()
             return NoteById.model_validate(data)
@@ -83,7 +83,7 @@ class NotesManager:
             result = await session.execute(query)
             await session.commit()
             if not result.rowcount:
-                raise NoteNotFound(NOTE_NOT_FOUND_ERROR_TEXT)
+                raise NoteNotFoundError(NOTE_NOT_FOUND_ERROR_TEXT)
             return
 
     async def get_notes_for_user(self, user_id: uuid.UUID, offset: int, limit: int) -> NotesList:
