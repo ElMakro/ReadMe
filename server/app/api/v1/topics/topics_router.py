@@ -1,10 +1,13 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Path, status
+from fastapi import APIRouter, Depends, HTTPException, Path, status
 
 from server.app.api.openapi_docs import openapi_extra_authorization_cookie
 from server.app.api.v1.common_schemas import UNPROCESSABLE_ENTITY_ERROR_TEXT
+from server.app.api.v1.courses.courses_manager import ObjectExistenceError
+from server.app.api.v1.courses.courses_service import OperationPermissionError
+from server.app.api.v1.sections.sections_service import OrderNumberConflictError
 from server.app.api.v1.topics.topics import (
     TopicCreation,
     TopicIDMixin,
@@ -12,12 +15,11 @@ from server.app.api.v1.topics.topics import (
     TopicRenderedContent,
     TopicResponse,
     TopicsFullListResponse,
-    TopicsListResponse,
     TopicUpdate,
 )
 from server.app.api.v1.topics.topics_service import TopicsService
 from server.app.api.v1.users.users import UserVerification
-from server.app.common_dependencies.depends import get_current_user
+from server.app.common_dependencies.depends import get_auth_user, get_current_user
 
 topics_router = APIRouter(
     prefix="/topics",
@@ -49,7 +51,7 @@ topics_router = APIRouter(
 )
 async def create_topic(
         user: Annotated[UserVerification, Depends(
-            get_current_user,
+            get_auth_user,
         )],
         topic_data: TopicCreation,
         topics_service: TopicsService = Depends(
@@ -60,42 +62,34 @@ async def create_topic(
     Создать новую тему в разделе.
     Порядковый номер определяет отображение тем в разделе.
     """
-    pass
-
-
-@topics_router.get(
-    "/{topic_id}",
-    summary="Получить тему по её уникальному идентификатору",
-    response_description="Тема успешно найдена",
-    status_code=status.HTTP_200_OK,
-    response_model=TopicResponse,
-    responses={
-        status.HTTP_403_FORBIDDEN            : {
-            "description": "Пользователь не имеет прав на просмотр данной темы",
-        },
-        status.HTTP_404_NOT_FOUND            : {
-            "description": "Темы с таким идентификатором не существует",
-        },
-        status.HTTP_422_UNPROCESSABLE_CONTENT: {
-            "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
-        },
-    },
-    openapi_extra=openapi_extra_authorization_cookie,
-)
-async def get_topic_by_id(
-        user: Annotated[UserVerification, Depends(
-            get_current_user,
-        )],
-        topic_id: UUID = Path(
-            ...,
-            description="Уникальный идентификатор темы",
-        ),
-        topics_service: TopicsService = Depends(
-            TopicsService,
-        ),
-) -> TopicResponse:
-    """Получить полную информацию о теме по её идентификатору."""
-    pass
+    try:
+        return await topics_service.create_topic(
+            user,
+            topic_data.section_id,
+            topic_data.name,
+            topic_data.order_number,
+        )
+    except OperationPermissionError as error:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=str(
+                error,
+            ),
+        )
+    except ObjectExistenceError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(
+                error,
+            ),
+        )
+    except OrderNumberConflictError as error:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(
+                error,
+            ),
+        )
 
 
 @topics_router.get(
@@ -118,7 +112,7 @@ async def get_topic_by_id(
     openapi_extra=openapi_extra_authorization_cookie,
 )
 async def get_topics_by_section(
-        user: Annotated[UserVerification, Depends(
+        user: Annotated[UserVerification | None, Depends(
             get_current_user,
         )],
         section_id: UUID = Path(
@@ -132,44 +126,25 @@ async def get_topics_by_section(
     """
     Получить все темы раздела, отсортированные по порядковому номеру.
     """
-    pass
-
-
-@topics_router.get(
-    "/by-section/{section_id}/ids",
-    summary="Получить список идентификаторов тем по идентификатору раздела",
-    response_description="Список идентификаторов тем раздела",
-    status_code=status.HTTP_200_OK,
-    response_model=TopicsListResponse,
-    responses={
-        status.HTTP_403_FORBIDDEN            : {
-            "description": "Пользователь не имеет прав на просмотр тем этого раздела",
-        },
-        status.HTTP_404_NOT_FOUND            : {
-            "description": "Раздела с таким идентификатором не существует",
-        },
-        status.HTTP_422_UNPROCESSABLE_CONTENT: {
-            "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
-        },
-    },
-    openapi_extra=openapi_extra_authorization_cookie,
-)
-async def get_topic_ids_by_section(
-        user: Annotated[UserVerification, Depends(
-            get_current_user,
-        )],
-        section_id: UUID = Path(
-            ...,
-            description="Уникальный идентификатор раздела",
-        ),
-        topics_service: TopicsService = Depends(
-            TopicsService,
-        ),
-) -> TopicsListResponse:
-    """
-    Получить только идентификаторы тем раздела, отсортированные по порядковому номеру.
-    """
-    pass
+    try:
+        return await topics_service.get_topics_by_section_id(
+            user,
+            section_id,
+        )
+    except OperationPermissionError as error:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=str(
+                error,
+            ),
+        )
+    except ObjectExistenceError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(
+                error,
+            ),
+        )
 
 
 @topics_router.get(
@@ -192,7 +167,7 @@ async def get_topic_ids_by_section(
     openapi_extra=openapi_extra_authorization_cookie,
 )
 async def get_topics_by_course(
-        user: Annotated[UserVerification, Depends(
+        user: Annotated[UserVerification | None, Depends(
             get_current_user,
         )],
         course_id: UUID = Path(
@@ -206,153 +181,25 @@ async def get_topics_by_course(
     """
     Получить все темы курса.
     """
-    pass
-
-
-@topics_router.get(
-    "/by-course/{course_id}/ids",
-    summary="Получить все темы по идентификатору курса",
-    response_description="Список всех тем курса",
-    status_code=status.HTTP_200_OK,
-    response_model=TopicsListResponse,
-    responses={
-        status.HTTP_403_FORBIDDEN            : {
-            "description": "Пользователь не имеет прав на просмотр тем этого курса",
-        },
-        status.HTTP_404_NOT_FOUND            : {
-            "description": "Курса с таким идентификатором не существует",
-        },
-        status.HTTP_422_UNPROCESSABLE_CONTENT: {
-            "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
-        },
-    },
-    openapi_extra=openapi_extra_authorization_cookie,
-)
-async def get_topic_ids_by_course(
-        user: Annotated[UserVerification, Depends(
-            get_current_user,
-        )],
-        course_id: UUID = Path(
-            ...,
-            description="Уникальный идентификатор курса",
-        ),
-        topics_service: TopicsService = Depends(
-            TopicsService,
-        ),
-) -> TopicsListResponse:
-    """
-    Получить идентификаторы всех тем курса.
-    """
-    pass
-
-
-@topics_router.put(
-    "/{topic_id}",
-    summary="Редактировать тему",
-    response_description="Тема успешно отредактирована",
-    status_code=status.HTTP_200_OK,
-    response_model=TopicResponse,
-    responses={
-        status.HTTP_403_FORBIDDEN            : {
-            "description": "У пользователя нет прав на редактирование этой темы",
-        },
-        status.HTTP_404_NOT_FOUND            : {
-            "description": "Темы с таким ID не существует",
-        },
-        status.HTTP_409_CONFLICT             : {
-            "description": "Тема с таким order_number уже существует в этом разделе",
-        },
-        status.HTTP_422_UNPROCESSABLE_CONTENT: {
-            "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
-        },
-    },
-    openapi_extra=openapi_extra_authorization_cookie,
-)
-async def update_topic(
-        user: Annotated[UserVerification, Depends(
-            get_current_user,
-        )],
-        topic_id: UUID = Path(
-            ...,
-            description="Уникальный идентификатор темы",
-        ),
-        topic_data: TopicUpdate = Depends(),
-        topics_service: TopicsService = Depends(
-            TopicsService,
-        ),
-) -> TopicResponse:
-    """Изменить содержимое темы."""
-    pass
-
-
-@topics_router.delete(
-    "/{topic_id}",
-    summary="Удалить тему",
-    response_description="Тема успешно удалена",
-    status_code=status.HTTP_204_NO_CONTENT,
-    responses={
-        status.HTTP_403_FORBIDDEN            : {
-            "description": "У пользователя нет прав на удаление этой темы",
-        },
-        status.HTTP_404_NOT_FOUND            : {
-            "description": "Темы с таким ID не существует",
-        },
-        status.HTTP_422_UNPROCESSABLE_CONTENT: {
-            "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
-        },
-    },
-    openapi_extra=openapi_extra_authorization_cookie,
-)
-async def delete_topic(
-        user: Annotated[UserVerification, Depends(
-            get_current_user,
-        )],
-        topic_id: UUID = Path(
-            ...,
-            description="Уникальный идентификатор темы",
-        ),
-        topics_service: TopicsService = Depends(
-            TopicsService,
-        ),
-) -> None:
-    """
-    Удалить тему и все связанные с ней заметки студентов.
-    Только преподаватель курса может удалить тему.
-    """
-    pass
-
-
-@topics_router.put(
-    "/put-content/{topic_id}",
-    summary="Установить контент темы",
-    status_code=status.HTTP_204_NO_CONTENT,
-    responses={
-        status.HTTP_403_FORBIDDEN            : {
-            "description": "Пользователь не имеет прав на установление контента",
-        },
-        status.HTTP_404_NOT_FOUND            : {
-            "description": "Темы с таким идентификатором не существует",
-        },
-        status.HTTP_422_UNPROCESSABLE_CONTENT: {
-            "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
-        },
-    },
-    openapi_extra=openapi_extra_authorization_cookie,
-)
-async def put_topic_content(
-        user: Annotated[UserVerification, Depends(
-            get_current_user,
-        )],
-        topic_raw_content: TopicRawContent,
-        topic_id: UUID = Path(
-            ...,
-            description="Уникальный идентификатор темы",
-        ),
-        topics_service: TopicsService = Depends(
-            TopicsService,
-        ),
-):
-    pass
+    try:
+        return await topics_service.get_topics_by_course_id(
+            user,
+            course_id,
+        )
+    except OperationPermissionError as error:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=str(
+                error,
+            ),
+        )
+    except ObjectExistenceError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(
+                error,
+            ),
+        )
 
 
 @topics_router.get(
@@ -375,7 +222,7 @@ async def put_topic_content(
     openapi_extra=openapi_extra_authorization_cookie,
 )
 async def get_rendered_content(
-        user: Annotated[UserVerification, Depends(
+        user: Annotated[UserVerification | None, Depends(
             get_current_user,
         )],
         topic_id: UUID = Path(
@@ -409,7 +256,7 @@ async def get_rendered_content(
     openapi_extra=openapi_extra_authorization_cookie,
 )
 async def get_raw_content(
-        user: Annotated[UserVerification, Depends(
+        user: Annotated[UserVerification | None, Depends(
             get_current_user,
         )],
         topic_id: UUID = Path(
@@ -421,3 +268,168 @@ async def get_raw_content(
         ),
 ) -> TopicRawContent:
     pass
+
+
+@topics_router.get(
+    "/{topic_id}",
+    summary="Получить тему по её уникальному идентификатору",
+    response_description="Тема успешно найдена",
+    status_code=status.HTTP_200_OK,
+    response_model=TopicResponse,
+    responses={
+        status.HTTP_403_FORBIDDEN            : {
+            "description": "Пользователь не имеет прав на просмотр данной темы",
+        },
+        status.HTTP_404_NOT_FOUND            : {
+            "description": "Темы с таким идентификатором не существует",
+        },
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {
+            "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
+        },
+    },
+    openapi_extra=openapi_extra_authorization_cookie,
+)
+async def get_topic_by_id(
+        user: Annotated[UserVerification | None, Depends(
+            get_current_user,
+        )],
+        topic_id: UUID = Path(
+            ...,
+            description="Уникальный идентификатор темы",
+        ),
+        topics_service: TopicsService = Depends(
+            TopicsService,
+        ),
+) -> TopicResponse:
+    """Получить полную информацию о теме по её идентификатору."""
+    try:
+        return await topics_service.get_topic_by_id(
+            user,
+            topic_id,
+        )
+    except OperationPermissionError as error:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=str(
+                error,
+            ),
+        )
+    except ObjectExistenceError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(
+                error,
+            ),
+        )
+
+
+@topics_router.put(
+    "/{topic_id}",
+    summary="Редактировать тему",
+    response_description="Тема успешно отредактирована",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={
+        status.HTTP_403_FORBIDDEN            : {
+            "description": "У пользователя нет прав на редактирование этой темы",
+        },
+        status.HTTP_404_NOT_FOUND            : {
+            "description": "Темы с таким ID не существует",
+        },
+        status.HTTP_409_CONFLICT             : {
+            "description": "Тема с таким order_number уже существует в этом разделе",
+        },
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {
+            "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
+        },
+    },
+    openapi_extra=openapi_extra_authorization_cookie,
+)
+async def update_topic(
+        user: Annotated[UserVerification, Depends(
+            get_auth_user,
+        )],
+        topic_id: UUID = Path(
+            ...,
+            description="Уникальный идентификатор темы",
+        ),
+        topic_update: TopicUpdate = Depends(),
+        topics_service: TopicsService = Depends(
+            TopicsService,
+        ),
+) -> None:
+    """Изменить содержимое темы."""
+    try:
+        await topics_service.update_topic(
+            user,
+            topic_id,
+            topic_update.name,
+        )
+    except OperationPermissionError as error:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=str(
+                error,
+            ),
+        )
+    except ObjectExistenceError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(
+                error,
+            ),
+        )
+
+
+@topics_router.delete(
+    "/{topic_id}",
+    summary="Удалить тему",
+    response_description="Тема успешно удалена",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={
+        status.HTTP_403_FORBIDDEN            : {
+            "description": "У пользователя нет прав на удаление этой темы",
+        },
+        status.HTTP_404_NOT_FOUND            : {
+            "description": "Темы с таким ID не существует",
+        },
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {
+            "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
+        },
+    },
+    openapi_extra=openapi_extra_authorization_cookie,
+)
+async def delete_topic(
+        user: Annotated[UserVerification, Depends(
+            get_auth_user,
+        )],
+        topic_id: UUID = Path(
+            ...,
+            description="Уникальный идентификатор темы",
+        ),
+        topics_service: TopicsService = Depends(
+            TopicsService,
+        ),
+) -> None:
+    """
+    Удалить тему и все связанные с ней заметки студентов.
+    Только преподаватель курса может удалить тему.
+    """
+    try:
+        await topics_service.delete_topic(
+            user,
+            topic_id,
+        )
+    except OperationPermissionError as error:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=str(
+                error,
+            ),
+        )
+    except ObjectExistenceError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(
+                error,
+            ),
+        )

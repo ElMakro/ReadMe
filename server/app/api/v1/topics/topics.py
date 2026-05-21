@@ -1,7 +1,7 @@
 import uuid
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, RootModel
 
 from server.app.api.v1.common_schemas import TimestampsMixin
 from server.app.api.v1.sections.sections import SectionIDMixin
@@ -30,7 +30,11 @@ class TopicBase(
         from_attributes=True,
         extra="ignore",
     )
-
+    section_id: uuid.UUID = Field(
+        ...,
+        description="Уникальный идентификатор раздела, к которому относится тема",
+        examples=[uuid.uuid4()],
+    )
     name: str = Field(
         ...,
         description="Название темы",
@@ -44,6 +48,11 @@ class TopicBase(
         ge=0,
         examples=[1],
     )
+    course_id: uuid.UUID = Field(
+        ...,
+        description="Уникальный идентификатор курса, к которому относится тема",
+        examples=[uuid.uuid4()],
+    )
 
 
 class TopicCreation(
@@ -53,11 +62,6 @@ class TopicCreation(
     model_config = ConfigDict(
         from_attributes=True,
         extra="ignore",
-    )
-
-    section_id: uuid.UUID = Field(
-        ...,
-        description="Уникальный идентификатор раздела, к которому относится тема",
     )
 
 
@@ -77,12 +81,6 @@ class TopicUpdate(
         max_length=255,
         examples=["Название темы"],
     )
-    order_number: int | None = Field(
-        None,
-        description="Порядковый номер (нумерация с 1)",
-        ge=0,
-        examples=[1],
-    )
 
 
 class TopicResponse(
@@ -97,44 +95,10 @@ class TopicResponse(
     )
 
 
-class TopicsListResponse(
-    BaseModel,
-):
-    """Список идентификаторов тем"""
-    model_config = ConfigDict(
-        from_attributes=True,
-        extra="ignore",
-    )
-
-    topic_ids: list[uuid.UUID] = Field(
-        ...,
-        description="Список ID тем",
-        examples=[[uuid.uuid4()]],
-    )
-    total: int = Field(
-        ...,
-        ge=0,
-        description="Количество тем",
-        examples=[1],
-    )
-
-
 class TopicsFullListResponse(
-    BaseModel,
+    RootModel[list[TopicResponse]],
 ):
     """Полный список тем"""
-    model_config = ConfigDict(
-        from_attributes=True,
-        extra="ignore",
-    )
-
-    topics: list[TopicResponse]
-    total: int = Field(
-        ...,
-        ge=0,
-        description="Количество тем",
-        examples=[1],
-    )
 
 
 class TopicBlockRawContent(
@@ -159,18 +123,9 @@ class TopicBlockRawContent(
 
 
 class TopicRawContent(
-    BaseModel,
+    RootModel[list[TopicBlockRawContent]],
 ):
     """Модель строкового представления контента в теме"""
-    model_config = ConfigDict(
-        from_attributes=True,
-        extra="ignore",
-    )
-
-    blocks: list[TopicBlockRawContent] = Field(
-        ...,
-        description="Упорядоченные блоки темы",
-    )
 
 
 class TopicBlockRenderedContent(
@@ -195,15 +150,6 @@ class TopicBlockRenderedContent(
 
 
 class TopicRenderedContent(
-    BaseModel,
+    RootModel[list[TopicBlockRenderedContent]],
 ):
     """Модель готового к отображению контента в теме"""
-    model_config = ConfigDict(
-        from_attributes=True,
-        extra="ignore",
-    )
-
-    blocks: list[TopicBlockRenderedContent] = Field(
-        ...,
-        description="Упорядоченные блоки темы",
-    )
