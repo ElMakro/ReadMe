@@ -126,7 +126,7 @@ async def update_note(
         )
 
 @notes_router.delete(
-    path="/delete-note/{id}",
+    path="/delete-note/{note_id}",
     summary="Удалить конспект",
     response_description="Конспект успешно удалён",
     status_code=status.HTTP_204_NO_CONTENT,

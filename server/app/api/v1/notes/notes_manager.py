@@ -52,6 +52,7 @@ class NotesManager:
             )
             if (await session.execute(query)).scalar_one_or_none() is None:
                 raise NoteFieldsMismatchError(NOTE_FIELDS_MISMATCH_ERROR_TEXT)
+            await session.commit()
             return
 
     async def create_note(self, user_id: uuid.UUID, topic_id: uuid.UUID, name: str, content: str) -> NoteById:
@@ -70,7 +71,7 @@ class NotesManager:
                 raise NoteAlreadyExistsError(NOTE_ALREADY_EXISTS_ERROR_TEXT)
             await session.commit()
             data = result.scalar_one()
-            return NoteById.model_validate(data)
+            return NoteById(id=data)
 
     async def delete_note(self, note_id: uuid.UUID, user_id: uuid.UUID) -> None:
         async with self.db.db_session() as session:
