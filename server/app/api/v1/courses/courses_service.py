@@ -12,8 +12,11 @@ from server.app.api.v1.courses.courses import (
     CoursesListSearchResponse,
 )
 from server.app.api.v1.courses.courses_manager import CoursesManager
+from server.app.api.v1.users.enums.access_permissions import AccessPermissions
 from server.app.api.v1.users.users import UserVerification
 from server.app.api.v1.users.users_manager import UserExistenceError, UsersManager
+from server.app.api.v1.users.users_service import UsersService
+from server.data.data_manager import DataManager
 from server.enums.role import Role
 
 
@@ -57,10 +60,18 @@ class CoursesService:
             users_manager: UsersManager = Depends(
                 UsersManager,
             ),
+            users_service: UsersService = Depends(
+                UsersService,
+            ),
+            data_manager: DataManager = Depends(
+                DataManager,
+            ),
     ) -> None:
         self.courses_manager = courses_manager
         self.auth_manager = auth_manager
         self.users_manager = users_manager
+        self.users_service = users_service
+        self.data_manager = data_manager
 
     async def get_courses_for_user(
             self,
@@ -107,7 +118,7 @@ class CoursesService:
                 "Содержимое курса не может быть публичным, если сам курс непубличный!",
             )
 
-        return await self.courses_manager.create_course(
+        course = await self.courses_manager.create_course(
             name=name,
             description=description,
             professor_id=user.id,
@@ -115,33 +126,30 @@ class CoursesService:
             is_content_public=is_content_public,
         )
 
+        self.data_manager.create_course(
+            course.id,
+        )
+
+        return course
+
     async def get_course_by_id(
             self,
-            user: UserVerification,
+            user: UserVerification | None,
             course_id: UUID,
     ) -> CourseResponse:
         course = await self.courses_manager.get_course_by_id(
             course_id,
         )
 
-        if user.role == Role.ADMIN:
-            return course
+        if await self.users_service.check_course_access(
+                user,
+                course=course,
+        ) < AccessPermissions.HEADER_ACCESS:
+            raise OperationPermissionError(
+                "Пользователь не имеет доступа к данному курсу!",
+            )
 
-        if course.is_public:
-            return course
-
-        if course.professor_id == user.id:
-            return course
-
-        if await self.courses_manager.check_is_user_enrolled_on_course(
-                user.id,
-                course_id,
-        ):
-            return course
-
-        raise OperationPermissionError(
-            "Пользователь не имеет доступа к данному курсу!",
-        )
+        return course
 
     async def self_enroll_on_course(
             self,
@@ -193,14 +201,12 @@ class CoursesService:
             course_id,
         )
 
-        if user.role == Role.STUDENT:
+        if await self.users_service.check_course_access(
+                user,
+                course=course,
+        ) < AccessPermissions.EDIT_ACCESS:
             raise OperationPermissionError(
-                "Обучающийся не имеет права на редактирование курса!",
-            )
-
-        if user.role == Role.PROFESSOR and course.professor_id != user.id:
-            raise OperationPermissionError(
-                "Преподаватель может изменить только тот курс, который он ведёт!",
+                "У пользователя нет прав на изменение курса!",
             )
 
         if new_name is None and new_description is None and new_is_public is None and new_is_content_public is None:
@@ -234,21 +240,23 @@ class CoursesService:
             user: UserVerification,
             course_id: UUID,
     ):
-        if user.role == Role.STUDENT:
-            raise OperationPermissionError(
-                "Обучающийся не имеет права на удаление курса!",
-            )
-
         course = await self.courses_manager.get_course_by_id(
             course_id,
         )
 
-        if user.role == Role.PROFESSOR and course.professor_id != user.id:
+        if await self.users_service.check_course_access(
+                user,
+                course=course,
+        ) < AccessPermissions.EDIT_ACCESS:
             raise OperationPermissionError(
-                "Преподаватель может удалить только тот курс, который он ведёт!",
+                "У пользователя нет прав на удаление курса!",
             )
 
         await self.courses_manager.delete_course(
+            course_id,
+        )
+
+        self.data_manager.delete_course(
             course_id,
         )
 
@@ -319,23 +327,16 @@ class CoursesService:
             course_id: UUID,
             new_professor_id: UUID,
     ) -> None:
-        if user.role == Role.STUDENT:
-            raise OperationPermissionError(
-                "Обучающиеся не имеют права на удаление курса!",
-            )
-
         course = await self.courses_manager.get_course_by_id(
             course_id,
         )
 
-        if user.role == Role.PROFESSOR and course.professor_id != user.id:
+        if await self.users_service.check_course_access(
+                user,
+                course=course,
+        ) < AccessPermissions.EDIT_ACCESS:
             raise OperationPermissionError(
-                "Преподаватель может передать владение только тем курсом, который он ведёт!",
-            )
-
-        if course.professor_id == new_professor_id:
-            raise CourseOwnerConflictError(
-                "Пользователь уже является преподавателем курса!",
+                "У пользователя нет прав на передачу владения курсом!",
             )
 
         new_professor = await self.users_manager.get_user_by_id(

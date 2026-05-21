@@ -2,7 +2,7 @@ from uuid import UUID
 
 from server.app.api.v1.courses.courses import CourseResponse
 from server.app.api.v1.courses.courses_manager import CoursesManager
-from server.app.api.v1.users.enums.AccessLevels import AccessLevels
+from server.app.api.v1.users.enums.access_permissions import AccessPermissions
 from server.app.api.v1.users.users import UserProfile, UserVerification
 from server.enums.role import Role
 
@@ -29,10 +29,10 @@ class UsersService:
             user: UserVerification | None,
             course_id: UUID | None = None,
             course: CourseResponse | None = None,
-    ) -> AccessLevels:
+    ) -> AccessPermissions:
         if user is not None:
             if user.role == Role.ADMIN:
-                return AccessLevels.EDIT_ACCESS
+                return AccessPermissions.EDIT_ACCESS
 
         if course is None:
             if course_id is None:
@@ -49,19 +49,19 @@ class UsersService:
 
         if user is not None:
             if course.professor_id == user.id:
-                return AccessLevels.EDIT_ACCESS
+                return AccessPermissions.EDIT_ACCESS
 
         if course.is_content_public:
-            return AccessLevels.CONTENT_ACCESS
+            return AccessPermissions.CONTENT_ACCESS
 
         if course.is_public:
-            return AccessLevels.HEADER_ACCESS
+            return AccessPermissions.HEADER_ACCESS
 
         if user is not None:
             if await self.courses_manager.check_is_user_enrolled_on_course(
                     user.id,
                     course_id,
             ):
-                return AccessLevels.CONTENT_ACCESS
+                return AccessPermissions.CONTENT_ACCESS
 
-        return AccessLevels.NO_ACCESS
+        return AccessPermissions.NO_ACCESS

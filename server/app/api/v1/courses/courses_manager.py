@@ -2,7 +2,7 @@ import uuid
 from uuid import UUID
 
 from fastapi import Depends
-from sqlalchemy import delete, insert, select, update
+from sqlalchemy import delete, select, update
 
 from server.app.api.v1.courses.courses import CourseFullListResponse, CourseIDMixin, CourseResponse, CoursesList
 from server.config.db_dependency import DBDependency
@@ -95,53 +95,41 @@ class CoursesManager:
             is_content_public: bool,
     ) -> CourseIDMixin:
         async with self.db.db_session() as session:
-            query = insert(
-                self.courses_model,
-            ).values(
+            course = Courses(
                 name=name,
                 description=description,
                 professor_id=professor_id,
                 is_public=is_public,
                 is_content_public=is_content_public,
-            ).returning(
-                self.courses_model.id,
             )
-            result = await session.execute(
-                query,
-            )
-            created_course = result.mappings().one()
 
-            await session.commit()
-            return CourseIDMixin.model_validate(
-                created_course,
+            session.add(
+                course,
             )
+            await session.commit()
+
+        return CourseIDMixin.model_validate(
+            course.id,
+        )
 
     async def get_course_by_id(
             self,
             course_id: UUID,
     ) -> CourseResponse:
         async with self.db.db_session() as session:
-            query = select(
-                self.courses_model,
-            ).where(
-                self.courses_model.id == course_id,
+            course = await session.get(
+                Courses,
+                course_id,
             )
-
-            result = await session.execute(
-                query,
-            )
-            course = result.scalars().one_or_none()
 
         if course is None:
             raise ObjectExistenceError(
                 "Курса с таким ID не существует!",
             )
 
-        course = CourseResponse.model_validate(
+        return CourseResponse.model_validate(
             course,
         )
-
-        return course
 
     async def check_is_user_enrolled_on_course(
             self,
@@ -170,15 +158,12 @@ class CoursesManager:
             course_id: UUID,
     ) -> None:
         async with self.db.db_session() as session:
-            query = insert(
-                self.courses_for_students_model,
-            ).values(
+            record = CoursesForStudents(
                 student_id=user_id,
                 course_id=course_id,
             )
-
-            await session.execute(
-                query,
+            session.add(
+                record,
             )
             await session.commit()
 

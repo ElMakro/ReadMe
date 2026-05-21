@@ -8,7 +8,7 @@ from server.app.api.v1.sections.sections_manager import SectionsManager
 from server.app.api.v1.sections.sections_service import OrderNumberConflictError
 from server.app.api.v1.topics.topics import TopicIDMixin, TopicResponse, TopicsFullListResponse
 from server.app.api.v1.topics.topics_manager import TopicsManager
-from server.app.api.v1.users.enums.AccessLevels import AccessLevels
+from server.app.api.v1.users.enums.access_permissions import AccessPermissions
 from server.app.api.v1.users.users import UserVerification
 from server.app.api.v1.users.users_service import UsersService
 from server.data.data_manager import DataManager
@@ -56,7 +56,7 @@ class TopicsService:
         if not await self.users_service.check_course_access(
                 user,
                 course=course,
-        ) < AccessLevels.EDIT_ACCESS:
+        ) < AccessPermissions.EDIT_ACCESS:
             raise OperationPermissionError(
                 "У пользователя нет права на создание темы в данном курсе!",
             )
@@ -95,7 +95,7 @@ class TopicsService:
         if await self.users_service.check_course_access(
                 user,
                 course_id=topic.course_id,
-        ) > AccessLevels.CONTENT_ACCESS:
+        ) > AccessPermissions.CONTENT_ACCESS:
             return topic
 
         raise OperationPermissionError(
@@ -114,7 +114,7 @@ class TopicsService:
         if await self.users_service.check_course_access(
                 user,
                 course_id=section.course_id,
-        ) > AccessLevels.CONTENT_ACCESS:
+        ) > AccessPermissions.CONTENT_ACCESS:
             return await self.topics_manager.get_topics_by_section_id(
                 section_id,
             )
@@ -135,7 +135,7 @@ class TopicsService:
         if await self.users_service.check_course_access(
                 user,
                 course=course,
-        ) > AccessLevels.CONTENT_ACCESS:
+        ) > AccessPermissions.CONTENT_ACCESS:
             return await self.topics_manager.get_sections_by_course_id(
                 course_id,
             )
@@ -156,7 +156,7 @@ class TopicsService:
         if await self.users_service.check_course_access(
                 user,
                 course_id=topic.course_id,
-        ) < AccessLevels.EDIT_ACCESS:
+        ) < AccessPermissions.EDIT_ACCESS:
             raise OperationPermissionError(
                 "Пользователь не имеет права на удаление этой темы!",
             )
@@ -184,7 +184,7 @@ class TopicsService:
         if await self.users_service.check_course_access(
                 user,
                 course_id=topic.course_id,
-        ) < AccessLevels.EDIT_ACCESS:
+        ) < AccessPermissions.EDIT_ACCESS:
             raise OperationPermissionError(
                 "Пользователь не имеет права на изменение темы!",
             )

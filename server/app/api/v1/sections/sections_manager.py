@@ -23,7 +23,6 @@ class SectionsManager:
             ),
     ) -> None:
         self.db = db
-        # self.sections_model = Sections
 
     async def create_section(
             self,
