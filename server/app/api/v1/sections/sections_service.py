@@ -6,8 +6,10 @@ from server.app.api.v1.courses.courses_manager import CoursesManager
 from server.app.api.v1.courses.courses_service import OperationPermissionError
 from server.app.api.v1.sections.sections import SectionIDMixin, SectionResponse, SectionsFullListResponse
 from server.app.api.v1.sections.sections_manager import DifferentSourcesContentSwapError, SectionsManager
+from server.app.api.v1.users.enums.access_permissions import AccessPermissions
 from server.app.api.v1.users.users import UserVerification
-from server.enums.role import Role
+from server.app.api.v1.users.users_service import UsersService
+from server.data.data_manager import DataManager
 
 
 class OrderNumberConflictError(
@@ -26,9 +28,17 @@ class SectionsService:
             courses_manager: CoursesManager = Depends(
                 CoursesManager,
             ),
+            users_service: UsersService = Depends(
+                UsersService,
+            ),
+            data_manager: DataManager = Depends(
+                DataManager,
+            ),
     ) -> None:
         self.sections_manager = sections_manager
         self.courses_manager = courses_manager
+        self.users_service = users_service
+        self.data_manager = data_manager
 
     async def create_section(
             self,
@@ -42,7 +52,10 @@ class SectionsService:
             course_id,
         )
 
-        if not (user.role == Role.ADMIN or course.professor_id == user.id):
+        if await self.users_service.check_course_access(
+                user,
+                course=course,
+        ) < AccessPermissions.EDIT_ACCESS:
             raise OperationPermissionError(
                 "У пользователя, не являющегося владельцем курса или администратором, нет права "
                 "создавать темы в курсе!",
@@ -55,78 +68,54 @@ class SectionsService:
                 "Раздел с таким порядковым номером уже существует!",
             )
 
-        return await self.sections_manager.create_section(
+        section = await self.sections_manager.create_section(
             course_id,
             name,
             description,
             order_number,
         )
 
+        await self.data_manager.create_section(
+            section.id,
+            course_id,
+        )
+
+        return section
+
     async def get_section_by_id(
             self,
-            user: UserVerification,
+            user: UserVerification | None,
             section_id: UUID,
     ) -> SectionResponse:
         section = await self.sections_manager.get_section_by_id(
             section_id,
         )
-        course = await self.courses_manager.get_course_by_id(
-            section.course_id,
-        )
 
-        if user.role == Role.ADMIN:
-            return section
+        if await self.users_service.check_course_access(
+                user,
+                course_id=section.course_id,
+        ) < AccessPermissions.CONTENT_ACCESS:
+            raise OperationPermissionError(
+                "Пользователь не имеет доступа к данному разделу!",
+            )
 
-        if course.is_content_public:
-            return section
-
-        if course.professor_id == user.id:
-            return section
-
-        if await self.courses_manager.check_is_user_enrolled_on_course(
-                user.id,
-                course.id,
-        ):
-            return section
-
-        raise OperationPermissionError(
-            "Пользователь не имеет доступа к данному разделу!",
-        )
+        return section
 
     async def get_sections_by_course_id(
             self,
-            user: UserVerification,
+            user: UserVerification | None,
             course_id: UUID,
     ) -> SectionsFullListResponse:
-        allow_return = False
-
-        course = await self.courses_manager.get_course_by_id(
-            course_id,
-        )
-
-        if user.role == Role.ADMIN:
-            allow_return = True
-
-        if course.is_content_public:
-            allow_return = True
-
-        if course.professor_id == user.id:
-            allow_return = True
-
-        if not allow_return:
-            if await self.courses_manager.check_is_user_enrolled_on_course(
-                    user.id,
-                    course_id,
-            ):
-                allow_return = True
-
-        if allow_return:
-            return await self.sections_manager.get_sections_by_course_id(
-                course_id,
+        if await self.users_service.check_course_access(
+                user,
+                course_id=course_id,
+        ) < AccessPermissions.CONTENT_ACCESS:
+            raise OperationPermissionError(
+                "Пользователь не имеет прав доступа к разделам данного курса",
             )
 
-        raise OperationPermissionError(
-            "Пользователь не имеет прав доступа к разделам данного курса",
+        return await self.sections_manager.get_sections_by_course_id(
+            course_id,
         )
 
     async def delete_section(
@@ -138,18 +127,21 @@ class SectionsService:
             section_id,
         )
 
-        if user.role != Role.ADMIN:
-            course = await self.courses_manager.get_course_by_id(
+        if await self.users_service.check_course_access(
+                user,
                 section.course_id,
+        ) < AccessPermissions.EDIT_ACCESS:
+            raise OperationPermissionError(
+                "У пользователя нет прав на удаление данного раздела!",
             )
-
-            if not course.professor_id == user.id:
-                raise OperationPermissionError(
-                    "У пользователя нет прав на удаление данного раздела!",
-                )
 
         await self.sections_manager.delete_section(
             section_id,
+        )
+
+        await self.data_manager.delete_section(
+            section_id,
+            section.course_id,
         )
 
     async def update_section(
@@ -163,14 +155,13 @@ class SectionsService:
             section_id,
         )
 
-        if user.role != Role.ADMIN:
-            course = await self.courses_manager.get_course_by_id(
+        if await self.users_service.check_course_access(
+                user,
                 section.course_id,
+        ) < AccessPermissions.EDIT_ACCESS:
+            raise OperationPermissionError(
+                "У пользователя нет прав на удаление данного раздела!",
             )
-            if not course.professor_id == user.id:
-                raise OperationPermissionError(
-                    "У пользователя нет прав на изменение данного раздела!",
-                )
 
         if new_name is None and new_description is None:
             return
@@ -205,14 +196,13 @@ class SectionsService:
                 "Обменяться порядковыми номерами между разделами можно только в пределах одного курса!",
             )
 
-        if user.role != Role.ADMIN:
-            course = await self.courses_manager.get_course_by_id(
+        if await self.users_service.check_course_access(
+                user,
                 first_section.course_id,
+        ) < AccessPermissions.EDIT_ACCESS:
+            raise OperationPermissionError(
+                "У пользователя нет прав на удаление данного раздела!",
             )
-            if not course.professor_id == user.id:
-                raise OperationPermissionError(
-                    "У пользователя нет прав на изменение курса!",
-                )
 
         await self.sections_manager.swap_sections(
             first_section_id,

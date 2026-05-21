@@ -1,7 +1,7 @@
 from enum import IntEnum
 
 
-class AccessLevels(
+class AccessPermissions(
     IntEnum,
 ):
     NO_ACCESS = 0

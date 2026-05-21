@@ -53,7 +53,7 @@ courses_router = APIRouter(
 )
 async def create_course(
         user: Annotated[UserVerification, Depends(
-            get_current_user,
+            get_auth_user,
         )],
         course_data: CourseCreation,
         courses_service: CoursesService = Depends(
@@ -102,42 +102,7 @@ async def create_course(
     openapi_extra=openapi_extra_authorization_cookie,
 )
 async def search_courses_by_name_prefix(
-        pagination_parameters: PaginationParameters = Depends(),
-        course_name_prefix: str = Query(
-            "",
-            description="Начало названия курса, по которому происходит поиск",
-            examples=["Назван"],
-        ),
-        courses_service: CoursesService = Depends(
-            CoursesService,
-        ),
-) -> CoursesListSearchResponse:
-    """
-    Пагинированный поиск курсов по началу названия. Требует авторизации для поиска по закрытым курсам.
-    """
-    return await courses_service.search_courses_by_name_prefix(
-        None,
-        course_name_prefix,
-        pagination_parameters.page,
-        pagination_parameters.records_per_page,
-    )
-
-
-@courses_router.get(
-    "/authorized-search",
-    summary="Поиск курсов по началу названия (с авторизацией).",
-    response_description="Список курсов, соответствующих критериям поиска",
-    status_code=status.HTTP_200_OK,
-    response_model=CoursesListSearchResponse,
-    responses={
-        status.HTTP_422_UNPROCESSABLE_CONTENT: {
-            "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
-        },
-    },
-    openapi_extra=openapi_extra_authorization_cookie,
-)
-async def authorized_search_courses_by_name_prefix(
-        user: Annotated[UserVerification, Depends(
+        user: Annotated[UserVerification | None, Depends(
             get_current_user,
         )],
         pagination_parameters: PaginationParameters = Depends(),
@@ -211,7 +176,7 @@ async def get_followed_courses(
 )
 async def get_controlled_courses(
         user: Annotated[UserVerification, Depends(
-            get_current_user,
+            get_auth_user,
         )],
         pagination_parameters: PaginationParameters = Depends(),
         courses_service: CoursesService = Depends(
@@ -252,7 +217,7 @@ async def get_controlled_courses(
 )
 async def change_course_professor(
         user: Annotated[UserVerification, Depends(
-            get_current_user,
+            get_auth_user,
         )],
         new_professor_data: CourseChangeProfessor,
         course_id: UUID = Path(
@@ -326,7 +291,7 @@ async def change_course_professor(
 )
 async def self_enroll_on_course(
         user: Annotated[UserVerification, Depends(
-            get_current_user,
+            get_auth_user,
         )],
         course_id: UUID = Path(
             ...,
@@ -382,7 +347,7 @@ async def self_enroll_on_course(
 )
 async def self_unenroll_from_course(
         user: Annotated[UserVerification, Depends(
-            get_current_user,
+            get_auth_user,
         )],
         course_id: UUID = Path(
             ...,
@@ -427,7 +392,7 @@ async def self_unenroll_from_course(
     openapi_extra=openapi_extra_authorization_cookie,
 )
 async def get_course_by_id(
-        user: Annotated[UserVerification, Depends(
+        user: Annotated[UserVerification | None, Depends(
             get_current_user,
         )],
         course_id: UUID = Path(
@@ -484,7 +449,7 @@ async def get_course_by_id(
 async def update_course(
         course_update: CourseUpdate,
         user: Annotated[UserVerification, Depends(
-            get_current_user,
+            get_auth_user,
         )],
         course_id: UUID = Path(
             ...,
@@ -547,7 +512,7 @@ async def update_course(
 )
 async def delete_course(
         user: Annotated[UserVerification, Depends(
-            get_current_user,
+            get_auth_user,
         )],
         course_id: UUID = Path(
             ...,

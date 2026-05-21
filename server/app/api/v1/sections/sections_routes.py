@@ -17,7 +17,7 @@ from server.app.api.v1.sections.sections import (
 from server.app.api.v1.sections.sections_manager import DifferentSourcesContentSwapError
 from server.app.api.v1.sections.sections_service import OrderNumberConflictError, SectionsService
 from server.app.api.v1.users.users import UserVerification
-from server.app.common_dependencies.depends import get_current_user
+from server.app.common_dependencies.depends import get_auth_user, get_current_user
 
 sections_router = APIRouter(
     prefix="/sections",
@@ -49,7 +49,7 @@ sections_router = APIRouter(
 )
 async def create_section(
         user: Annotated[UserVerification, Depends(
-            get_current_user,
+            get_auth_user,
         )],
         section_data: SectionCreation,
         sections_service: SectionsService = Depends(
@@ -111,7 +111,7 @@ async def create_section(
     openapi_extra=openapi_extra_authorization_cookie,
 )
 async def get_sections_by_course_id(
-        user: Annotated[UserVerification, Depends(
+        user: Annotated[UserVerification | None, Depends(
             get_current_user,
         )],
         course_id: UUID = Path(
@@ -133,7 +133,7 @@ async def get_sections_by_course_id(
         )
     except OperationPermissionError as error:
         raise HTTPException(
-            status_code=status.HTTP_403_NOT_FOUND,
+            status_code=status.HTTP_403_FORBIDDEN,
             detail=str(
                 error,
             ),
@@ -170,7 +170,7 @@ async def get_sections_by_course_id(
 )
 async def swap_sections(
         user: Annotated[UserVerification, Depends(
-            get_current_user,
+            get_auth_user,
         )],
         sections_swap: SwapContentOrder,
         sections_service: SectionsService = Depends(
@@ -186,7 +186,7 @@ async def swap_sections(
         )
     except OperationPermissionError as error:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=status.HTTP_403_FORBIDDEN,
             detail=str(
                 error,
             ),
@@ -227,7 +227,7 @@ async def swap_sections(
     openapi_extra=openapi_extra_authorization_cookie,
 )
 async def get_section_by_id(
-        user: Annotated[UserVerification, Depends(
+        user: Annotated[UserVerification | None, Depends(
             get_current_user,
         )],
         section_id: UUID = Path(
@@ -246,7 +246,7 @@ async def get_section_by_id(
         )
     except OperationPermissionError as error:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=status.HTTP_403_FORBIDDEN,
             detail=str(
                 error,
             ),
@@ -280,7 +280,7 @@ async def get_section_by_id(
 )
 async def update_section(
         user: Annotated[UserVerification, Depends(
-            get_current_user,
+            get_auth_user,
         )],
         section_update: SectionUpdate,
         section_id: UUID = Path(
@@ -301,7 +301,7 @@ async def update_section(
         )
     except OperationPermissionError as error:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=status.HTTP_403_FORBIDDEN,
             detail=str(
                 error,
             ),
@@ -335,7 +335,7 @@ async def update_section(
 )
 async def delete_section(
         user: Annotated[UserVerification, Depends(
-            get_current_user,
+            get_auth_user,
         )],
         section_id: UUID = Path(
             ...,
@@ -356,7 +356,7 @@ async def delete_section(
         )
     except OperationPermissionError as error:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=status.HTTP_403_FORBIDDEN,
             detail=str(
                 error,
             ),

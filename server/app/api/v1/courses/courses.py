@@ -52,6 +52,10 @@ class CourseBase(
         description="Видимо ли содержимое курса для всех пользователей",
         examples=[True, False],
     )
+    professor_id: uuid.UUID = Field(
+        ...,
+        description="ID преподавателя",
+    )
 
 
 class CourseCreation(
@@ -123,17 +127,11 @@ class CourseResponse(
         extra="ignore",
     )
 
-    professor_id: uuid.UUID = Field(
-        ...,
-        description="ID преподавателя",
-    )
-
 
 class CourseFullListResponse(
-    RootModel[list[CourseResponse]]
+    RootModel[list[CourseResponse]],
 ):
     """Схема ответа со списком полных информаций о курсах"""
-    pass
 
 
 class CourseByName(
@@ -171,7 +169,7 @@ class CourseSearchResponse(
 class CoursesListSearchResponse(
     RootModel[list[CourseSearchResponse]],
 ):
-    pass
+    """Схема ответа на запрос поиска курсов"""
 
 
 class CourseInfo(
