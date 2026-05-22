@@ -1,11 +1,14 @@
 import uuid
 
 from fastapi import Depends
-from sqlalchemy import select
+from sqlalchemy import select, update
 
+from server.app.api.v1.common_schemas import NOT_FOUND_ERROR_TEXT
+from server.app.api.v1.users.exceptions import UserNotFoundError
 from server.app.api.v1.users.users import UserInfo, UsersList, UserVerification
 from server.config.db_dependency import DBDependency
 from server.database.models import Users
+from server.enums.role import Role
 
 
 class UserExistenceError(
@@ -90,3 +93,18 @@ class UsersManager:
             return UsersList.model_validate(
                 users,
             )
+
+    async def change_role(self, id: uuid.UUID, role: Role) -> None:
+        async with (self.db.db_session() as session):
+            query = update(
+                self.model
+            ).where(
+                self.model.id == id
+            ).values(
+                role=role
+            )
+            result = await session.execute(query)
+            await session.commit()
+            if not result.rowcount:
+                raise UserNotFoundError(NOT_FOUND_ERROR_TEXT)
+            return

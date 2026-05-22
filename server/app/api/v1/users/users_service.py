@@ -5,7 +5,7 @@ from fastapi import Depends
 from server.app.api.v1.courses.courses import CourseResponse
 from server.app.api.v1.courses.courses_manager import CoursesManager
 from server.app.api.v1.users.enums.access_permissions import AccessPermissions
-from server.app.api.v1.users.users import UserProfile, UsersList, UserVerification
+from server.app.api.v1.users.users import UserProfile, UsersList, UserVerification, UserWithRole
 from server.app.api.v1.users.users_manager import UsersManager
 from server.enums.role import Role
 
@@ -83,3 +83,6 @@ class UsersService:
             offset,
             limit,
         )
+
+    async def change_role(self, user: UserWithRole) -> None:
+        return await self.users_manager.change_role(id=user.id, role=user.role)

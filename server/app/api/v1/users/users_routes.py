@@ -1,9 +1,10 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, status
 
-from server.app.api.v1.common_schemas import FORBIDDEN_ERROR_TEXT, PaginationParameters
-from server.app.api.v1.users.users import UserProfile, UsersList, UserVerification
+from server.app.api.v1.common_schemas import FORBIDDEN_ERROR_TEXT, NOT_FOUND_ERROR_TEXT, PaginationParameters
+from server.app.api.v1.users.exceptions import UserNotFoundError
+from server.app.api.v1.users.users import UserProfile, UsersList, UserVerification, UserWithRole
 from server.app.api.v1.users.users_service import UsersService
 from server.app.common_dependencies.depends import check_role, get_auth_user
 from server.enums.role import Role
@@ -70,6 +71,39 @@ async def get_all_users(
         page=pagination_parameters.page,
         size=pagination_parameters.records_per_page,
     )
+
+@users_router.put(
+    path="/change-role",
+    summary="Список пользователей",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_description="Роль пользователя успешно изменена",
+    responses={
+        status.HTTP_403_FORBIDDEN         : {
+            "description": FORBIDDEN_ERROR_TEXT,
+        },
+        status.HTTP_404_NOT_FOUND: {
+            "description": NOT_FOUND_ERROR_TEXT,
+        },
+    },
+)
+async def change_user_role(
+    current_user: Annotated[UserVerification, Depends(
+            check_role([Role.ADMIN]),
+    )],
+    changing_user: UserWithRole,
+    users_service: UsersService = Depends(
+        UsersService,
+    ),
+):
+    try:
+        return await users_service.change_role(changing_user)
+    except UserNotFoundError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(
+                error,
+            )
+        )
 
 @users_router.post(
     "/enroll",
