@@ -3,7 +3,7 @@ import uuid
 from fastapi import Depends
 from sqlalchemy import select
 
-from server.app.api.v1.users.users import UserInfo, UserVerification
+from server.app.api.v1.users.users import UserInfo, UsersList, UserVerification
 from server.config.db_dependency import DBDependency
 from server.database.models import Users
 
@@ -68,3 +68,25 @@ class UsersManager:
             return UserVerification(
                 **user,
             ) if user else None
+
+    async def get_all_users(self, offset: int, limit: int) -> UsersList:
+        async with (self.db.db_session() as session):
+            query = select(
+                self.model.id,
+                self.model.nickname,
+                self.model.email,
+                self.model.role,
+            ).order_by(
+                self.model.nickname,
+            ).offset(
+                offset,
+            ).limit(
+                limit,
+            )
+            result = await session.execute(
+                query,
+            )
+            users = result.mappings().all()
+            return UsersList.model_validate(
+                users,
+            )

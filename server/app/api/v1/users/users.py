@@ -2,7 +2,7 @@ import datetime
 import uuid
 from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, StringConstraints
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, RootModel, StringConstraints
 
 from server.enums.role import Role
 
@@ -176,3 +176,9 @@ class StoredUserInfo(
 
     token: str
     role: Role
+
+
+class UsersList(
+    RootModel[list[UserProfile]]
+):
+    pass
