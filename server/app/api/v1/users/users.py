@@ -182,3 +182,14 @@ class UsersList(
     RootModel[list[UserProfile]]
 ):
     pass
+
+
+class UserWithRole(
+    UserByID
+):
+    model_config = ConfigDict(
+        from_attributes=True,
+        extra='ignore',
+    )
+
+    role: Role
