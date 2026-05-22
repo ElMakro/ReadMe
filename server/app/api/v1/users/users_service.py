@@ -5,17 +5,22 @@ from fastapi import Depends
 from server.app.api.v1.courses.courses import CourseResponse
 from server.app.api.v1.courses.courses_manager import CoursesManager
 from server.app.api.v1.users.enums.access_permissions import AccessPermissions
-from server.app.api.v1.users.users import UserProfile, UserVerification
+from server.app.api.v1.users.users import UserProfile, UsersList, UserVerification
+from server.app.api.v1.users.users_manager import UsersManager
 from server.enums.role import Role
 
 
 class UsersService:
     def __init__(
             self,
+            users_manager: UsersManager = Depends(
+                UsersManager,
+            ),
             courses_manager: CoursesManager = Depends(
                 CoursesManager,
             ),
     ) -> None:
+        self.users_manager = users_manager
         self.courses_manager = courses_manager
 
     def get_info_for_user_profile(
@@ -70,3 +75,11 @@ class UsersService:
                 return AccessPermissions.CONTENT_ACCESS
 
         return AccessPermissions.NO_ACCESS
+
+    async def get_all_users(self, page: int, size: int) -> UsersList:
+        offset = (page - 1) * size
+        limit = size
+        return await self.users_manager.get_all_users(
+            offset,
+            limit,
+        )

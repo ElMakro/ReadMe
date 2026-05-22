@@ -2,9 +2,11 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, status
 
-from server.app.api.v1.users.users import UserProfile, UserVerification
+from server.app.api.v1.common_schemas import FORBIDDEN_ERROR_TEXT, PaginationParameters
+from server.app.api.v1.users.users import UserProfile, UsersList, UserVerification
 from server.app.api.v1.users.users_service import UsersService
-from server.app.common_dependencies.depends import get_auth_user
+from server.app.common_dependencies.depends import check_role, get_auth_user
+from server.enums.role import Role
 
 users_router = APIRouter(
     prefix="/users",
@@ -39,6 +41,35 @@ async def user_profile(
         user,
     )
 
+
+@users_router.get(
+    path="/all",
+    summary="Список пользователей",
+    status_code=status.HTTP_200_OK,
+    response_model=UsersList,
+    response_description="Возвращена информация обо всех пользователях",
+    responses={
+        status.HTTP_403_FORBIDDEN         : {
+            "description": FORBIDDEN_ERROR_TEXT,
+        },
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {
+            "description": "Некорректно переданы параметры",
+        },
+    },
+)
+async def get_all_users(
+    user: Annotated[UserVerification, Depends(
+            check_role([Role.ADMIN]),
+    )],
+    pagination_parameters: PaginationParameters = Depends(),
+    users_service: UsersService = Depends(
+        UsersService,
+    ),
+) -> UsersList:
+    return await users_service.get_all_users(
+        page=pagination_parameters.page,
+        size=pagination_parameters.records_per_page,
+    )
 
 @users_router.post(
     "/enroll",
