@@ -109,7 +109,7 @@ class CoursesManager:
             await session.commit()
 
         return CourseIDMixin.model_validate(
-            course.id,
+            course,
         )
 
     async def get_course_by_id(

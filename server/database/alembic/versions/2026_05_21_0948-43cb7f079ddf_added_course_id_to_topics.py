@@ -1,7 +1,7 @@
 """Added course ID to topics
 
 Revision ID: 43cb7f079ddf
-Revises: 97c816b7196f
+Revises: b37b95b91c2b
 Create Date: 2026-05-21 09:48:52.524866
 
 """
@@ -14,7 +14,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision: str = "43cb7f079ddf"
-down_revision: Union[str, Sequence[str], None] = "97c816b7196f"
+down_revision: Union[str, Sequence[str], None] = "b37b95b91c2b"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

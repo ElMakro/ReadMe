@@ -113,7 +113,7 @@ class TopicsManager:
             query = select(
                 Topics,
             ).where(
-                Topics.section_id == course_id,
+                Topics.course_id == course_id,
             )
 
             result = await session.execute(
