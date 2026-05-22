@@ -1,7 +1,7 @@
 import uuid
 
 from fastapi import Depends
-from sqlalchemy import select, update
+from sqlalchemy import delete, select, update
 
 from server.app.api.v1.common_schemas import NOT_FOUND_ERROR_TEXT
 from server.app.api.v1.users.exceptions import UserNotFoundError
@@ -102,6 +102,19 @@ class UsersManager:
                 self.model.id == id
             ).values(
                 role=role
+            )
+            result = await session.execute(query)
+            await session.commit()
+            if not result.rowcount:
+                raise UserNotFoundError(NOT_FOUND_ERROR_TEXT)
+            return
+
+    async def delete_user(self, id: uuid.UUID) -> None:
+        async with (self.db.db_session() as session):
+            query = delete(
+                self.model
+            ).where(
+                self.model.id == id,
             )
             result = await session.execute(query)
             await session.commit()
