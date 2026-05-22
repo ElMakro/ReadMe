@@ -1,11 +1,16 @@
+import asyncio
+import json
 import os
+import re
 import subprocess
+import uuid
 from pathlib import Path
 from shutil import rmtree
 from uuid import UUID
 
 from server.app.api.v1.courses.courses_manager import CoursesManager
 from server.app.api.v1.sections.sections_manager import SectionsManager
+from server.app.api.v1.topics.topics import TopicBlockRenderedContent, TopicRawContent, TopicRenderedContent
 from server.app.api.v1.topics.topics_manager import TopicsManager
 
 
@@ -53,7 +58,7 @@ class DataManager:
             section_id: UUID | None = None,
             course_id: UUID | None = None,
     ) -> Path:
-        if section_id is None:
+        if section_id is None or course_id is None:
             topic = await self.topics_manager.get_topic_by_id(
                 topic_id,
             )
@@ -137,6 +142,38 @@ class DataManager:
             exist_ok=True,
         )
 
+        topic_raw_content_json_path = topic_path / "raw_content.json"
+        topic_raw_content_json_path.touch(
+            exist_ok=True,
+        )
+        with open(
+                topic_raw_content_json_path,
+                "w",
+                encoding="utf-8",
+        ) as raw_content_file:
+            json.dump(
+                [],
+                raw_content_file,
+                ensure_ascii=False,
+                indent=4,
+            )
+
+        topic_rendered_content_json_path = topic_path / "rendered_content.json"
+        topic_rendered_content_json_path.touch(
+            exist_ok=True,
+        )
+        with open(
+                topic_rendered_content_json_path,
+                "w",
+                encoding="utf-8",
+        ) as rendered_content_file:
+            json.dump(
+                [],
+                rendered_content_file,
+                ensure_ascii=False,
+                indent=4,
+            )
+
     async def delete_topic(
             self,
             topic_id: UUID,
@@ -154,24 +191,135 @@ class DataManager:
             ignore_errors=True,
         )
 
-    def convert_plantuml_to_png(
+    async def update_topic_content(
             self,
-            plantuml_string: str,
-            output_filename: str,
-    ) -> Path:
-        output_path = self.content_path / output_filename
-        output_path.parent.mkdir(
-            parents=True,
-            exist_ok=True,
+            topic_raw_content: TopicRawContent,
+            topic_id: UUID,
+            section_id: UUID | None = None,
+            course_id: UUID | None = None,
+    ) -> None:
+        topic_path = await self.get_topic_path(
+            topic_id,
+            section_id,
+            course_id,
+        )
+        topic_raw_content_root = topic_raw_content.root
+
+        async def process_block(
+                index: int,
+                block,
+        ) -> tuple[int, TopicBlockRenderedContent]:
+            if block.type == "markdown":
+                return index, TopicBlockRenderedContent.model_construct(
+                    type="html-compatible text",
+                    rendered_content=block.raw_content,
+                )
+
+            elif block.type == "uml":
+                block_rendered_content_filename = f"{uuid.uuid4()}.png"
+                block_rendered_content_path = topic_path / block_rendered_content_filename
+
+                loop = asyncio.get_event_loop()
+                await loop.run_in_executor(
+                    None,
+                    self.convert_plantuml_to_png,
+                    block.raw_content,
+                    block_rendered_content_path,
+                )
+
+                return index, TopicBlockRenderedContent.model_construct(
+                    type="png",
+                    rendered_content=block_rendered_content_filename,
+                )
+
+            elif block.type == "latex":
+                block_rendered_content_filename = f"{uuid.uuid4()}.pdf"
+                block_rendered_content_path = topic_path / block_rendered_content_filename
+
+                loop = asyncio.get_event_loop()
+                await loop.run_in_executor(
+                    None,
+                    self.compile_latex_to_pdf,
+                    block.raw_content,
+                    block_rendered_content_path,
+                )
+
+                return index, TopicBlockRenderedContent.model_construct(
+                    type="pdf",
+                    rendered_content=block_rendered_content_filename,
+                )
+
+            else:
+                raise ValueError(
+                    f"Неизвестный тип блока: {block.type}",
+                )
+
+        # Создаём все задачи с сохранением индексов
+        tasks = [
+            process_block(
+                i,
+                block,
+            )
+            for i, block in enumerate(
+                topic_raw_content_root,
+            )
+        ]
+
+        results = await asyncio.gather(
+            *tasks,
         )
 
-        # Используем фиксированное имя для временного файла
-        temp_puml = output_path.parent / "temp_diagram.puml"
+        results.sort(
+            key=lambda
+                x: x[0],
+        )
+
+        topic_rendered_content = [result[1] for result in results]
+
+        topic_rendered_content_obj = TopicRenderedContent.model_validate(
+            topic_rendered_content,
+        )
+
+        topic_raw_content_json_path = topic_path / "raw_content.json"
+        topic_rendered_content_json_path = topic_path / "rendered_content.json"
+
         with open(
-                temp_puml,
+                topic_raw_content_json_path,
+                "w",
+                encoding="utf-8",
+        ) as topic_raw_content_json_file:
+            json.dump(
+                topic_raw_content.model_dump(),
+                topic_raw_content_json_file,
+                indent=4,
+                ensure_ascii=False,
+            )
+
+        with open(
+                topic_rendered_content_json_path,
+                "w",
+                encoding="utf-8",
+        ) as topic_rendered_content_json_file:
+            json.dump(
+                topic_rendered_content_obj.model_dump(),
+                topic_rendered_content_json_file,
+                indent=4,
+                ensure_ascii=False,
+            )
+
+    @staticmethod
+    def convert_plantuml_to_png(
+            plantuml_string: str,
+            output_filepath: Path,
+    ) -> None:
+        file_stem = output_filepath.stem
+
+        temp_plantuml = output_filepath.parent / f"{file_stem}.puml"
+        with open(
+                temp_plantuml,
                 'w',
-        ) as f:
-            f.write(
+        ) as temp_plantuml_file:
+            temp_plantuml_file.write(
                 plantuml_string,
             )
 
@@ -183,54 +331,270 @@ class DataManager:
 
             subprocess.run(
                 ['java', '-jar', jar_path, '-tpng', str(
-                    temp_puml,
+                    temp_plantuml,
                 )],
                 check=True,
                 capture_output=True,
                 text=True,
             )
 
-            # Точно знаем, как будет называться выходной файл
-            generated_png = temp_puml.with_suffix(
+            generated_png = temp_plantuml.with_suffix(
                 '.png',
             )
 
             if not generated_png.exists():
                 raise FileNotFoundError(
-                    f"PNG file not generated: {generated_png}",
+                    f"Не найден файл PNG: {generated_png}",
                 )
 
             generated_png.rename(
-                output_path,
+                output_filepath,
             )
-            return output_path
 
         except subprocess.CalledProcessError as e:
             raise RuntimeError(
-                f"PlantUML conversion failed: {e.stderr}",
+                f"Ошибка компиляции PlantUML: {e.stderr}",
             ) from e
         finally:
-            # Чистим временные файлы
-            temp_puml.unlink(
+            temp_plantuml.unlink(
                 missing_ok=True,
             )
-            # Удаляем возможный PNG файл, если он остался и не был переименован
-            (temp_puml.with_suffix(
+            (temp_plantuml.with_suffix(
                 '.png',
             )).unlink(
                 missing_ok=True,
             )
 
+    @staticmethod
+    def _extract_missing_packages(
+            error_output: str,
+    ) -> set[str]:
+        missing_packages = set()
 
-if __name__ == "__main__":
-    uml = """
-@startuml
-Alice -> Bob: Gay
-Bob --> Alice: Hi!
-@enduml
-"""
-    da = DataManager()
-    da.convert_plantuml_to_png(
-        uml,
-        "output.png",
-    )
+        patterns = [
+            r"! LaTeX Error: File `([^']+)' not found",
+            r"! LaTeX Error: No file `([^']+)'",
+            r"Package.*?Error:.*?`([^']+)' not found",
+            r"! I can't find file `([^']+)'",
+        ]
+
+        for pattern in patterns:
+            matches = re.findall(
+                pattern,
+                error_output,
+                re.IGNORECASE,
+            )
+            for match in matches:
+                package = match.replace(
+                    '.sty',
+                    '',
+                ).replace(
+                    '.cls',
+                    '',
+                )
+                # Очищаем от лишних символов
+                package = re.sub(
+                    r'[^\w\-]',
+                    '',
+                    package,
+                )
+                if package and len(
+                        package,
+                ) > 1:
+                    missing_packages.add(
+                        package,
+                    )
+
+        return missing_packages
+
+    @staticmethod
+    def _install_latex_packages(
+            packages: list[str],
+    ) -> None:
+        if not packages:
+            return
+
+        subprocess.run(
+            ['tlmgr', 'update', '--list'],
+            capture_output=True,
+            text=True,
+        )
+
+        for package in packages:
+            try:
+                subprocess.run(
+                    ['tlmgr', 'install', package],
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                )
+            except subprocess.CalledProcessError:
+                try:
+                    subprocess.run(
+                        ['tlmgr', 'install', f'texlive-{package}'],
+                        check=True,
+                        capture_output=True,
+                        text=True,
+                    )
+                except subprocess.CalledProcessError:
+                    pass
+
+    def compile_latex_to_pdf(
+            self,
+            latex_string: str,
+            output_filepath: Path,
+            max_retries: int = 3,
+    ) -> None:
+        tex_file = output_filepath.with_suffix(
+            '.tex',
+        )
+        with open(
+                tex_file,
+                'w',
+                encoding='utf-8',
+        ) as f:
+            f.write(
+                latex_string,
+            )
+
+        attempt = 0
+        success = False
+        generated_pdf = None
+
+        try:
+            while attempt < max_retries and not success:
+                try:
+                    result = subprocess.run(
+                        [
+                            'pdflatex',
+                            '-interaction=nonstopmode',
+                            '-halt-on-error',
+                            tex_file.name,
+                        ],
+                        cwd=tex_file.parent,
+                        check=False,
+                        capture_output=True,
+                        text=True,
+                    )
+
+                    if result.returncode == 0:
+                        generated_pdf = tex_file.with_suffix(
+                            '.pdf',
+                        )
+                        if generated_pdf.exists():
+                            success = True
+                            break
+                        else:
+                            raise FileNotFoundError(
+                                "PDF файл не был сгенерирован",
+                            )
+
+                    missing_packages = self._extract_missing_packages(
+                        result.stderr,
+                    )
+
+                    if missing_packages:
+                        self._install_latex_packages(
+                            list(
+                                missing_packages,
+                            ),
+                        )
+                        attempt += 1
+                        continue
+                    else:
+                        raise ValueError(
+                            f"Ошибка компиляции LaTeX:\n{result.stderr}",
+                        )
+
+                except subprocess.CalledProcessError as e:
+                    raise RuntimeError(
+                        f"Ошибка выполнения pdflatex: {e.stderr}",
+                    )
+
+        finally:
+            files_to_clean = [
+                tex_file,
+                tex_file.with_suffix(
+                    '.aux',
+                ),
+                tex_file.with_suffix(
+                    '.log',
+                ),
+                tex_file.with_suffix(
+                    '.out',
+                ),
+                tex_file.with_suffix(
+                    '.toc',
+                ),
+                tex_file.with_suffix(
+                    '.lof',
+                ),
+                tex_file.with_suffix(
+                    '.lot',
+                ),
+                tex_file.with_suffix(
+                    '.pdf',
+                ),
+            ]
+
+            for file_path in files_to_clean:
+                file_path.unlink(
+                    missing_ok=True,
+                )
+
+        if success and generated_pdf and generated_pdf.exists():
+            generated_pdf.rename(
+                output_filepath,
+            )
+        else:
+            raise RuntimeError(
+                f"Не удалось скомпилировать документ после {max_retries} попыток",
+            )
+
+    async def get_topic_raw_content(
+            self,
+            topic_id: UUID,
+            section_id: UUID | None,
+            course_id: UUID | None,
+    ) -> TopicRawContent:
+        topic_path = await self.get_topic_path(
+            topic_id,
+            section_id,
+            course_id,
+        )
+        raw_content_file_path = topic_path / "raw_content.json"
+        with open(
+                raw_content_file_path,
+                encoding="utf-8",
+        ) as raw_content_file:
+            raw_content = json.load(
+                raw_content_file,
+            )
+
+        return TopicRawContent.model_validate(
+            raw_content,
+        )
+
+    async def get_topic_rendered_content(
+            self,
+            topic_id: UUID,
+            section_id: UUID | None,
+            course_id: UUID | None,
+    ) -> TopicRenderedContent:
+        topic_path = await self.get_topic_path(
+            topic_id,
+            section_id,
+            course_id,
+        )
+        rendered_content_file_path = topic_path / "rendered_content.json"
+        with open(
+                rendered_content_file_path,
+                encoding="utf-8",
+        ) as rendered_content_file:
+            rendered_content = json.load(
+                rendered_content_file,
+            )
+
+        return TopicRenderedContent.model_validate(
+            rendered_content,
+        )
