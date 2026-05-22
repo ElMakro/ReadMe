@@ -267,7 +267,25 @@ async def get_raw_content(
             TopicsService,
         ),
 ) -> TopicRawContent:
-    pass
+    try:
+        return await topics_service.get_raw_content_by_topic_id(
+            user,
+            topic_id,
+        )
+    except OperationPermissionError as error:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=str(
+                error,
+            ),
+        )
+    except ObjectExistenceError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(
+                error,
+            ),
+        )
 
 
 @topics_router.get(

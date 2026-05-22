@@ -6,7 +6,7 @@ from server.app.api.v1.courses.courses_manager import CoursesManager
 from server.app.api.v1.courses.courses_service import OperationPermissionError
 from server.app.api.v1.sections.sections_manager import SectionsManager
 from server.app.api.v1.sections.sections_service import OrderNumberConflictError
-from server.app.api.v1.topics.topics import TopicIDMixin, TopicResponse, TopicsFullListResponse
+from server.app.api.v1.topics.topics import TopicIDMixin, TopicRawContent, TopicResponse, TopicsFullListResponse
 from server.app.api.v1.topics.topics_manager import TopicsManager
 from server.app.api.v1.users.enums.access_permissions import AccessPermissions
 from server.app.api.v1.users.users import UserVerification
@@ -201,3 +201,25 @@ class TopicsService:
             topic_id,
             result_name,
         )
+
+    async def get_raw_content_by_topic_id(
+            self,
+            user: UserVerification | None,
+            topic_id: UUID,
+    ) -> TopicRawContent:
+        topic = await self.topics_manager.get_topic_by_id(
+            topic_id,
+        )
+
+        if await self.users_service.check_course_access(
+                user,
+                course_id=topic.course_id,
+        ) < AccessPermissions.EDIT_ACCESS:
+            raise OperationPermissionError(
+                "У пользователя нет разрешения на просмотр контента!",
+            )
+
+        return await self.data_manager.get_topic_raw_content(
+            topic.id,
+            topic.section_id,
+            topic.course_id, )
