@@ -38,7 +38,7 @@ def check_role(
         allowed_roles: list[Role],
 ):
     async def verification(
-            user: UserVerification = Depends(get_current_user)
+            user: UserVerification = Depends(get_auth_user)
     ) -> UserVerification:
         if user.role not in allowed_roles:
             raise HTTPException(
