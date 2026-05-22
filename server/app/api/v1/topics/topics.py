@@ -48,11 +48,6 @@ class TopicBase(
         ge=0,
         examples=[1],
     )
-    course_id: uuid.UUID = Field(
-        ...,
-        description="Уникальный идентификатор курса, к которому относится тема",
-        examples=[uuid.uuid4()],
-    )
 
 
 class TopicCreation(
@@ -92,6 +87,12 @@ class TopicResponse(
     model_config = ConfigDict(
         from_attributes=True,
         extra="ignore",
+    )
+
+    course_id: uuid.UUID = Field(
+        ...,
+        description="Уникальный идентификатор курса, к которому относится тема",
+        examples=[uuid.uuid4()],
     )
 
 
@@ -137,7 +138,7 @@ class TopicBlockRenderedContent(
         extra="ignore",
     )
 
-    type: Literal["html-compatible text", "png", "pdf"] = Field(
+    type: Literal["markdown", "latex", "file"] = Field(
         ...,
         description="Тип контента в блоке",
         examples=["latex"],
@@ -153,3 +154,31 @@ class TopicRenderedContent(
     RootModel[list[TopicBlockRenderedContent]],
 ):
     """Модель готового к отображению контента в теме"""
+
+
+class BlockCompilationError(
+    BaseModel,
+):
+    """Модель представления ошибки компиляции блока контента"""
+
+    model_config = ConfigDict(
+        from_attributes=True,
+        extra="ignore",
+    )
+
+    block_index: int = Field(
+        ...,
+        description="Порядковый номер блока в теме (начиная с 1)",
+        examples=[1],
+    )
+    error: str = Field(
+        ...,
+        description="Текстовое описание ошибки",
+        examples=["error"],
+    )
+
+
+class ContentCompilationError(
+    RootModel[list[BlockCompilationError]],
+):
+    pass

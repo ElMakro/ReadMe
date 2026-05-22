@@ -15,11 +15,12 @@ from server.app.api.v1.topics.topics import (
     TopicRenderedContent,
     TopicResponse,
     TopicsFullListResponse,
-    TopicUpdate,
+    TopicUpdate, ContentCompilationError,
 )
 from server.app.api.v1.topics.topics_service import TopicsService
 from server.app.api.v1.users.users import UserVerification
 from server.app.common_dependencies.depends import get_auth_user, get_current_user
+from server.data.data_manager import CompilationError
 
 topics_router = APIRouter(
     prefix="/topics",
@@ -233,7 +234,25 @@ async def get_rendered_content(
             TopicsService,
         ),
 ) -> TopicRenderedContent:
-    pass
+    try:
+        return await topics_service.get_rendered_content(
+            user,
+            topic_id,
+        )
+    except OperationPermissionError as error:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=str(
+                error,
+            ),
+        )
+    except ObjectExistenceError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(
+                error,
+            ),
+        )
 
 
 @topics_router.get(
@@ -268,9 +287,70 @@ async def get_raw_content(
         ),
 ) -> TopicRawContent:
     try:
-        return await topics_service.get_raw_content_by_topic_id(
+        return await topics_service.get_raw_content(
             user,
             topic_id,
+        )
+    except OperationPermissionError as error:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=str(
+                error,
+            ),
+        )
+    except ObjectExistenceError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(
+                error,
+            ),
+        )
+
+
+@topics_router.put(
+    "/put-content/{topic_id}",
+    summary="Установить контент темы",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={
+        status.HTTP_400_BAD_REQUEST          : {
+            "description"   : "Ошибка компиляции контента",
+            "model": ContentCompilationError,
+        },
+        status.HTTP_403_FORBIDDEN            : {
+            "description": "Пользователь не имеет прав на установление контента",
+        },
+        status.HTTP_404_NOT_FOUND            : {
+            "description": "Темы с таким идентификатором не существует",
+        },
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {
+            "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
+        },
+    },
+    openapi_extra=openapi_extra_authorization_cookie,
+)
+async def put_topic_content(
+        user: Annotated[UserVerification, Depends(
+            get_auth_user,
+        )],
+        topic_raw_content: TopicRawContent,
+        topic_id: UUID = Path(
+            ...,
+            description="Уникальный идентификатор темы",
+        ),
+        topics_service: TopicsService = Depends(
+            TopicsService,
+        ),
+):
+    try:
+        await topics_service.put_topic_content(
+            user,
+            topic_id,
+            topic_raw_content,
+        )
+    except CompilationError as error:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=[dict(element) for element in error.content_error.root],
         )
     except OperationPermissionError as error:
         raise HTTPException(

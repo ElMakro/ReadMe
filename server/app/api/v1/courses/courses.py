@@ -52,10 +52,6 @@ class CourseBase(
         description="Видимо ли содержимое курса для всех пользователей",
         examples=[True, False],
     )
-    professor_id: uuid.UUID = Field(
-        ...,
-        description="ID преподавателя",
-    )
 
 
 class CourseCreation(
@@ -125,6 +121,11 @@ class CourseResponse(
     model_config = ConfigDict(
         from_attributes=True,
         extra="ignore",
+    )
+    professor_id: uuid.UUID = Field(
+        ...,
+        description="ID преподавателя",
+        examples=[uuid.uuid4()],
     )
 
 

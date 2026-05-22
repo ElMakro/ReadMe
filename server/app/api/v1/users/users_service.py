@@ -1,5 +1,7 @@
 from uuid import UUID
 
+from fastapi import Depends
+
 from server.app.api.v1.courses.courses import CourseResponse
 from server.app.api.v1.courses.courses_manager import CoursesManager
 from server.app.api.v1.users.enums.access_permissions import AccessPermissions
@@ -10,8 +12,11 @@ from server.enums.role import Role
 class UsersService:
     def __init__(
             self,
+            courses_manager: CoursesManager = Depends(
+                CoursesManager,
+            ),
     ) -> None:
-        self.courses_manager = CoursesManager()
+        self.courses_manager = courses_manager
 
     def get_info_for_user_profile(
             self,
