@@ -1,6 +1,7 @@
+import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Path, status
 
 from server.app.api.v1.common_schemas import FORBIDDEN_ERROR_TEXT, NOT_FOUND_ERROR_TEXT, PaginationParameters
 from server.app.api.v1.users.exceptions import UserNotFoundError
@@ -97,6 +98,42 @@ async def change_user_role(
 ):
     try:
         return await users_service.change_role(changing_user)
+    except UserNotFoundError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(
+                error,
+            )
+        )
+
+@users_router.delete(
+    path="/delete-user/{id}",
+    summary="Удаление пользователя",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_description="Пользователь удалён",
+    responses={
+        status.HTTP_403_FORBIDDEN         : {
+            "description": FORBIDDEN_ERROR_TEXT,
+        },
+        status.HTTP_404_NOT_FOUND: {
+            "description": NOT_FOUND_ERROR_TEXT,
+        },
+    },
+)
+async def delete_user(
+    user: Annotated[UserVerification, Depends(
+            check_role([Role.ADMIN]),
+    )],
+    id: uuid.UUID = Path(
+        ...,
+        description="Уникальный идентификатор пользователя",
+    ),
+    users_service: UsersService = Depends(
+        UsersService,
+    ),
+):
+    try:
+        return await users_service.delete_user(id=id)
     except UserNotFoundError as error:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

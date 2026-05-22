@@ -86,3 +86,6 @@ class UsersService:
 
     async def change_role(self, user: UserWithRole) -> None:
         return await self.users_manager.change_role(id=user.id, role=user.role)
+
+    async def delete_user(self, id: UUID) -> None:
+        return await self.users_manager.delete_user(id=id)
