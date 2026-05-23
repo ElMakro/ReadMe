@@ -8,6 +8,7 @@ from server.app.api.v1.users.enums.access_permissions import AccessPermissions
 from server.app.api.v1.users.users import (
     ApplicationChangeStatus,
     ApplicationsList,
+    ApplicationsUserList,
     ProfessorApplication,
     UserProfile,
     UsersList,
@@ -130,3 +131,8 @@ class UsersService:
                 patronymic=application.patronymic,
             )
         return
+
+    async def get_user_applications(self, id: uuid.UUID, page: int, size: int) -> ApplicationsUserList:
+        offset = (page - 1) * size
+        limit = size
+        return await self.users_manager.get_user_applications(id=id, offset=offset, limit=limit)
