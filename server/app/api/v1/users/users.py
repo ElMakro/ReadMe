@@ -246,6 +246,14 @@ class ApplicationInfo(
         description="Статус заявки",
         examples=[ApplicationStatus.PENDING],
     )
+    created_at: datetime.datetime = Field(
+        description="Время создания заявки",
+        examples=[datetime.datetime.now()],
+    )
+    updated_at: datetime.datetime = Field(
+        description="Время изменения состояния заявки",
+        examples=[datetime.datetime.now()],
+    )
 
 
 class ApplicationsList(
@@ -265,3 +273,9 @@ class ApplicationChangeStatus(
     admin_comment: str = Field(
         description="Комментарий к изменению статуса заявки (рекомендуется при отказе)",
     )
+
+
+class ApplicationsUserList(
+    RootModel[list[ApplicationChangeStatus]]
+):
+    pass

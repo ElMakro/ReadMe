@@ -10,7 +10,7 @@ from server.app.api.v1.common_schemas import (
     USER_IS_ALREADY_PROFESSOR_ERROR_TEXT,
 )
 from server.app.api.v1.users.exceptions import ApplicationFieldsMismatchError, UserIsAlreadyProfessor, UserNotFoundError
-from server.app.api.v1.users.users import ApplicationsList, UserInfo, UsersList, UserVerification
+from server.app.api.v1.users.users import ApplicationsList, ApplicationsUserList, UserInfo, UsersList, UserVerification
 from server.config.db_dependency import DBDependency
 from server.database.models import ProfessorsApplications, ProfessorsDetails, Users
 from server.enums.application_status import ApplicationStatus
@@ -153,6 +153,8 @@ class UsersManager:
                 self.professors_applications_model.surname,
                 self.professors_applications_model.patronymic,
                 self.professors_applications_model.status,
+                self.professors_applications_model.created_at,
+                self.professors_applications_model.updated_at,
             ).where(
                 self.professors_applications_model.status == ApplicationStatus.PENDING
             ).order_by(
@@ -202,3 +204,29 @@ class UsersManager:
             except IntegrityError:
                 raise UserIsAlreadyProfessor(USER_IS_ALREADY_PROFESSOR_ERROR_TEXT)
             return
+
+    async def get_user_applications(self, id: uuid.UUID, offset: int, limit: int) -> ApplicationsUserList:
+        async with self.db.db_session() as session:
+            query = select(
+                self.professors_applications_model.id.label("application_id"),
+                self.professors_applications_model.user_id,
+                self.professors_applications_model.name,
+                self.professors_applications_model.surname,
+                self.professors_applications_model.patronymic,
+                self.professors_applications_model.status,
+                self.professors_applications_model.created_at,
+                self.professors_applications_model.updated_at,
+            ).where(
+                self.professors_applications_model.user_id == id
+            ).order_by(
+                self.professors_applications_model.updated_at
+            ).offset(
+                offset
+            ).limit(
+                limit
+            )
+            result = await session.execute(query)
+            applications = result.mappings().all()
+            return ApplicationsUserList.model_validate(
+                applications,
+            )

@@ -7,6 +7,7 @@ from server.app.api.v1.common_schemas import (
     APPLICATION_FIELDS_MISMATCH_ERROR_TEXT,
     FORBIDDEN_ERROR_TEXT,
     NOT_FOUND_ERROR_TEXT,
+    UNAUTHORIZED_ERROR_TEXT,
     USER_IS_ALREADY_PROFESSOR_ERROR_TEXT,
     PaginationParameters,
 )
@@ -14,6 +15,7 @@ from server.app.api.v1.users.exceptions import ApplicationFieldsMismatchError, U
 from server.app.api.v1.users.users import (
     ApplicationChangeStatus,
     ApplicationsList,
+    ApplicationsUserList,
     ProfessorApplication,
     UserProfile,
     UsersList,
@@ -240,6 +242,33 @@ async def change_application_status(
             status_code=status.HTTP_409_CONFLICT,
             detail=error,
         )
+
+@users_router.get(
+    path="/get-my-applications",
+    summary="Получить список заявок пользователя на роль преподавателя",
+    status_code=status.HTTP_200_OK,
+    response_model=ApplicationsUserList,
+    response_description="Список заявок пользователя получен",
+    responses={
+        status.HTTP_401_UNAUTHORIZED         : {
+            "description": UNAUTHORIZED_ERROR_TEXT,
+        },
+    },
+)
+async def get_my_applications(
+    user: Annotated[UserVerification, Depends(
+            get_auth_user,
+    )],
+    pagination_parameters: PaginationParameters = Depends(),
+    users_service: UsersService = Depends(
+        UsersService,
+    ),
+) -> ApplicationsUserList:
+    return await users_service.get_user_applications(
+        id=user.id,
+        page=pagination_parameters.page,
+        size=pagination_parameters.records_per_page
+    )
 
 @users_router.post(
     "/enroll",
