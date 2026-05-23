@@ -6,8 +6,13 @@ from server.app.api.v1.courses.courses_manager import CoursesManager
 from server.app.api.v1.courses.courses_service import OperationPermissionError
 from server.app.api.v1.sections.sections_manager import SectionsManager
 from server.app.api.v1.sections.sections_service import OrderNumberConflictError
-from server.app.api.v1.topics.topics import TopicIDMixin, TopicRawContent, TopicResponse, TopicsFullListResponse, \
-    TopicRenderedContent
+from server.app.api.v1.topics.topics import (
+    TopicIDMixin,
+    TopicRawContent,
+    TopicRenderedContent,
+    TopicResponse,
+    TopicsFullListResponse,
+)
 from server.app.api.v1.topics.topics_manager import TopicsManager
 from server.app.api.v1.users.enums.access_permissions import AccessPermissions
 from server.app.api.v1.users.users import UserVerification

@@ -9,18 +9,19 @@ from server.app.api.v1.courses.courses_manager import ObjectExistenceError
 from server.app.api.v1.courses.courses_service import OperationPermissionError
 from server.app.api.v1.sections.sections_service import OrderNumberConflictError
 from server.app.api.v1.topics.topics import (
+    ContentCompilationError,
     TopicCreation,
     TopicIDMixin,
     TopicRawContent,
     TopicRenderedContent,
     TopicResponse,
     TopicsFullListResponse,
-    TopicUpdate, ContentCompilationError,
+    TopicUpdate,
 )
 from server.app.api.v1.topics.topics_service import TopicsService
 from server.app.api.v1.users.users import UserVerification
 from server.app.common_dependencies.depends import get_auth_user, get_current_user
-from server.data.data_manager import CompilationError
+from server.data.compilation_manager import CompilationError
 
 topics_router = APIRouter(
     prefix="/topics",

@@ -37,7 +37,7 @@ class SectionBase(
         max_length=255,
         examples=["Название раздела"],
     )
-    
+
     description: str = Field(
         ...,
         description="Описание раздела",
