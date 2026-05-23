@@ -4,6 +4,7 @@ from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, RootModel, StringConstraints
 
+from server.enums.application_status import ApplicationStatus
 from server.enums.role import Role
 
 
@@ -213,3 +214,41 @@ class ProfessorApplication(
         description="Отчество преподавателя",
         default=None,
     )
+
+
+class ApplicationInfo(
+    BaseModel,
+):
+    model_config = ConfigDict(
+        from_attributes=True,
+        extra='ignore',
+    )
+
+    application_id: uuid.UUID = Field(
+        description="Идентификатор заявки",
+        examples=[uuid.uuid4()],
+    )
+    user_id: uuid.UUID = Field(
+        description="Идентификатор пользователя, подавшего заявку",
+        examples=[uuid.uuid4()],
+    )
+    name: str = Field(
+        description="Имя преподавателя",
+    )
+    surname: str = Field(
+        description="Фамилия преподавателя"
+    )
+    patronymic: str | None = Field(
+        description="Отчество преподавателя",
+        default=None,
+    )
+    status: ApplicationStatus = Field(
+        description="Статус заявки",
+        examples=[ApplicationStatus.PENDING],
+    )
+
+
+class ApplicationsList(
+    RootModel[list[ApplicationInfo]]
+):
+    pass

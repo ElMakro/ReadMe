@@ -5,9 +5,10 @@ from sqlalchemy import delete, insert, select, update
 
 from server.app.api.v1.common_schemas import NOT_FOUND_ERROR_TEXT
 from server.app.api.v1.users.exceptions import UserNotFoundError
-from server.app.api.v1.users.users import UserInfo, UsersList, UserVerification
+from server.app.api.v1.users.users import ApplicationsList, UserInfo, UsersList, UserVerification
 from server.config.db_dependency import DBDependency
 from server.database.models import ProfessorsApplications, Users
+from server.enums.application_status import ApplicationStatus
 from server.enums.role import Role
 
 
@@ -136,3 +137,27 @@ class UsersManager:
             await session.execute(query)
             await session.commit()
             return
+
+    async def get_professor_applications(self, offset: int, limit: int) -> ApplicationsList:
+        async with self.db.db_session() as session:
+            query = select(
+                self.professors_applications_model.id.label("application_id"),
+                self.professors_applications_model.user_id,
+                self.professors_applications_model.name,
+                self.professors_applications_model.surname,
+                self.professors_applications_model.patronymic,
+                self.professors_applications_model.status,
+            ).where(
+                self.professors_applications_model.status == ApplicationStatus.PENDING
+            ).order_by(
+                self.professors_applications_model.created_at
+            ).offset(
+                offset
+            ).limit(
+                limit
+            )
+            result = await session.execute(query)
+            applications = result.mappings().all()
+            return ApplicationsList.model_validate(
+                applications,
+            )
