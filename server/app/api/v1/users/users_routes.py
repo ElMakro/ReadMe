@@ -4,13 +4,16 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Path, status
 
 from server.app.api.v1.common_schemas import (
+    APPLICATION_FIELDS_MISMATCH_ERROR_TEXT,
     FORBIDDEN_ERROR_TEXT,
     NOT_FOUND_ERROR_TEXT,
     UNAUTHORIZED_ERROR_TEXT,
+    USER_IS_ALREADY_PROFESSOR_ERROR_TEXT,
     PaginationParameters,
 )
-from server.app.api.v1.users.exceptions import UserNotFoundError
+from server.app.api.v1.users.exceptions import ApplicationFieldsMismatchError, UserIsAlreadyProfessor, UserNotFoundError
 from server.app.api.v1.users.users import (
+    ApplicationChangeStatus,
     ApplicationsList,
     ProfessorApplication,
     UserProfile,
@@ -204,6 +207,40 @@ async def get_professor_applications(
         page=pagination_parameters.page,
         size=pagination_parameters.records_per_page,
     )
+
+@users_router.put(
+    path="/change-application-status",
+    summary="Изменить статус заявки на роль преподавателя",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_description="Статус заявки изменён",
+    responses={
+        status.HTTP_403_FORBIDDEN         : {
+            "description": FORBIDDEN_ERROR_TEXT,
+        },
+        status.HTTP_409_CONFLICT: {
+            "description": APPLICATION_FIELDS_MISMATCH_ERROR_TEXT,
+        },
+        status.HTTP_409: {
+            "description": USER_IS_ALREADY_PROFESSOR_ERROR_TEXT,
+        }
+    },
+)
+async def change_application_status(
+    user: Annotated[UserVerification, Depends(
+            check_role([Role.ADMIN]),
+    )],
+    application: ApplicationChangeStatus,
+    users_service: UsersService = Depends(
+        UsersService,
+    ),
+):
+    try:
+        return await users_service.change_application_status(application)
+    except (ApplicationFieldsMismatchError, UserIsAlreadyProfessor) as error:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=error,
+        )
 
 @users_router.post(
     "/enroll",

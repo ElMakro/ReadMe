@@ -23,6 +23,7 @@ class ProfessorsApplications(IDMixin, TimestampsMixin, Base):
         nullable=False,
         default=ApplicationStatus.PENDING,
     )
+    admin_comment: Mapped[str] = mapped_column(String(200), nullable=True, default=None)
 
     __table_args__ = (
         Index("idx_status_created", "status", "created_at"),

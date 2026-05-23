@@ -252,3 +252,16 @@ class ApplicationsList(
     RootModel[list[ApplicationInfo]]
 ):
     pass
+
+
+class ApplicationChangeStatus(
+    ApplicationInfo,
+):
+    model_config = ConfigDict(
+        from_attributes=True,
+        extra='ignore',
+    )
+
+    admin_comment: str = Field(
+        description="Комментарий к изменению статуса заявки (рекомендуется при отказе)",
+    )

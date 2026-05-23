@@ -6,6 +6,7 @@ from server.app.api.v1.courses.courses import CourseResponse
 from server.app.api.v1.courses.courses_manager import CoursesManager
 from server.app.api.v1.users.enums.access_permissions import AccessPermissions
 from server.app.api.v1.users.users import (
+    ApplicationChangeStatus,
     ApplicationsList,
     ProfessorApplication,
     UserProfile,
@@ -14,6 +15,7 @@ from server.app.api.v1.users.users import (
     UserWithRole,
 )
 from server.app.api.v1.users.users_manager import UsersManager
+from server.enums.application_status import ApplicationStatus
 from server.enums.role import Role
 
 
@@ -112,3 +114,19 @@ class UsersService:
             offset,
             limit,
         )
+
+    async def change_application_status(self, application: ApplicationChangeStatus) -> None:
+        await self.users_manager.change_application_status(
+            id=application.application_id,
+            user_id=application.user_id,
+            status=application.status,
+            comment=application.admin_comment,
+        )
+        if application.status == ApplicationStatus.APPROVED:
+            await self.users_manager.add_user_to_professors(
+                id=application.user_id,
+                name=application.name,
+                surname=application.surname,
+                patronymic=application.patronymic,
+            )
+        return
