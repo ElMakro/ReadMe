@@ -7,7 +7,6 @@ from server.app.api.v1.common_schemas import (
     APPLICATION_FIELDS_MISMATCH_ERROR_TEXT,
     FORBIDDEN_ERROR_TEXT,
     NOT_FOUND_ERROR_TEXT,
-    UNAUTHORIZED_ERROR_TEXT,
     USER_IS_ALREADY_PROFESSOR_ERROR_TEXT,
     PaginationParameters,
 )
@@ -163,14 +162,14 @@ async def delete_user(
     status_code=status.HTTP_201_CREATED,
     response_description="Заявка успешно добавлена",
     responses={
-        status.HTTP_401_UNAUTHORIZED         : {
-            "description": UNAUTHORIZED_ERROR_TEXT,
+        status.HTTP_403_FORBIDDEN         : {
+            "description": FORBIDDEN_ERROR_TEXT,
         },
     },
 )
 async def submit_professor_application(
     user: Annotated[UserVerification, Depends(
-            get_auth_user,
+            check_role([Role.STUDENT, Role.ADMIN]),
     )],
     application: ProfessorApplication,
     users_service: UsersService = Depends(
