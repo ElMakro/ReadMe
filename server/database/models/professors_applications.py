@@ -1,7 +1,7 @@
 import uuid
 
-from sqlalchemy import Enum as PGEnum, Index
-from sqlalchemy import ForeignKey, String
+from sqlalchemy import Enum as PGEnum
+from sqlalchemy import ForeignKey, Index, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from server.database.mixins.id_mixins import IDMixin

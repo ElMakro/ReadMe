@@ -1,13 +1,13 @@
 import uuid
 
 from fastapi import Depends
-from sqlalchemy import delete, select, update
+from sqlalchemy import delete, insert, select, update
 
 from server.app.api.v1.common_schemas import NOT_FOUND_ERROR_TEXT
 from server.app.api.v1.users.exceptions import UserNotFoundError
 from server.app.api.v1.users.users import UserInfo, UsersList, UserVerification
 from server.config.db_dependency import DBDependency
-from server.database.models import Users
+from server.database.models import ProfessorsApplications, Users
 from server.enums.role import Role
 
 
@@ -26,7 +26,8 @@ class UsersManager:
             ),
     ) -> None:
         self.db = db
-        self.model = Users
+        self.users_model = Users
+        self.professors_applications_model = ProfessorsApplications
 
     async def get_user_by_nickname(
             self,
@@ -34,13 +35,13 @@ class UsersManager:
     ) -> UserInfo | None:
         async with self.db.db_session() as session:
             query = select(
-                self.model.id,
-                self.model.nickname,
-                self.model.email,
-                self.model.role,
-                self.model.password,
+                self.users_model.id,
+                self.users_model.nickname,
+                self.users_model.email,
+                self.users_model.role,
+                self.users_model.password,
             ).where(
-                self.model.nickname == nickname,
+                self.users_model.nickname == nickname,
             )
 
             result = await session.execute(
@@ -57,11 +58,11 @@ class UsersManager:
     ) -> UserVerification | None:
         async with self.db.db_session() as session:
             query = select(
-                self.model.id,
-                self.model.nickname,
-                self.model.role,
+                self.users_model.id,
+                self.users_model.nickname,
+                self.users_model.role,
             ).where(
-                self.model.id == user_id,
+                self.users_model.id == user_id,
             )
 
             result = await session.execute(
@@ -75,12 +76,12 @@ class UsersManager:
     async def get_all_users(self, offset: int, limit: int) -> UsersList:
         async with (self.db.db_session() as session):
             query = select(
-                self.model.id,
-                self.model.nickname,
-                self.model.email,
-                self.model.role,
+                self.users_model.id,
+                self.users_model.nickname,
+                self.users_model.email,
+                self.users_model.role,
             ).order_by(
-                self.model.nickname,
+                self.users_model.nickname,
             ).offset(
                 offset,
             ).limit(
@@ -97,9 +98,9 @@ class UsersManager:
     async def change_role(self, id: uuid.UUID, role: Role) -> None:
         async with (self.db.db_session() as session):
             query = update(
-                self.model
+                self.users_model
             ).where(
-                self.model.id == id
+                self.users_model.id == id
             ).values(
                 role=role
             )
@@ -112,12 +113,26 @@ class UsersManager:
     async def delete_user(self, id: uuid.UUID) -> None:
         async with (self.db.db_session() as session):
             query = delete(
-                self.model
+                self.users_model
             ).where(
-                self.model.id == id,
+                self.users_model.id == id,
             )
             result = await session.execute(query)
             await session.commit()
             if not result.rowcount:
                 raise UserNotFoundError(NOT_FOUND_ERROR_TEXT)
+            return
+
+    async def reg_professor_application(self, id: uuid.UUID, name: str, surname: str, patronymic: str | None):
+        async with self.db.db_session() as session:
+            query = insert(
+                self.professors_applications_model
+            ).values(
+                name=name,
+                surname=surname,
+                patronymic=patronymic,
+                user_id=id,
+            )
+            await session.execute(query)
+            await session.commit()
             return
