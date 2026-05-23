@@ -5,7 +5,14 @@ from fastapi import Depends
 from server.app.api.v1.courses.courses import CourseResponse
 from server.app.api.v1.courses.courses_manager import CoursesManager
 from server.app.api.v1.users.enums.access_permissions import AccessPermissions
-from server.app.api.v1.users.users import ProfessorApplication, UserProfile, UsersList, UserVerification, UserWithRole
+from server.app.api.v1.users.users import (
+    ApplicationsList,
+    ProfessorApplication,
+    UserProfile,
+    UsersList,
+    UserVerification,
+    UserWithRole,
+)
 from server.app.api.v1.users.users_manager import UsersManager
 from server.enums.role import Role
 
@@ -96,4 +103,12 @@ class UsersService:
             name=application.name,
             surname=application.surname,
             patronymic=application.patronymic,
+        )
+
+    async def get_professor_applications(self, page: int, size: int) -> ApplicationsList:
+        offset = (page - 1) * size
+        limit = size
+        return await self.users_manager.get_professor_applications(
+            offset,
+            limit,
         )

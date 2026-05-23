@@ -10,7 +10,14 @@ from server.app.api.v1.common_schemas import (
     PaginationParameters,
 )
 from server.app.api.v1.users.exceptions import UserNotFoundError
-from server.app.api.v1.users.users import ProfessorApplication, UserProfile, UsersList, UserVerification, UserWithRole
+from server.app.api.v1.users.users import (
+    ApplicationsList,
+    ProfessorApplication,
+    UserProfile,
+    UsersList,
+    UserVerification,
+    UserWithRole,
+)
 from server.app.api.v1.users.users_service import UsersService
 from server.app.common_dependencies.depends import check_role, get_auth_user
 from server.enums.role import Role
@@ -170,6 +177,32 @@ async def submit_professor_application(
     return await users_service.reg_professor_application(
         id=user.id,
         application=application,
+    )
+
+@users_router.get(
+    path="/get-active-applications",
+    summary="Получить список активных заявок на роль преподавателя",
+    status_code=status.HTTP_200_OK,
+    response_model=ApplicationsList,
+    response_description="Список заявок получен",
+    responses={
+        status.HTTP_403_FORBIDDEN         : {
+            "description": FORBIDDEN_ERROR_TEXT,
+        },
+    },
+)
+async def get_professor_applications(
+    user: Annotated[UserVerification, Depends(
+            check_role([Role.ADMIN]),
+    )],
+    pagination_parameters: PaginationParameters = Depends(),
+    users_service: UsersService = Depends(
+        UsersService,
+    ),
+) -> ApplicationsList:
+    return await users_service.get_professor_applications(
+        page=pagination_parameters.page,
+        size=pagination_parameters.records_per_page,
     )
 
 @users_router.post(
