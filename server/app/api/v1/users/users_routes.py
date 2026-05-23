@@ -3,9 +3,14 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Path, status
 
-from server.app.api.v1.common_schemas import FORBIDDEN_ERROR_TEXT, NOT_FOUND_ERROR_TEXT, PaginationParameters
+from server.app.api.v1.common_schemas import (
+    FORBIDDEN_ERROR_TEXT,
+    NOT_FOUND_ERROR_TEXT,
+    UNAUTHORIZED_ERROR_TEXT,
+    PaginationParameters,
+)
 from server.app.api.v1.users.exceptions import UserNotFoundError
-from server.app.api.v1.users.users import UserProfile, UsersList, UserVerification, UserWithRole
+from server.app.api.v1.users.users import ProfessorApplication, UserProfile, UsersList, UserVerification, UserWithRole
 from server.app.api.v1.users.users_service import UsersService
 from server.app.common_dependencies.depends import check_role, get_auth_user
 from server.enums.role import Role
@@ -141,6 +146,31 @@ async def delete_user(
                 error,
             )
         )
+
+@users_router.post(
+    path="/submit-professor-application",
+    summary="Подать заявку на роль преподавателя",
+    status_code=status.HTTP_201_CREATED,
+    response_description="Заявка успешно добавлена",
+    responses={
+        status.HTTP_401_UNAUTHORIZED         : {
+            "description": UNAUTHORIZED_ERROR_TEXT,
+        },
+    },
+)
+async def submit_professor_application(
+    user: Annotated[UserVerification, Depends(
+            get_auth_user,
+    )],
+    application: ProfessorApplication,
+    users_service: UsersService = Depends(
+        UsersService,
+    ),
+):
+    return await users_service.reg_professor_application(
+        id=user.id,
+        application=application,
+    )
 
 @users_router.post(
     "/enroll",

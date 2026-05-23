@@ -5,7 +5,7 @@ from fastapi import Depends
 from server.app.api.v1.courses.courses import CourseResponse
 from server.app.api.v1.courses.courses_manager import CoursesManager
 from server.app.api.v1.users.enums.access_permissions import AccessPermissions
-from server.app.api.v1.users.users import UserProfile, UsersList, UserVerification, UserWithRole
+from server.app.api.v1.users.users import ProfessorApplication, UserProfile, UsersList, UserVerification, UserWithRole
 from server.app.api.v1.users.users_manager import UsersManager
 from server.enums.role import Role
 
@@ -89,3 +89,11 @@ class UsersService:
 
     async def delete_user(self, id: UUID) -> None:
         return await self.users_manager.delete_user(id=id)
+
+    async def reg_professor_application(self, id: UUID, application: ProfessorApplication) -> None:
+        return await self.users_manager.reg_professor_application(
+            id=id,
+            name=application.name,
+            surname=application.surname,
+            patronymic=application.patronymic,
+        )

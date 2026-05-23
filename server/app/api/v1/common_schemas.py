@@ -6,6 +6,7 @@ from uuid import UUID
 from fastapi import Query
 from pydantic import BaseModel, BeforeValidator, ConfigDict, Field
 
+UNAUTHORIZED_ERROR_TEXT = "Пользователь не произвёл вход"
 FORBIDDEN_ERROR_TEXT = "Недостаточно прав для выполнения операции"
 NOT_FOUND_ERROR_TEXT = "Запрашиваемый ресурс не найден"
 UNPROCESSABLE_ENTITY_ERROR_TEXT = "Ошибка валидации входных данных"

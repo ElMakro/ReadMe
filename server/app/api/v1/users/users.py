@@ -193,3 +193,23 @@ class UserWithRole(
     )
 
     role: Role
+
+
+class ProfessorApplication(
+    BaseModel,
+):
+    model_config = ConfigDict(
+        from_attributes=True,
+        extra='ignore',
+    )
+
+    name: str = Field(
+        description="Имя преподавателя",
+    )
+    surname: str = Field(
+        description="Фамилия преподавателя"
+    )
+    patronymic: str | None = Field(
+        description="Отчество преподавателя",
+        default=None,
+    )
