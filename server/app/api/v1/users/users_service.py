@@ -132,7 +132,7 @@ class UsersService:
             )
         return
 
-    async def get_user_applications(self, id: uuid.UUID, page: int, size: int) -> ApplicationsUserList:
+    async def get_user_applications(self, id: UUID, page: int, size: int) -> ApplicationsUserList:
         offset = (page - 1) * size
         limit = size
         return await self.users_manager.get_user_applications(id=id, offset=offset, limit=limit)

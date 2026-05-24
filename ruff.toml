@@ -15,7 +15,7 @@ select = [
     "ARG",
     "SIM"
 ]
-ignore = ["N805", "B008", "B904", "ARG002", "SIM102", "SIM105"]
+ignore = ["N805", "B008", "B904", "ARG002", "SIM102", "SIM105", "ARG001"]
 
 
 [format]
