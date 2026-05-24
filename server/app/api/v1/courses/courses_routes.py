@@ -72,6 +72,7 @@ async def create_course(
             course_data.description,
             course_data.is_public,
             course_data.is_content_public,
+            course_data.tags,
         )
     except OperationPermissionError as error:
         raise HTTPException(
@@ -486,6 +487,7 @@ async def update_course(
             course_update.description,
             course_update.is_public,
             course_update.is_content_public,
+            course_update.tags,
         )
     except OperationPermissionError as error:
         raise HTTPException(

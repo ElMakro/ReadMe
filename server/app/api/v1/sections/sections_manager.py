@@ -30,6 +30,7 @@ class SectionsManager:
             name: str,
             description: str,
             order_number: int,
+            tags: list[str],
     ) -> SectionIDMixin:
         async with self.db.db_session() as session:
             new_section = Sections(
@@ -37,6 +38,7 @@ class SectionsManager:
                 name=name,
                 description=description,
                 order_number=order_number,
+                tags=tags,
             )
             session.add(
                 new_section,
@@ -131,6 +133,7 @@ class SectionsManager:
             section_id: UUID,
             name: str,
             description: str,
+            tags: list[str],
     ) -> None:
         async with self.db.db_session() as session:
             section = await session.get(
@@ -141,6 +144,7 @@ class SectionsManager:
 
             section.name = name
             section.description = description
+            section.tags = tags
 
             await session.commit()
 

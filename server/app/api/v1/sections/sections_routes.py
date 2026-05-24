@@ -67,6 +67,7 @@ async def create_section(
             section_data.name,
             section_data.description,
             section_data.order_number,
+            section_data.tags,
         )
     except OperationPermissionError as error:
         raise HTTPException(
@@ -298,6 +299,7 @@ async def update_section(
             section_id,
             section_update.name,
             section_update.description,
+            section_update.tags,
         )
     except OperationPermissionError as error:
         raise HTTPException(
