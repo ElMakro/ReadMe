@@ -9,7 +9,11 @@ from server.app.api.v1.common_schemas import (
     NOT_FOUND_ERROR_TEXT,
     USER_IS_ALREADY_PROFESSOR_ERROR_TEXT,
 )
-from server.app.api.v1.users.exceptions import ApplicationFieldsMismatchError, UserIsAlreadyProfessor, UserNotFoundError
+from server.app.api.v1.users.exceptions import (
+    ApplicationFieldsMismatchError,
+    UserIsAlreadyProfessorError,
+    UserNotFoundError,
+)
 from server.app.api.v1.users.users import ApplicationsList, ApplicationsUserList, UserInfo, UsersList, UserVerification
 from server.config.db_dependency import DBDependency
 from server.database.models import ProfessorsApplications, ProfessorsDetails, Users
@@ -202,7 +206,7 @@ class UsersManager:
                 await session.execute(query)
                 await session.commit()
             except IntegrityError:
-                raise UserIsAlreadyProfessor(USER_IS_ALREADY_PROFESSOR_ERROR_TEXT)
+                raise UserIsAlreadyProfessorError(USER_IS_ALREADY_PROFESSOR_ERROR_TEXT)
             return
 
     async def get_user_applications(self, id: uuid.UUID, offset: int, limit: int) -> ApplicationsUserList:

@@ -16,7 +16,7 @@ class ApplicationFieldsMismatchError(
     pass
 
 
-class UserIsAlreadyProfessor(
+class UserIsAlreadyProfessorError(
     ValueError,
 ):
     """
