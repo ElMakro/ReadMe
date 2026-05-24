@@ -134,6 +134,7 @@ class TopicsManager:
             topic = await session.get(
                 Topics,
                 topic_id,
+                with_for_update=True
             )
 
             await session.delete(
@@ -150,6 +151,7 @@ class TopicsManager:
             topic = await session.get(
                 Topics,
                 topic_id,
+                with_for_update=True
             )
             topic.name = name
             await session.commit()
