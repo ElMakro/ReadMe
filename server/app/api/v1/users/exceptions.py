@@ -14,12 +14,3 @@ class ApplicationFieldsMismatchError(
     Исключение, связанное с несоответствием полей id пользователя и заявки при обновлении статуса заявки.
     """
     pass
-
-
-class UserIsAlreadyProfessorError(
-    ValueError,
-):
-    """
-    Исключение, связанное с тем, что пользователь уже является преподавателем.
-    """
-    pass
