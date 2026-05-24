@@ -263,6 +263,43 @@ class ApplicationsList(
 
 
 class ApplicationChangeStatus(
+    BaseModel,
+):
+    model_config = ConfigDict(
+        from_attributes=True,
+        extra='ignore',
+    )
+
+    application_id: uuid.UUID = Field(
+        description="Идентификатор заявки",
+        examples=[uuid.uuid4()],
+    )
+    user_id: uuid.UUID = Field(
+        description="Идентификатор пользователя, подавшего заявку",
+        examples=[uuid.uuid4()],
+    )
+    name: str = Field(
+        description="Имя преподавателя",
+    )
+    surname: str = Field(
+        description="Фамилия преподавателя"
+    )
+    patronymic: str | None = Field(
+        description="Отчество преподавателя",
+        default=None,
+    )
+    status: ApplicationStatus = Field(
+        description="Статус заявки",
+        examples=[ApplicationStatus.PENDING],
+    )
+
+    admin_comment: str | None = Field(
+        description="Комментарий к изменению статуса заявки (рекомендуется при отказе)",
+        default=None
+    )
+
+
+class ApplicationUserInfo(
     ApplicationInfo,
 ):
     model_config = ConfigDict(
@@ -270,12 +307,13 @@ class ApplicationChangeStatus(
         extra='ignore',
     )
 
-    admin_comment: str = Field(
+    admin_comment: str | None = Field(
         description="Комментарий к изменению статуса заявки (рекомендуется при отказе)",
+        default=None
     )
 
 
 class ApplicationsUserList(
-    RootModel[list[ApplicationChangeStatus]]
+    RootModel[list[ApplicationUserInfo]]
 ):
     pass
