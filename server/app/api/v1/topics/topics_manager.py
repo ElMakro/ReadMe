@@ -24,6 +24,7 @@ class TopicsManager:
             name: str,
             order_number: int,
             course_id: UUID,
+            tags: list[str],
     ) -> TopicIDMixin:
         async with self.db.db_session() as session:
             topic = Topics(
@@ -31,6 +32,7 @@ class TopicsManager:
                 name=name,
                 order_number=order_number,
                 course_id=course_id,
+                tags=tags,
             )
 
             session.add(
@@ -134,7 +136,7 @@ class TopicsManager:
             topic = await session.get(
                 Topics,
                 topic_id,
-                with_for_update=True
+                with_for_update=True,
             )
 
             await session.delete(
@@ -146,12 +148,16 @@ class TopicsManager:
             self,
             topic_id: UUID,
             name: str,
+            tags: list[str],
     ) -> None:
         async with self.db.db_session() as session:
             topic = await session.get(
                 Topics,
                 topic_id,
-                with_for_update=True
+                with_for_update=True,
             )
+
             topic.name = name
+            topic.tags = tags
+
             await session.commit()

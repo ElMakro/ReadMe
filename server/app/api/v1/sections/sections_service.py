@@ -47,6 +47,7 @@ class SectionsService:
             name: str,
             description: str,
             order_number: int,
+            tags: list[str],
     ) -> SectionIDMixin:
         course = await self.courses_manager.get_course_by_id(
             course_id,
@@ -73,6 +74,7 @@ class SectionsService:
             name,
             description,
             order_number,
+            tags,
         )
 
         await self.data_manager.create_section(
@@ -150,6 +152,7 @@ class SectionsService:
             section_id: UUID,
             new_name: str | None,
             new_description: str | None,
+            new_tags: list[str] | None,
     ) -> None:
         section = await self.sections_manager.get_section_by_id(
             section_id,
@@ -163,19 +166,21 @@ class SectionsService:
                 "У пользователя нет прав на удаление данного раздела!",
             )
 
-        if new_name is None and new_description is None:
+        if new_name is None and new_description is None and new_tags is None:
             return
 
         result_name = new_name if new_name is not None else section.name
         result_description = new_description if new_description is not None else section.description
+        result_tags = new_tags if new_tags is not None else section.tags
 
-        if section.name == result_name and section.description == result_description:
+        if section.name == result_name and section.description == result_description and section.tags == result_tags:
             return
 
         await self.sections_manager.update_section(
             section_id,
             result_name,
             result_description,
+            result_tags,
         )
 
     async def swap_sections(

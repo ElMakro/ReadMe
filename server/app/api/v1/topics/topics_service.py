@@ -51,6 +51,7 @@ class TopicsService:
             section_id: UUID,
             name: str,
             order_number: int,
+            tags: list[str],
     ) -> TopicIDMixin:
         section = await self.sections_manager.get_section_by_id(
             section_id,
@@ -79,6 +80,7 @@ class TopicsService:
             name,
             order_number,
             course.id,
+            tags,
         )
 
         await self.data_manager.create_topic(
@@ -182,6 +184,7 @@ class TopicsService:
             user: UserVerification,
             topic_id: UUID,
             new_name: str | None,
+            new_tags: list[str] | None,
     ) -> None:
         topic = await self.topics_manager.get_topic_by_id(
             topic_id,
@@ -195,17 +198,19 @@ class TopicsService:
                 "Пользователь не имеет права на изменение темы!",
             )
 
-        if new_name is None:
+        if new_name is None and new_tags is None:
             return
 
         result_name = new_name if new_name is not None else topic.name
+        result_tags = new_tags if new_tags is not None else topic.tags
 
-        if topic.name == result_name:
+        if topic.name == result_name and topic.tags == result_tags:
             return
 
         await self.topics_manager.update_topic(
             topic_id,
             result_name,
+            result_tags,
         )
 
     async def get_raw_content(

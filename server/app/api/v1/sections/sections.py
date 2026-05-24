@@ -50,6 +50,11 @@ class SectionBase(
         ge=0,
         examples=[1],
     )
+    tags: list[str] = Field(
+        [],
+        description="Теги объекта",
+        examples=["Тег1"]
+    )
 
 
 class SectionCreation(
@@ -86,6 +91,11 @@ class SectionUpdate(
         None,
         description="Описание раздела",
         examples=["Описание раздела"],
+    )
+    tags: list[str] = Field(
+        None,
+        description="Теги объекта",
+        examples=["Тег1"]
     )
 
 
