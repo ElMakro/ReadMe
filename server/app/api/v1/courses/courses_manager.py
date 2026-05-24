@@ -278,7 +278,7 @@ class CoursesManager:
                 Courses,
             ).where(
                 Courses.tags.contains(
-                    tag,
+                    [tag],
                 ),
             )
             result = await session.execute(

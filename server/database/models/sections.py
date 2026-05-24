@@ -1,6 +1,7 @@
 import uuid
 
-from sqlalchemy import ARRAY, CheckConstraint, ForeignKey, Index, Integer, String, Text
+from sqlalchemy import CheckConstraint, ForeignKey, Index, Integer, String, Text
+from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column, validates
 
 from server.config.constants import MAX_SECTION_DESCRIPTION_LENGTH
