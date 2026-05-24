@@ -2,16 +2,13 @@ import uuid
 
 from fastapi import Depends
 from sqlalchemy import delete, insert, select, update
-from sqlalchemy.exc import IntegrityError
 
 from server.app.api.v1.common_schemas import (
     APPLICATION_FIELDS_MISMATCH_ERROR_TEXT,
     NOT_FOUND_ERROR_TEXT,
-    USER_IS_ALREADY_PROFESSOR_ERROR_TEXT,
 )
 from server.app.api.v1.users.exceptions import (
     ApplicationFieldsMismatchError,
-    UserIsAlreadyProfessorError,
     UserNotFoundError,
 )
 from server.app.api.v1.users.users import ApplicationsList, ApplicationsUserList, UserInfo, UsersList, UserVerification
@@ -190,23 +187,6 @@ class UsersManager:
             await session.commit()
             if not result.rowcount:
                 raise ApplicationFieldsMismatchError(APPLICATION_FIELDS_MISMATCH_ERROR_TEXT)
-            return
-
-    async def add_user_to_professors(self, id: uuid.UUID, name: str, surname: str, patronymic: str | None) -> None:
-        async with self.db.db_session() as session:
-            query = insert(
-                self.professors_model
-            ).values(
-                id=id,
-                name=name,
-                surname=surname,
-                patronymic=patronymic,
-            )
-            try:
-                await session.execute(query)
-                await session.commit()
-            except IntegrityError:
-                raise UserIsAlreadyProfessorError(USER_IS_ALREADY_PROFESSOR_ERROR_TEXT)
             return
 
     async def get_user_applications(self, id: uuid.UUID, offset: int, limit: int) -> ApplicationsUserList:

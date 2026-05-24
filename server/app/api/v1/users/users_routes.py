@@ -8,12 +8,10 @@ from server.app.api.v1.common_schemas import (
     FORBIDDEN_ERROR_TEXT,
     NOT_FOUND_ERROR_TEXT,
     UNAUTHORIZED_ERROR_TEXT,
-    USER_IS_ALREADY_PROFESSOR_ERROR_TEXT,
     PaginationParameters,
 )
 from server.app.api.v1.users.exceptions import (
     ApplicationFieldsMismatchError,
-    UserIsAlreadyProfessorError,
     UserNotFoundError,
 )
 from server.app.api.v1.users.users import (
@@ -225,9 +223,6 @@ async def get_professor_applications(
         status.HTTP_409_CONFLICT: {
             "description": APPLICATION_FIELDS_MISMATCH_ERROR_TEXT,
         },
-        status.HTTP_409_CONFLICT: {
-            "description": USER_IS_ALREADY_PROFESSOR_ERROR_TEXT,
-        }
     },
 )
 async def change_application_status(
@@ -241,7 +236,7 @@ async def change_application_status(
 ):
     try:
         return await users_service.change_application_status(application)
-    except (ApplicationFieldsMismatchError, UserIsAlreadyProfessorError) as error:
+    except ApplicationFieldsMismatchError as error:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=str(error),
