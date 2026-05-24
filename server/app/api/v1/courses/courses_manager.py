@@ -2,7 +2,7 @@ import uuid
 from uuid import UUID
 
 from fastapi import Depends
-from sqlalchemy import delete, select, update
+from sqlalchemy import delete, select
 
 from server.app.api.v1.courses.courses import CourseFullListResponse, CourseIDMixin, CourseResponse, CoursesList
 from server.config.db_dependency import DBDependency
@@ -93,6 +93,7 @@ class CoursesManager:
             professor_id: uuid.UUID,
             is_public: bool,
             is_content_public: bool,
+            tags: list[str],
     ) -> CourseIDMixin:
         async with self.db.db_session() as session:
             course = Courses(
@@ -101,6 +102,7 @@ class CoursesManager:
                 professor_id=professor_id,
                 is_public=is_public,
                 is_content_public=is_content_public,
+                tags=tags,
             )
 
             session.add(
@@ -196,22 +198,21 @@ class CoursesManager:
             description: str,
             is_public: bool,
             is_content_public: bool,
+            tags: list[str],
     ) -> None:
         async with self.db.db_session() as session:
-            query = update(
-                self.courses_model,
-            ).where(
-                self.courses_model.id == course_id,
-            ).values(
-                name=name,
-                description=description,
-                is_public=is_public,
-                is_content_public=is_content_public,
+            course = await session.get(
+                Courses,
+                course_id,
+                with_for_update=True,
             )
 
-            await session.execute(
-                query,
-            )
+            course.name = name
+            course.description = description
+            course.is_public = is_public
+            course.is_content_public = is_content_public
+            course.tags = tags
+
             await session.commit()
 
     async def delete_course(
@@ -219,30 +220,15 @@ class CoursesManager:
             course_id: UUID,
     ) -> None:
         async with self.db.db_session() as session:
-            blocking_query = (
-                select(
-                    self.courses_model,
-                )
-                .where(
-                    self.courses_model.id == course_id,
-                )
-                .with_for_update()
+            course = await session.get(
+                Courses,
+                course_id,
+                with_for_update=True,
             )
 
-            await session.execute(
-                blocking_query,
+            await session.delete(
+                course,
             )
-
-            query = delete(
-                self.courses_model,
-            ).where(
-                self.courses_model.id == course_id,
-            )
-
-            await session.execute(
-                query,
-            )
-
             await session.commit()
 
     async def search_courses_by_name_prefix(
@@ -273,30 +259,34 @@ class CoursesManager:
             new_professor_id: UUID,
     ) -> None:
         async with self.db.db_session() as session:
-            blocking_query = (
-                select(
-                    self.courses_model,
-                )
-                .where(
-                    self.courses_model.id == course_id,
-                )
-                .with_for_update()
+            course = await session.get(
+                Courses,
+                course_id,
+                with_for_update=True,
             )
 
-            await session.execute(
-                blocking_query,
-            )
+            course.professor_id = new_professor_id
 
-            query = update(
-                self.courses_model,
+            await session.commit()
+
+    async def search_courses_by_tag(
+            self,
+            tag: str,
+    ) -> CourseFullListResponse:
+        async with self.db.db_session() as session:
+            query = select(
+                Courses,
             ).where(
-                self.courses_model.id == course_id,
-            ).values(
-                professor_id=new_professor_id,
+                Courses.tags.contains(
+                    tag,
+                ),
             )
-
-            await session.execute(
+            result = await session.execute(
                 query,
             )
 
-            await session.commit()
+            courses = result.scalars().all()
+
+        return CourseFullListResponse.model_validate(
+            courses,
+        )

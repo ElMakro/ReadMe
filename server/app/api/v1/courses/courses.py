@@ -40,6 +40,7 @@ class CourseBase(
     description: str = Field(
         "",
         description="Описание курса",
+        max_length=500,
         examples=["Описание курса"],
     )
     is_public: bool = Field(
@@ -51,6 +52,11 @@ class CourseBase(
         default=True,
         description="Видимо ли содержимое курса для всех пользователей",
         examples=[True, False],
+    )
+    tags: list[str] = Field(
+        [],
+        description="Теги курса",
+        examples=["Тег1"]
     )
 
 
@@ -82,6 +88,7 @@ class CourseUpdate(
     )
     description: str = Field(
         None,
+        max_length=500,
         description="Описание курса",
         examples=["Описание курса"],
     )
@@ -94,6 +101,11 @@ class CourseUpdate(
         default=None,
         description="Видимо ли содержимое курса для всех пользователей",
         examples=[True, False],
+    )
+    tags: list[str] = Field(
+        None,
+        description="Теги курса",
+        examples=["Тег1"]
     )
 
 

@@ -1,4 +1,4 @@
-from typing import Annotated
+from typing import Annotated, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
@@ -20,6 +20,7 @@ from server.app.api.v1.courses.courses_service import (
     CoursePrivacyLevelsError,
     CoursesService,
     OperationPermissionError,
+    UnsupportedSearchCriteriaError,
     UserEnrollmentError,
 )
 from server.app.api.v1.users.users import UserVerification
@@ -90,25 +91,33 @@ async def create_course(
 
 @courses_router.get(
     "/search",
-    summary="Поиск курсов по началу названия.",
+    summary="Поиск курсов",
     response_description="Список курсов, соответствующих критериям поиска",
     status_code=status.HTTP_200_OK,
     response_model=CoursesListSearchResponse,
     responses={
+        status.HTTP_400_BAD_REQUEST          : {
+            "description": "Неправильный критерий поиска",
+        },
         status.HTTP_422_UNPROCESSABLE_CONTENT: {
             "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
         },
     },
     openapi_extra=openapi_extra_authorization_cookie,
 )
-async def search_courses_by_name_prefix(
+async def search_courses(
         user: Annotated[UserVerification | None, Depends(
             get_current_user,
         )],
         pagination_parameters: PaginationParameters = Depends(),
-        course_name_prefix: str = Query(
+        criteria: Literal["name_prefix", "tag"] = Query(
+            ...,
+            description="Критерий поиска",
+            examples=["name-prefix"],
+        ),
+        value: str = Query(
             "",
-            description="Начало названия курса, по которому происходит поиск",
+            description="Значение, по которому проихсодит поиск",
             examples=["Назван"],
         ),
         courses_service: CoursesService = Depends(
@@ -118,12 +127,21 @@ async def search_courses_by_name_prefix(
     """
     Пагинированный поиск курсов по началу названия. Требует авторизации для поиска по закрытым курсам.
     """
-    return await courses_service.search_courses_by_name_prefix(
-        user,
-        course_name_prefix,
-        pagination_parameters.page,
-        pagination_parameters.records_per_page,
-    )
+    try:
+        return await courses_service.search_courses(
+            user,
+            criteria,
+            value,
+            pagination_parameters.page,
+            pagination_parameters.records_per_page,
+        )
+    except UnsupportedSearchCriteriaError as error:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(
+                error,
+            ),
+        )
 
 
 @courses_router.get(

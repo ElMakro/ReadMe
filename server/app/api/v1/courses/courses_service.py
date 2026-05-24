@@ -1,3 +1,4 @@
+from typing import Literal
 from uuid import UUID
 
 from fastapi import Depends
@@ -24,28 +25,30 @@ class OperationPermissionError(
     ValueError,
 ):
     """Исключение, связанное с наличием у пользователя прав на операцию над объектом информационной системы"""
-    pass
 
 
 class CoursePrivacyLevelsError(
     ValueError,
 ):
     """Исключение, связанное с противоречием в уровнях доступности курсов"""
-    pass
 
 
 class UserEnrollmentError(
     ValueError,
 ):
     """Исключение, связанное с записью пользователя на курс"""
-    pass
 
 
 class CourseOwnerConflictError(
     ValueError,
 ):
     """Исключение, связанное с конфликтом владения курсом"""
-    pass
+
+
+class UnsupportedSearchCriteriaError(
+    ValueError,
+):
+    """Исключение, связанное с неподдерживаемым критерием поиска"""
 
 
 class CoursesService:
@@ -107,6 +110,7 @@ class CoursesService:
             description: str,
             is_public: bool,
             is_content_public: bool,
+            tags: list[str],
     ) -> CourseIDMixin:
         if user.role == Role.STUDENT:
             raise OperationPermissionError(
@@ -124,6 +128,7 @@ class CoursesService:
             professor_id=user.id,
             is_public=is_public,
             is_content_public=is_content_public,
+            tags=tags,
         )
 
         self.data_manager.create_course(
@@ -196,6 +201,7 @@ class CoursesService:
             new_description: str | None,
             new_is_public: bool | None,
             new_is_content_public: bool | None,
+            new_tags: list[str] | None,
     ) -> None:
         course = await self.courses_manager.get_course_by_id(
             course_id,
@@ -209,7 +215,8 @@ class CoursesService:
                 "У пользователя нет прав на изменение курса!",
             )
 
-        if new_name is None and new_description is None and new_is_public is None and new_is_content_public is None:
+        if (new_name is None and new_description is None and new_is_public is None
+                and new_is_content_public is None and new_tags is None):
             return
 
         result_name = new_name if new_name is not None else course.name
@@ -217,6 +224,7 @@ class CoursesService:
         result_is_public = new_is_public if new_is_public is not None else course.is_public
         result_is_content_public = new_is_content_public if (new_is_content_public
                                                              is not None) else course.is_content_public
+        result_tags = new_tags if new_tags is not None else course.tags
 
         if not result_is_public and result_is_content_public:
             raise CoursePrivacyLevelsError(
@@ -233,6 +241,7 @@ class CoursesService:
             result_description,
             result_is_public,
             result_is_content_public,
+            result_tags,
         )
 
     async def delete_course(
@@ -284,17 +293,28 @@ class CoursesService:
 
         return None
 
-    async def search_courses_by_name_prefix(
+    async def search_courses(
             self,
             user: UserVerification | None,
-            course_name_prefix: str,
+            criteria: Literal["name_prefix", "tag"],
+            value: str,
             page: int,
             records_per_page: int,
     ) -> CoursesListSearchResponse:
 
-        searched_courses = await self.courses_manager.search_courses_by_name_prefix(
-            course_name_prefix,
-        )
+        match criteria:
+            case "name_prefix":
+                searched_courses = await self.courses_manager.search_courses_by_name_prefix(
+                    value,
+                )
+            case "tag":
+                searched_courses = await self.courses_manager.search_courses_by_tag(
+                    value,
+                )
+            case _:
+                raise UnsupportedSearchCriteriaError(
+                    f"Неподдерживаемый критерий поиска! Допустимы name_prefix, tags, передан {value}!",
+                )
 
         stated_courses = []
 
@@ -357,3 +377,10 @@ class CoursesService:
             course_id,
             new_professor_id,
         )
+
+    async def search_courses_by_tag(
+            self,
+            user: UserVerification,
+            tag: str,
+    ) -> CoursesListSearchResponse:
+        pass
