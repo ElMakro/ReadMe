@@ -70,6 +70,7 @@ async def create_topic(
             topic_data.section_id,
             topic_data.name,
             topic_data.order_number,
+            topic_data.tags
         )
     except OperationPermissionError as error:
         raise HTTPException(
@@ -462,6 +463,7 @@ async def update_topic(
             user,
             topic_id,
             topic_update.name,
+            topic_update.tags
         )
     except OperationPermissionError as error:
         raise HTTPException(

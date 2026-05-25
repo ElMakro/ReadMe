@@ -44,7 +44,8 @@
             topics = topicsArray.map(t => ({
                 id: t.id,
                 name: t.name,
-                order_number: t.order_number
+                order_number: t.order_number,
+                tags: t.tags || []
             }));
             topics.sort((a,b) => a.order_number - b.order_number);
             originalTopics = JSON.parse(JSON.stringify(topics));
@@ -71,6 +72,7 @@
                     <strong>${escapeHtml(topic.name)}</strong>
                     <span class="text-secondary edit-topic-trigger" data-id="${topic.id}" style="cursor: pointer;">✎ редактировать</span>
                 </div>
+                ${topic.tags && topic.tags.length ? `<div class="small text-muted mt-1">Теги: ${topic.tags.map(t => escapeHtml(t)).join(', ')}</div>` : ''}
             `;
 
             const editTrigger = card.querySelector('.edit-topic-trigger');
@@ -79,7 +81,6 @@
                 openEditMode(topic);
             });
 
-            // Переход к блокам только при клике на саму карточку (не на кнопку)
             card.addEventListener('click', (e) => {
                 if (card.querySelector('.save-topic-edit, .cancel-edit, .delete-topic')) {
                     e.stopPropagation();
@@ -96,12 +97,18 @@
         const card = container.querySelector(`.list-group-item[data-topic-id="${topic.id}"]`);
         if (!card) return;
 
+        const tagsString = (topic.tags || []).join(', ');
+
         card.style.cursor = 'default';
         card.innerHTML = `
             <div class="p-2">
                 <div class="mb-3">
                     <label class="form-label">Название темы</label>
                     <input type="text" class="form-control topic-name-edit" value="${escapeHtml(topic.name)}" placeholder="Введите название темы">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Теги (через запятую)</label>
+                    <input type="text" class="form-control topic-tags-edit" value="${escapeHtml(tagsString)}" placeholder="Например: Python, основы, урок 1">
                 </div>
                 <div class="d-flex justify-content-between align-items-center">
                     <button class="btn btn-danger delete-topic">Удалить тему</button>
@@ -114,27 +121,45 @@
         `;
 
         const nameInput = card.querySelector('.topic-name-edit');
+        const tagsInput = card.querySelector('.topic-tags-edit');
         const saveBtn = card.querySelector('.save-topic-edit');
         const cancelBtn = card.querySelector('.cancel-edit');
         const delBtn = card.querySelector('.delete-topic');
 
-        saveBtn.addEventListener('click', async () => {
+        saveBtn.addEventListener('click', async (e) => {
             e.stopPropagation();
             const newName = nameInput.value.trim();
             if (!newName) {
                 showMessage('Название темы не может быть пустым', true);
                 return;
             }
+
+            let newTags = tagsInput.value.split(',').map(t => t.trim()).filter(t => t !== '');
+
             if (topic.id) {
                 try {
-                    const params = new URLSearchParams();
-                    params.append('name', newName);
-                    const url = `${window.API_BASE_URL}topics/${topic.id}?${params.toString()}`;
-                    const res = await fetch(url, { method: 'PUT', credentials: 'include' });
-                    if (!res.ok) throw new Error('Ошибка обновления');
+                    const url = `${window.API_BASE_URL}topics/${topic.id}?name=${encodeURIComponent(newName)}`;
+                    const res = await fetch(url, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
+                        body: JSON.stringify(newTags)
+                    });
+                    if (!res.ok) {
+                        let errorMsg = 'Ошибка обновления темы';
+                        if (res.status === 422) {
+                            const errData = await res.json().catch(() => null);
+                            errorMsg = errData?.detail || 'Неверный формат данных';
+                        }
+                        throw new Error(errorMsg);
+                    }
                     topic.name = newName;
+                    topic.tags = newTags;
                     const orig = originalTopics.find(t => t.id === topic.id);
-                    if (orig) orig.name = newName;
+                    if (orig) {
+                        orig.name = newName;
+                        orig.tags = newTags;
+                    }
                     renderTopics();
                     showMessage('Тема обновлена');
                 } catch (err) {
@@ -149,13 +174,15 @@
                         body: JSON.stringify({
                             name: newName,
                             order_number: topic.order_number,
-                            section_id: sectionId
+                            section_id: sectionId,
+                            tags: newTags
                         })
                     });
                     if (!res.ok) throw new Error('Ошибка создания темы');
                     const data = await res.json();
                     topic.id = data.id;
                     topic.name = newName;
+                    topic.tags = newTags;
                     originalTopics.push({ ...topic });
                     renderTopics();
                     showMessage('Тема создана');
@@ -165,11 +192,14 @@
             }
         });
 
-        cancelBtn.addEventListener('click', () => {
+        cancelBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             if (topic.id) {
                 const orig = originalTopics.find(t => t.id === topic.id);
-                if (orig) topic.name = orig.name;
+                if (orig) {
+                    topic.name = orig.name;
+                    topic.tags = orig.tags;
+                }
                 renderTopics();
             } else {
                 const idx = topics.findIndex(t => t.id === null && t === topic);
@@ -178,7 +208,7 @@
             }
         });
 
-        delBtn.addEventListener('click', async () => {
+        delBtn.addEventListener('click', async (e) => {
             e.stopPropagation();
             if (topic.id) {
                 if (!confirm('Удалить тему? Все блоки внутри будут удалены.')) return;
@@ -209,7 +239,8 @@
         const newTopic = {
             id: null,
             name: '',
-            order_number: newOrder
+            order_number: newOrder,
+            tags: []
         };
         topics.push(newTopic);
         renderTopics();

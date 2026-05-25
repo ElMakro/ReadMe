@@ -32,44 +32,35 @@
 
     async function fetchCourses(page = 1, search = '') {
         const searchTerm = search.trim();
-        const isLoggedIn = window.Auth && window.Auth.isAuthenticated();
-        const basePath = isLoggedIn ? 'courses/authorized-search' : 'courses/search';
-
         const params = new URLSearchParams();
         params.append('page', page);
         params.append('records_per_page', limit);
         if (searchTerm !== '') {
-            params.append('course_name_prefix', searchTerm);
+            params.append('criteria', 'name_prefix');
+            params.append('value', searchTerm);
+        } else {
+            params.append('criteria', 'name_prefix');
+            params.append('value', '');
         }
 
-        const url = `${window.API_BASE_URL}${basePath}?${params.toString()}`;
+        const url = `${window.API_BASE_URL}courses/search?${params.toString()}`;
 
         try {
             const response = await fetch(url, { credentials: 'include' });
             if (!response.ok) {
-                // Если 401 при попытке использовать authorized-search (например, сессия истекла)
-                if (response.status === 401 && isLoggedIn) {
-                    // Можно вызвать перепроверку авторизации
+                if (response.status === 401) {
                     if (window.Auth && window.Auth.check) await window.Auth.check();
-                    // Или просто перезагрузить страницу
-                    window.location.reload();
+                    else window.location.reload();
                     return;
                 }
                 throw new Error('Ошибка загрузки курсов');
             }
             const data = await response.json();
-            // Поддержка двух форматов
-            let courses, total;
-            if (Array.isArray(data)) {
-                courses = data;
-                total = null;
-            } else {
-                courses = data.courses || [];
-                total = data.total !== undefined ? data.total : null;
-            }
-            totalItems = total;
+            // Ожидаем массив CourseSearchResponse
+            const courses = Array.isArray(data) ? data : (data.courses || []);
             renderCourses(courses);
-            updatePagination(page, totalItems, courses.length);
+            // Пагинация: если вернулось меньше limit, значит это последняя страница
+            updatePagination(page, null, courses.length);
         } catch (error) {
             console.error(error);
             coursesGrid.innerHTML = '<p class="text-center text-danger">Не удалось загрузить курсы.</p>';
@@ -86,11 +77,15 @@
         courses.forEach(course => {
             const col = document.createElement('div');
             col.className = 'col';
+            let stateText = '';
+            if (course.state === 'enrolled') stateText = '<span class="badge bg-success">Записан</span>';
+            else if (course.state === 'controlled') stateText = '<span class="badge bg-primary">Преподаю</span>';
+            else if (course.state === 'enrollable') stateText = '<span class="badge bg-secondary">Можно записаться</span>';
             col.innerHTML = `
                 <div class="course-card position-relative">
                     <a href="/course/${course.id}" class="stretched-link text-decoration-none">
                         <h5 class="course-title">${escapeHtml(course.name)}</h5>
-                        <p class="course-instructor">${escapeHtml(course.professor_id || 'Преподаватель')}</p>
+                        <div class="course-state">${stateText}</div>
                         <p class="course-description">${escapeHtml(course.description || '')}</p>
                     </a>
                 </div>

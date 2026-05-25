@@ -27,12 +27,14 @@
     // Кнопки входа/профиля
     const loginBtn = document.getElementById('loginBtn');
     const profileBtn = document.getElementById('profileBtn');
+    const myNotesBtn = document.getElementById('myNotesBtn');
 
     function updateAuthButtons() {
         if (!loginBtn || !profileBtn) return;
         const isLoggedIn = window.Auth && window.Auth.isAuthenticated();
         loginBtn.style.display = isLoggedIn ? 'none' : '';
         profileBtn.style.display = isLoggedIn ? '' : 'none';
+        myNotesBtn.style.display = isLoggedIn ? '' : 'none';
     }
 
     if (window.Auth) {
@@ -52,6 +54,12 @@
     if (profileBtn) {
         profileBtn.addEventListener('click', () => {
             window.location.href = '/me';
+        });
+    }
+
+    if (myNotesBtn) {
+        myNotesBtn.addEventListener('click', () => {
+            window.location.href = '/my-notes';
         });
     }
 
