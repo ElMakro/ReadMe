@@ -2,10 +2,12 @@ from uuid import UUID
 
 from fastapi import Depends
 
+from server.app.api.v1.auth.auth_manager import AuthManager
 from server.app.api.v1.courses.courses import CourseResponse
 from server.app.api.v1.courses.courses_manager import CoursesManager
 from server.app.api.v1.users.enums.access_permissions import AccessPermissions
 from server.app.api.v1.users.users import (
+    ApplicationById,
     ApplicationChangeStatus,
     ApplicationsList,
     ApplicationsUserList,
@@ -22,6 +24,9 @@ from server.enums.role import Role
 class UsersService:
     def __init__(
             self,
+            auth_manager: AuthManager = Depends(
+                AuthManager,
+            ),
             users_manager: UsersManager = Depends(
                 UsersManager,
             ),
@@ -29,6 +34,7 @@ class UsersService:
                 CoursesManager,
             ),
     ) -> None:
+        self.auth_manager = auth_manager
         self.users_manager = users_manager
         self.courses_manager = courses_manager
 
@@ -97,9 +103,10 @@ class UsersService:
         return await self.users_manager.change_role(id=user.id, role=user.role)
 
     async def delete_user(self, id: UUID) -> None:
-        return await self.users_manager.delete_user(id=id)
+        await self.users_manager.delete_user(id=id)
+        await self.auth_manager.delete_sessions(user_id=id)
 
-    async def reg_professor_application(self, id: UUID, application: ProfessorApplication) -> None:
+    async def reg_professor_application(self, id: UUID, application: ProfessorApplication) -> ApplicationById:
         return await self.users_manager.reg_professor_application(
             id=id,
             name=application.name,

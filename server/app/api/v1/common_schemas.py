@@ -14,6 +14,7 @@ NOTE_ALREADY_EXISTS_ERROR_TEXT = "Конспект к этой теме уже �
 NOTE_FIELDS_MISMATCH_ERROR_TEXT = "Поле note_id не соответствует сочетанию полей student_id и topic_id"
 NOTE_NOT_FOUND_ERROR_TEXT = "Конспект не найден или принадлежит другому пользователю"
 APPLICATION_FIELDS_MISMATCH_ERROR_TEXT = "Поле id заявки не соответвует id пользователя"
+APPLICATION_REFUSED_ERROR_TEXT = "Пользователь уже является преподавателем или его заявка уже находится на рассмотрении"
 
 
 class CreatedAtMixin:

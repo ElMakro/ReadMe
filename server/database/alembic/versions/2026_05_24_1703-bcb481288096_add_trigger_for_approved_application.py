@@ -28,7 +28,7 @@ def upgrade() -> None:
         BEGIN
             IF NEW.status = '{ApplicationStatus.APPROVED.name}' AND OLD.status != '{ApplicationStatus.APPROVED.name}' THEN
                 INSERT INTO professors_details (id, name, surname, patronymic)
-                VALUES (NEW.id, NEW.name, NEW.surname, NEW.patronymic)
+                VALUES (NEW.user_id, NEW.name, NEW.surname, NEW.patronymic)
                 ON CONFLICT (id) DO NOTHING;
             END IF;
             RETURN NEW;
