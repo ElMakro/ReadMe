@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Path, status
 
 from server.app.api.v1.common_schemas import (
     APPLICATION_FIELDS_MISMATCH_ERROR_TEXT,
+    APPLICATION_REFUSED_ERROR_TEXT,
     FORBIDDEN_ERROR_TEXT,
     NOT_FOUND_ERROR_TEXT,
     UNAUTHORIZED_ERROR_TEXT,
@@ -12,9 +13,11 @@ from server.app.api.v1.common_schemas import (
 )
 from server.app.api.v1.users.exceptions import (
     ApplicationFieldsMismatchError,
+    ApplicationRefusedError,
     UserNotFoundError,
 )
 from server.app.api.v1.users.users import (
+    ApplicationById,
     ApplicationChangeStatus,
     ApplicationsList,
     ApplicationsUserList,
@@ -164,11 +167,15 @@ async def delete_user(
     path="/submit-professor-application",
     summary="Подать заявку на роль преподавателя",
     status_code=status.HTTP_201_CREATED,
+    response_model=ApplicationById,
     response_description="Заявка успешно добавлена",
     responses={
         status.HTTP_403_FORBIDDEN         : {
             "description": FORBIDDEN_ERROR_TEXT,
         },
+        status.HTTP_409_CONFLICT: {
+            "description": APPLICATION_REFUSED_ERROR_TEXT
+        }
     },
 )
 async def submit_professor_application(
@@ -179,11 +186,17 @@ async def submit_professor_application(
     users_service: UsersService = Depends(
         UsersService,
     ),
-):
-    return await users_service.reg_professor_application(
-        id=user.id,
-        application=application,
-    )
+) -> ApplicationById:
+    try:
+        return await users_service.reg_professor_application(
+            id=user.id,
+            application=application,
+        )
+    except ApplicationRefusedError as error:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(error)
+        )
 
 @users_router.get(
     path="/get-active-applications",

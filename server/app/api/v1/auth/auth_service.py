@@ -6,7 +6,6 @@ from server.app.api.v1.common_schemas import MessageResponse
 from server.app.api.v1.users.users import (
     CreatedUserInfo,
     NewUser,
-    StoredUserInfo,
     UserAuthentication,
     UserRegistration,
     UserVerification,
@@ -68,11 +67,7 @@ class AuthService:
             existing_user.id,
         )
         await self.auth_manager.store_token(
-            user_info=StoredUserInfo(
-                token=token,
-                nickname=existing_user.nickname,
-                email=existing_user.email,
-                role=existing_user.role, ),
+            token=token,
             user_id=existing_user.id,
             session_id=session_id,
         )

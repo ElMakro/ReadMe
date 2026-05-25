@@ -1,17 +1,26 @@
 import uuid
 
 from fastapi import Depends
-from sqlalchemy import delete, insert, select, update
+from sqlalchemy import and_, delete, insert, literal, or_, select, update
 
 from server.app.api.v1.common_schemas import (
     APPLICATION_FIELDS_MISMATCH_ERROR_TEXT,
+    APPLICATION_REFUSED_ERROR_TEXT,
     NOT_FOUND_ERROR_TEXT,
 )
 from server.app.api.v1.users.exceptions import (
     ApplicationFieldsMismatchError,
+    ApplicationRefusedError,
     UserNotFoundError,
 )
-from server.app.api.v1.users.users import ApplicationsList, ApplicationsUserList, UserInfo, UsersList, UserVerification
+from server.app.api.v1.users.users import (
+    ApplicationById,
+    ApplicationsList,
+    ApplicationsUserList,
+    UserInfo,
+    UsersList,
+    UserVerification,
+)
 from server.config.db_dependency import DBDependency
 from server.database.models import ProfessorsApplications, ProfessorsDetails, Users
 from server.enums.application_status import ApplicationStatus
@@ -131,19 +140,37 @@ class UsersManager:
                 raise UserNotFoundError(NOT_FOUND_ERROR_TEXT)
             return
 
-    async def reg_professor_application(self, id: uuid.UUID, name: str, surname: str, patronymic: str | None):
+    async def reg_professor_application(self, id: uuid.UUID, name: str, surname: str, patronymic: str | None) \
+            -> ApplicationById:
         async with self.db.db_session() as session:
+            conflict_exists = (
+                select(1)
+                .where(
+                    or_(
+                        self.professors_model.id == id,
+                        and_(
+                            self.professors_applications_model.user_id == id,
+                            self.professors_applications_model.status == ApplicationStatus.PENDING.name
+                        )
+                    )
+                )
+                .exists()
+            )
             query = insert(
                 self.professors_applications_model
-            ).values(
-                name=name,
-                surname=surname,
-                patronymic=patronymic,
-                user_id=id,
+            ).from_select(
+                ['name', 'surname', 'patronymic', 'user_id'],
+                select(
+                    literal(name), literal(surname), literal(patronymic), literal(id)
+                ).where(~conflict_exists)
+            ).returning(
+                self.professors_applications_model.id
             )
-            await session.execute(query)
+            result = await session.execute(query)
             await session.commit()
-            return
+            if (application_id := result.mappings().one_or_none()) is None:
+                raise ApplicationRefusedError(APPLICATION_REFUSED_ERROR_TEXT)
+            return ApplicationById.model_validate(application_id)
 
     async def get_professor_applications(self, offset: int, limit: int) -> ApplicationsList:
         async with self.db.db_session() as session:
@@ -198,6 +225,7 @@ class UsersManager:
                 self.professors_applications_model.surname,
                 self.professors_applications_model.patronymic,
                 self.professors_applications_model.status,
+                self.professors_applications_model.admin_comment,
                 self.professors_applications_model.created_at,
                 self.professors_applications_model.updated_at,
             ).where(

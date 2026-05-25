@@ -4,7 +4,7 @@ from fastapi import Depends, HTTPException
 from sqlalchemy import insert
 from sqlalchemy.exc import IntegrityError
 
-from server.app.api.v1.users.users import CreatedUserInfo, NewUser, StoredUserInfo
+from server.app.api.v1.users.users import CreatedUserInfo, NewUser
 from server.config.db_dependency import DBDependency
 from server.config.redis_dependency import RedisDependency
 from server.database.models import Users
@@ -31,14 +31,25 @@ class AuthManager:
             user_data = result.scalar_one()
             return CreatedUserInfo.model_validate(user_data)
 
-    async def store_token(self, user_info: StoredUserInfo, user_id: uuid.UUID, session_id: str) -> None:
+    async def store_token(self, token: str, user_id: uuid.UUID, session_id: str) -> None:
         async with self.redis.get_client() as client:
-            await client.set(f"{user_id}:{session_id}", user_info.model_dump_json())
+            await client.set(f"{user_id}:{session_id}", token)
 
-    async def get_user_info(self, user_id: uuid.UUID, session_id: str) -> StoredUserInfo | None:
+    async def get_token(self, user_id: uuid.UUID, session_id: str) -> str | None:
         async with self.redis.get_client() as client:
-            return StoredUserInfo.model_validate_json(await client.get(f"{user_id}:{session_id}"))
+            return await client.get(f"{user_id}:{session_id}")
 
     async def clear_token(self, user_id: uuid.UUID, session_id: str) -> None:
         async with self.redis.get_client() as client:
             await client.delete(f"{user_id}:{session_id}")
+
+    async def delete_sessions(self, user_id: uuid.UUID, batch_size: int = 100) -> None:
+        async with self.redis.get_client() as client:
+            pattern = f"{user_id}:*"
+            cursor = 0
+            while True:
+                cursor, keys = await client.scan(cursor, match=pattern, count=batch_size)
+                if keys:
+                    await client.unlink(*keys)
+                if cursor == 0:
+                    break

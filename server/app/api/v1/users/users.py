@@ -166,19 +166,6 @@ class UserProfile(
     role: Role
 
 
-class StoredUserInfo(
-    UserByNickname,
-    UserByEmail,
-):
-    model_config = ConfigDict(
-        from_attributes=True,
-        extra='ignore',
-    )
-
-    token: str
-    role: Role
-
-
 class UsersList(
     RootModel[list[UserProfile]]
 ):
@@ -194,6 +181,20 @@ class UserWithRole(
     )
 
     role: Role
+
+
+class ApplicationById(
+    BaseModel,
+):
+    model_config = ConfigDict(
+        from_attributes=True,
+        extra='ignore',
+    )
+
+    id: uuid.UUID = Field(
+        description="Идентификатор заявки",
+        examples=[uuid.uuid4()],
+    )
 
 
 class ProfessorApplication(
@@ -277,16 +278,6 @@ class ApplicationChangeStatus(
     user_id: uuid.UUID = Field(
         description="Идентификатор пользователя, подавшего заявку",
         examples=[uuid.uuid4()],
-    )
-    name: str = Field(
-        description="Имя преподавателя",
-    )
-    surname: str = Field(
-        description="Фамилия преподавателя"
-    )
-    patronymic: str | None = Field(
-        description="Отчество преподавателя",
-        default=None,
     )
     status: ApplicationStatus = Field(
         description="Статус заявки",
