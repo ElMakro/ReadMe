@@ -1,6 +1,6 @@
 import os
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response, status
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -10,6 +10,10 @@ client_app.mount("/static", StaticFiles(directory=STATIC_PATH), name="static")
 templates = Jinja2Templates(directory="templates")
 
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8080/api/v1/")
+
+@client_app.get("/client_healthcheck")
+async def healthcheck() -> Response:
+    return Response(status_code=status.HTTP_200_OK)
 
 @client_app.get("/")
 async def main_page(request: Request):
