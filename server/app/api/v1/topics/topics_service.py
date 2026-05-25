@@ -103,12 +103,12 @@ class TopicsService:
         if await self.users_service.check_course_access(
                 user,
                 course_id=topic.course_id,
-        ) > AccessPermissions.CONTENT_ACCESS:
-            return topic
+        ) < AccessPermissions.CONTENT_ACCESS:
+            raise OperationPermissionError(
+                "Пользователь не имеет доступа к данной теме!",
+            )
 
-        raise OperationPermissionError(
-            "Пользователь не имеет доступа к данной теме!",
-        )
+        return topic
 
     async def get_topics_by_section_id(
             self,
@@ -122,13 +122,13 @@ class TopicsService:
         if await self.users_service.check_course_access(
                 user,
                 course_id=section.course_id,
-        ) > AccessPermissions.CONTENT_ACCESS:
-            return await self.topics_manager.get_topics_by_section_id(
-                section_id,
+        ) < AccessPermissions.CONTENT_ACCESS:
+            raise OperationPermissionError(
+                "Пользователь не имеет доступа к темам данного раздела!",
             )
 
-        raise OperationPermissionError(
-            "Пользователь не имеет доступа к темам данного раздела!",
+        return await self.topics_manager.get_topics_by_section_id(
+            section_id,
         )
 
     async def get_topics_by_course_id(
@@ -143,13 +143,13 @@ class TopicsService:
         if await self.users_service.check_course_access(
                 user,
                 course=course,
-        ) > AccessPermissions.CONTENT_ACCESS:
-            return await self.topics_manager.get_sections_by_course_id(
-                course_id,
+        ) < AccessPermissions.CONTENT_ACCESS:
+            raise OperationPermissionError(
+                "Пользователь не имеет доступа к темам данного раздела!",
             )
 
-        raise OperationPermissionError(
-            "Пользователь не имеет доступа к темам данного раздела!",
+        return await self.topics_manager.get_sections_by_course_id(
+            course_id,
         )
 
     async def delete_topic(
