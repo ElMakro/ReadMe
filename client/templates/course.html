@@ -29,7 +29,8 @@
     <div id="windowHeader" class="window-header">
         <span>Конспект</span>
         <div style="display: flex; gap: 8px;">
-            <button id="filters-btn" class="btn-save-conspect">Сохранить</button>
+            <button id="deleteConspectBtn" class="btn-close-window">Удалить</button>
+            <button id="saveConspectBtn" class="btn-save-conspect">Сохранить</button>
             <button id="closeWindowBtn" class="btn-close-window">✕</button>
         </div>
     </div>
@@ -45,6 +46,7 @@
     window.COURSE_ID = "{{ course_id }}";
     window.API_BASE_URL = "{{ api_base_url }}";
 </script>
-<script src="../../static/course_creation/course_helpers.js"></script>
-<script src="../static/course.js"></script>
+<script src="/static/course_creation/course_helpers.js"></script>
+<script src="/static/notes.js"></script>
+<script src="/static/course.js"></script>
 {% endblock %}

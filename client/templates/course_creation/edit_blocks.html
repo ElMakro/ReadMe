@@ -1,4 +1,4 @@
-{# templates/edit_blocks.html #}
+{# templates/course_creation/edit_blocks.html #}
 {% extends "base.html" %}
 {% block title %}Редактирование блоков — ReadMe{% endblock %}
 
@@ -16,11 +16,12 @@
     <div class="card bg-secondary border-0 shadow-sm">
         <div class="card-body">
             <h5 class="card-title mb-3">Блоки темы</h5>
-            <div id="blocksList" class="mb-4"></div>
+            <div id="blocksList" class="mb-4">
+                <!-- Список блоков -->
+            </div>
             <button class="btn btn-outline-accent mb-4" id="addBlockBtn">+ Добавить блок</button>
             <div class="d-flex justify-content-between">
                 <a href="/course/{{ course_id }}/section/{{ section_id }}/topics" class="btn btn-outline-secondary">Назад</a>
-                <button class="btn btn-accent" id="saveBlocksBtn">Сохранить</button>
             </div>
         </div>
     </div>
@@ -34,6 +35,6 @@
     window.TOPIC_ID = "{{ topic_id }}";
     window.API_BASE_URL = "{{ api_base_url }}";
 </script>
-<script src="../../static/course_creation/course_helpers.js"></script>
-<script src="../../static/course_creation/edit_blocks.js"></script>
+<script src="/static/course_creation/course_helpers.js"></script>
+<script src="/static/course_creation/edit_blocks.js"></script>
 {% endblock %}

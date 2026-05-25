@@ -1,9 +1,5 @@
 // auth.js
 (function() {
-    if (typeof window.API_BASE_URL === 'undefined') {
-        window.API_BASE_URL = 'http://localhost:8080/api/v1/';  // fallback
-    }
-
     window.AppState = window.AppState || {};
     window.AppState.currentUser = null;
 
