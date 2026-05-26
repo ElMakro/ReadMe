@@ -2,15 +2,18 @@ import uuid
 
 from fastapi import Depends
 from sqlalchemy import and_, delete, insert, literal, or_, select, update
+from sqlalchemy.exc import IntegrityError
 
 from server.app.api.v1.common_schemas import (
     APPLICATION_FIELDS_MISMATCH_ERROR_TEXT,
     APPLICATION_REFUSED_ERROR_TEXT,
     NOT_FOUND_ERROR_TEXT,
+    NOT_UNIQUE_FIELDS_ERROR_TEXT,
 )
 from server.app.api.v1.users.exceptions import (
     ApplicationFieldsMismatchError,
     ApplicationRefusedError,
+    NotUniqueFieldsError,
     UserNotFoundError,
 )
 from server.app.api.v1.users.users import (
@@ -18,7 +21,9 @@ from server.app.api.v1.users.users import (
     ApplicationsList,
     ApplicationsUserList,
     UserInfo,
+    UserProfile,
     UsersList,
+    UserUpdatedInfo,
     UserVerification,
 )
 from server.config.db_dependency import DBDependency
@@ -139,6 +144,27 @@ class UsersManager:
             if not result.rowcount:
                 raise UserNotFoundError(NOT_FOUND_ERROR_TEXT)
             return
+
+    async def update_user_profile(self, user_id: uuid.UUID, updated_info: UserUpdatedInfo) -> UserProfile:
+        async with self.db.db_session() as session:
+            query = update(
+                self.users_model
+            ).where(
+                self.users_model.id == user_id
+            ).values(
+                nickname=updated_info.nickname,
+                email=updated_info.email,
+            ).returning(
+                self.users_model
+            )
+            try:
+                result = await session.execute(query)
+                await session.commit()
+            except IntegrityError:
+                raise NotUniqueFieldsError(NOT_UNIQUE_FIELDS_ERROR_TEXT)
+            if not (updated_user := result.scalar_one_or_none()):
+                raise UserNotFoundError(NOT_FOUND_ERROR_TEXT)
+            return UserProfile.model_validate(updated_user)
 
     async def reg_professor_application(self, id: uuid.UUID, name: str, surname: str, patronymic: str | None) \
             -> ApplicationById:

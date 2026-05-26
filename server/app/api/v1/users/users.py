@@ -166,6 +166,16 @@ class UserProfile(
     role: Role
 
 
+class UserUpdatedInfo(
+    UserByNickname,
+    UserByEmail,
+):
+    model_config = ConfigDict(
+        from_attributes=True,
+        extra='ignore',
+    )
+
+
 class UsersList(
     RootModel[list[UserProfile]]
 ):

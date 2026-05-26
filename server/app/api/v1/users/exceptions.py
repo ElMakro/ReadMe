@@ -7,6 +7,15 @@ class UserNotFoundError(
     pass
 
 
+class NotUniqueFieldsError(
+    ValueError,
+):
+    """
+    Исключение, связанное с попыткой задать уже существующий никнейм или почту.
+    """
+    pass
+
+
 class ApplicationFieldsMismatchError(
     ValueError,
 ):
