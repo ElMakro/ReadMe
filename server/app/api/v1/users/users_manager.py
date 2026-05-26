@@ -1,7 +1,7 @@
 import uuid
 
 from fastapi import Depends
-from sqlalchemy import and_, delete, insert, literal, or_, select, update
+from sqlalchemy import and_, delete, desc, insert, literal, or_, select, update
 from sqlalchemy.exc import IntegrityError
 
 from server.app.api.v1.common_schemas import (
@@ -257,7 +257,7 @@ class UsersManager:
             ).where(
                 self.professors_applications_model.user_id == id
             ).order_by(
-                self.professors_applications_model.updated_at
+                desc(self.professors_applications_model.updated_at)
             ).offset(
                 offset
             ).limit(
