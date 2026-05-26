@@ -8,12 +8,14 @@ from server.app.api.v1.common_schemas import (
     APPLICATION_REFUSED_ERROR_TEXT,
     FORBIDDEN_ERROR_TEXT,
     NOT_FOUND_ERROR_TEXT,
+    NOT_UNIQUE_FIELDS_ERROR_TEXT,
     UNAUTHORIZED_ERROR_TEXT,
     PaginationParameters,
 )
 from server.app.api.v1.users.exceptions import (
     ApplicationFieldsMismatchError,
     ApplicationRefusedError,
+    NotUniqueFieldsError,
     UserNotFoundError,
 )
 from server.app.api.v1.users.users import (
@@ -24,6 +26,7 @@ from server.app.api.v1.users.users import (
     ProfessorApplication,
     UserProfile,
     UsersList,
+    UserUpdatedInfo,
     UserVerification,
     UserWithRole,
 )
@@ -59,10 +62,57 @@ async def user_profile(
         users_service: UsersService = Depends(
             UsersService,
         ),
-):
+) -> UserProfile:
     return users_service.get_info_for_user_profile(
         user,
     )
+
+
+@users_router.put(
+"/profile",
+    summary="Редактировать профиль пользователя",
+    status_code=status.HTTP_200_OK,
+    response_model=UserProfile,
+    response_description="Профиль пользователя отредактирован",
+    responses={
+        status.HTTP_401_UNAUTHORIZED         : {
+            "description": "Пользователь не произвёл вход",
+        },
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {
+            "description": "Некорректно переданы параметры",
+        },
+        status.HTTP_404_NOT_FOUND: {
+            "description": NOT_FOUND_ERROR_TEXT,
+        },
+        status.HTTP_409_CONFLICT: {
+            "description": NOT_UNIQUE_FIELDS_ERROR_TEXT,
+        },
+    },
+)
+async def update_profile(
+    user: Annotated[UserVerification | None, Depends(
+        get_auth_user,
+    )],
+    updated_info: UserUpdatedInfo,
+    users_service: UsersService = Depends(
+        UsersService,
+    ),
+) -> UserProfile:
+    try:
+        return await users_service.update_user_profile(
+            user_id=user.id,
+            updated_info=updated_info,
+        )
+    except UserNotFoundError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(error),
+        )
+    except NotUniqueFieldsError as error:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(error),
+        )
 
 
 @users_router.get(

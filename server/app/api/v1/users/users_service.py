@@ -14,6 +14,7 @@ from server.app.api.v1.users.users import (
     ProfessorApplication,
     UserProfile,
     UsersList,
+    UserUpdatedInfo,
     UserVerification,
     UserWithRole,
 )
@@ -48,6 +49,13 @@ class UsersService:
             email=user.email,
             role=user.role,
         )
+
+    async def update_user_profile(
+            self,
+            user_id: UUID,
+            updated_info: UserUpdatedInfo,
+    ) -> UserProfile:
+        return await self.users_manager.update_user_profile(user_id=user_id, updated_info=updated_info)
 
     async def check_course_access(
             self,
