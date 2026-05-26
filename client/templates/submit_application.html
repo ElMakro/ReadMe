@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+
+{% block title %}Подать заявку на преподавание{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-6 col-md-8">
+            <div class="card border-0 shadow-sm" style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 20px;">
+                <div class="card-body p-4 p-md-5">
+                    <div id="formBlock">
+                        <h2 class="card-title text-center mb-4" style="color: var(--text-primary);">Стать преподавателем</h2>
+                        <p class="text-center mb-4" style="color: var(--text-secondary);">
+                            Заполните форму, чтобы подать заявку на роль преподавателя.
+                            После проверки администрации вы получите доступ к созданию курсов.
+                        </p>
+
+                        <form id="applicationForm">
+                            <div class="mb-3">
+                                <label for="name" class="form-label" style="color: var(--text-primary);">Имя *</label>
+                                <input type="text" class="form-control" id="name" name="name" required
+                                       style="background: var(--bg-primary); border-color: var(--border-color); color: var(--text-primary);">
+                                <div class="invalid-feedback">Пожалуйста, укажите имя.</div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="surname" class="form-label" style="color: var(--text-primary);">Фамилия *</label>
+                                <input type="text" class="form-control" id="surname" name="surname" required
+                                       style="background: var(--bg-primary); border-color: var(--border-color); color: var(--text-primary);">
+                                <div class="invalid-feedback">Пожалуйста, укажите фамилию.</div>
+                            </div>
+                            <div class="mb-4">
+                                <label for="patronymic" class="form-label" style="color: var(--text-primary);">Отчество *</label>
+                                <input type="text" class="form-control" id="patronymic" name="patronymic" required
+                                       style="background: var(--bg-primary); border-color: var(--border-color); color: var(--text-primary);">
+                                <div class="invalid-feedback">Пожалуйста, укажите отчество.</div>
+                            </div>
+
+                            <div id="alertContainer" class="mb-3"></div>
+
+                            <div class="d-grid gap-2">
+                                <button type="submit" class="btn btn-accent" id="submitBtn" style="background: var(--accent); color: var(--bg-primary); border: none; padding: 12px; font-weight: 600; border-radius: 12px;">
+                                    Отправить заявку
+                                </button>
+                                <button type="button" class="btn btn-outline-accent" onclick="window.location.href='/'">
+                                    На главную
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div id="successBlock" style="display: none;">
+                        <div class="text-center">
+                            <div class="mb-3">
+                                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                                </svg>
+                            </div>
+                            <h3 class="mb-3" style="color: var(--text-primary);">Заявка успешно подана!</h3>
+                            <p style="color: var(--text-secondary);">
+                                Вы можете отслеживать статус вашей заявки в разделе <strong>«Мои заявки»</strong> личного кабинета.
+                            </p>
+                            <button type="button" class="btn btn-accent mt-3" onclick="window.location.href='/'">
+                                На главную
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', path='submit_application.js') }}"></script>
+{% endblock %}

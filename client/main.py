@@ -99,3 +99,14 @@ async def my_notes_page(request: Request):
         "request": request,
         "api_base_url": BACKEND_URL
     })
+
+@client_app.get("/s8f7g3h2j1k")
+async def secret_application_form(request: Request):
+    return templates.TemplateResponse(
+        request,
+        "submit_application.html",
+        {
+            "request": request,
+            "api_base_url": BACKEND_URL
+        }
+    )
