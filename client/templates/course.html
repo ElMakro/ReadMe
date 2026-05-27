@@ -1,6 +1,5 @@
-{# templates/course.html #}
 {% extends "base.html" %}
-{% block title %}Курс «{{ course_title }}» — ReadMe{% endblock %}
+{% block title %}Курс — ReadMe{% endblock %}
 
 {% block content %}
 <div class="container-fluid h-100">
@@ -8,17 +7,21 @@
         <!-- Левая боковая панель -->
         <nav class="col-md-3 col-lg-2 course-sidebar" id="courseSidebar">
             <div class="py-4 px-3">
-                <h5 class="mb-4 text-center" id="courseTitleHeader">Загрузка...</h5>
+                <h5 class="mb-3" id="courseTitleHeader">Загрузка...</h5>
                 <ul class="list-group list-group-flush" id="sectionList"></ul>
             </div>
         </nav>
 
         <!-- Основной контент -->
         <article class="col-md-9 col-lg-10 main-content" id="mainContent">
-            <!-- Контейнер для отображения одной темы -->
-            <div id="topicContent" class="topic-content">
-<!--                <p class="text-muted">Выберите тему из меню</p>-->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div class="d-flex align-items-center gap-3">
+                    <button class="btn btn-sm btn-outline-accent" id="toggleSidebarBtn" title="Скрыть меню">◀</button>
+                    <h2 id="courseNameMain" class="mb-0"></h2>
+                </div>
+                <button id="enrollBtn" class="btn btn-accent" style="display: none;">Записаться</button>
             </div>
+            <div id="topicContent" class="topic-content"></div>
             <button class="btn btn-accent mt-3" id="checkYourselfBtn">Проверить Себя</button>
         </article>
     </div>
@@ -41,12 +44,16 @@
 {% endblock %}
 
 {% block scripts %}
-<script>window.API_BASE_URL = "{{ api_base_url }}";</script>
 <script>
     window.COURSE_ID = "{{ course_id }}";
     window.API_BASE_URL = "{{ api_base_url }}";
 </script>
-<script src="/static/course_creation/course_helpers.js"></script>
+
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/plantuml-encoder@1.4.0/dist/plantuml-encoder.min.js"></script>
+
+<script src="/static/course_creation/breadcrumbs_manager.js"></script>
 <script src="/static/notes.js"></script>
 <script src="/static/course.js"></script>
 {% endblock %}

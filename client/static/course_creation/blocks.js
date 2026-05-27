@@ -39,6 +39,85 @@
         return div.innerHTML;
     }
 
+    // Проверка LaTeX формулы через MathJax
+    async function validateLatexWithMathJax(latexString) {
+        if (!window.MathJax) {
+            console.warn('MathJax not loaded, skipping LaTeX validation');
+            return true;
+        }
+        // Если строка пустая – пропускаем
+        if (!latexString || latexString.trim() === '') return true;
+
+        // Пытаемся скомпилировать строку как LaTeX
+        // Используем MathJax.tex2chtmlPromise – он возвращает Promise c HTML-элементом или выбрасывает ошибку
+        try {
+            // Оборачиваем в подходящую среду (может быть inline или display)
+            // Обычно для проверки достаточно отрендерить как display-формулу
+            const html = await window.MathJax.tex2chtmlPromise(latexString, { display: true });
+            // Если дошли сюда – формула валидна
+            return true;
+        } catch (err) {
+            // Ошибка компиляции LaTeX
+            let errorMsg = err.message || err.toString();
+            // MathJax может давать многострочные сообщения, возьмём первую строку
+            if (errorMsg.includes('\n')) errorMsg = errorMsg.split('\n')[0];
+            throw new Error(`LaTeX ошибка: ${errorMsg}`);
+        }
+    }
+
+    function validatePlantUml(umlCode) {
+        if (!umlCode || umlCode.trim() === '') return true;
+        if (!umlCode.includes('@startuml')) {
+            throw new Error('Диаграмма PlantUML должна начинаться с @startuml');
+        }
+        if (!umlCode.includes('@enduml')) {
+            throw new Error('Диаграмма PlantUML должна заканчиваться @enduml');
+        }
+        // Простая проверка баланса фигурных скобок
+        let balance = 0;
+        let inString = false;
+        for (let i = 0; i < umlCode.length; i++) {
+            const ch = umlCode[i];
+            if (ch === '"' && (i === 0 || umlCode[i-1] !== '\\')) {
+                inString = !inString;
+                continue;
+            }
+            if (inString) continue;
+            if (ch === '{') balance++;
+            else if (ch === '}') balance--;
+            if (balance < 0) throw new Error('Незакрытая фигурная скобка }');
+        }
+        if (balance !== 0) throw new Error('Не все фигурные скобки закрыты (несоответствие)');
+        return true;
+    }
+
+    async function validateBlock(type, rawContent) {
+        if (type === 'markdown') {
+            if (typeof marked === 'undefined') return true;
+            try {
+                await marked.parse(rawContent || '');
+                return true;
+            } catch (err) {
+                throw new Error(`Markdown ошибка: ${err.message}`);
+            }
+        } else if (type === 'uml') {
+            return validatePlantUml(rawContent);
+        } else if (type === 'latex') {
+            // Можно использовать MathJax, но для простоты – базовая проверка скобок
+            if (rawContent) {
+                let balance = 0;
+                for (let ch of rawContent) {
+                    if (ch === '{') balance++;
+                    else if (ch === '}') balance--;
+                    if (balance < 0) throw new Error('Незакрытая фигурная скобка }');
+                }
+                if (balance !== 0) throw new Error('Не закрыты все фигурные скобки');
+            }
+            return true;
+        }
+        return true;
+    }
+
     function truncateText(text, maxLength = 80) {
         if (!text) return '';
         if (text.length <= maxLength) return text;
@@ -137,10 +216,23 @@
                 });
                 saveBtn.addEventListener('click', async (e) => {
                     e.stopPropagation();
-                    await saveAllBlocksToServer();
-                    block.isEditing = false;
-                    renderBlocks();
-                    showMessage('Блок сохранён');
+                    if (saveBtn.disabled) return;
+                    saveBtn.disabled = true;
+                    try {
+                        const newType = typeSelect.value;
+                        const newRaw = contentTextarea.value;
+                        await validateBlock(newType, newRaw);    // <--- Здесь будет проверка и для LaTeX
+                        block.type = newType;
+                        block.raw_content = newRaw;
+                        await saveAllBlocksToServer();
+                        block.isEditing = false;
+                        renderBlocks();
+                        showMessage('Блок сохранён');
+                    } catch (err) {
+                        showMessage(err.message, true);
+                    } finally {
+                        saveBtn.disabled = false;
+                    }
                 });
                 cancelBtn.addEventListener('click', (e) => {
                     e.stopPropagation();

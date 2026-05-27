@@ -7,7 +7,6 @@
     let sections = [];
     let originalSections = [];
 
-    // Обрезаем описание до wordLimit слов (как в списке курсов)
     function truncateWords(text, wordLimit) {
         if (!text) return '';
         const words = text.trim().split(/\s+/);
@@ -53,7 +52,8 @@
                 id: s.id,
                 name: s.name,
                 description: s.description || '',
-                order_number: s.order_number
+                order_number: s.order_number,
+                tags: s.tags || []
             }));
             sections.sort((a,b) => a.order_number - b.order_number);
             originalSections = JSON.parse(JSON.stringify(sections));
@@ -82,6 +82,7 @@
                     <div class="flex-grow-1">
                         <strong>${escapeHtml(sec.name)}</strong>
                         ${shortDescription ? `<div class="text-secondary small mt-1">${escapeHtml(shortDescription)}</div>` : ''}
+                        ${sec.tags && sec.tags.length ? `<div class="small text-muted mt-1">Теги: ${sec.tags.map(t => escapeHtml(t)).join(' ')}</div>` : ''}
                     </div>
                     <span class="text-secondary edit-section-trigger" data-id="${sec.id}" style="cursor: pointer;">✎ редактировать</span>
                 </div>
@@ -93,7 +94,6 @@
                 openEditMode(sec);
             });
 
-            // Переход к темам только при клике на саму карточку (не на кнопку)
             card.addEventListener('click', (e) => {
                 if (card.querySelector('.save-section-edit, .cancel-edit, .delete-section')) {
                     e.stopPropagation();
@@ -107,15 +107,11 @@
     }
 
     function openEditMode(sec) {
-        // Находим карточку по data-section-id
         const card = container.querySelector(`.list-group-item[data-section-id="${sec.id}"]`);
         if (!card) return;
 
-        // Сохраняем оригинальные данные для отмены (на случай, если нужны)
-        const originalName = sec.name;
-        const originalDesc = sec.description;
-
         card.style.cursor = 'default';
+        const placeholderId = `tagsManagerPlaceholder-${sec.id || 'new'}`;
         card.innerHTML = `
             <div class="p-2">
                 <div class="mb-3">
@@ -126,6 +122,10 @@
                     <label class="form-label">Описание раздела</label>
                     <textarea class="form-control section-description-edit" rows="3" placeholder="Введите описание раздела">${escapeHtml(sec.description)}</textarea>
                 </div>
+                <div class="mb-3">
+                    <label class="form-label">Теги</label>
+                    <div id="${placeholderId}"></div>
+                </div>
                 <div class="d-flex justify-content-between align-items-center">
                     <button class="btn btn-danger delete-section">Удалить раздел</button>
                     <div>
@@ -135,6 +135,11 @@
                 </div>
             </div>
         `;
+
+        const placeholder = card.querySelector(`#${placeholderId}`);
+        if (placeholder) {
+            window.initTagManager(placeholder, sec.tags);
+        }
 
         const nameInput = card.querySelector('.section-name-edit');
         const descTextarea = card.querySelector('.section-description-edit');
@@ -150,6 +155,7 @@
                 return;
             }
             const newDesc = descTextarea.value.trim();
+            const newTags = [...sec.tags];
 
             if (sec.id) {
                 try {
@@ -157,15 +163,17 @@
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json' },
                         credentials: 'include',
-                        body: JSON.stringify({ name: newName, description: newDesc })
+                        body: JSON.stringify({ name: newName, description: newDesc, tags: newTags })
                     });
                     if (!res.ok) throw new Error('Ошибка обновления');
                     sec.name = newName;
                     sec.description = newDesc;
+                    sec.tags = newTags;
                     const orig = originalSections.find(s => s.id === sec.id);
                     if (orig) {
                         orig.name = newName;
                         orig.description = newDesc;
+                        orig.tags = newTags;
                     }
                     renderSections();
                     showMessage('Раздел обновлён');
@@ -182,7 +190,8 @@
                             name: newName,
                             description: newDesc,
                             order_number: sec.order_number,
-                            course_id: courseId
+                            course_id: courseId,
+                            tags: newTags
                         })
                     });
                     if (!res.ok) throw new Error('Ошибка создания раздела');
@@ -190,6 +199,7 @@
                     sec.id = data.id;
                     sec.name = newName;
                     sec.description = newDesc;
+                    sec.tags = newTags;
                     originalSections.push({ ...sec });
                     renderSections();
                     showMessage('Раздел создан');
@@ -206,6 +216,7 @@
                 if (orig) {
                     sec.name = orig.name;
                     sec.description = orig.description;
+                    sec.tags = [...orig.tags];
                 }
                 renderSections();
             } else {
@@ -247,11 +258,11 @@
             id: null,
             name: '',
             description: '',
-            order_number: newOrder
+            order_number: newOrder,
+            tags: []
         };
         sections.push(newSection);
         renderSections();
-        // Автоматически открываем редактирование для нового раздела
         setTimeout(() => {
             const newCard = container.querySelector(`.list-group-item:last-child`);
             const editTrigger = newCard?.querySelector('.edit-section-trigger');
@@ -269,5 +280,5 @@
     }
 
     loadSections();
-    window.updateCourseBreadcrumb(window.COURSE_ID);
+    if (typeof window.updateCourseBreadcrumb === 'function') window.updateCourseBreadcrumb(window.COURSE_ID);
 })();

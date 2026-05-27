@@ -69,10 +69,12 @@
 
             card.innerHTML = `
                 <div class="d-flex justify-content-between align-items-start">
-                    <strong>${escapeHtml(topic.name)}</strong>
+                    <div>
+                        <strong>${escapeHtml(topic.name)}</strong>
+                        ${topic.tags && topic.tags.length ? `<div class="small text-muted mt-1">Теги: ${topic.tags.map(t => escapeHtml(t)).join(' ')}</div>` : ''}
+                    </div>
                     <span class="text-secondary edit-topic-trigger" data-id="${topic.id}" style="cursor: pointer;">✎ редактировать</span>
                 </div>
-                ${topic.tags && topic.tags.length ? `<div class="small text-muted mt-1">Теги: ${topic.tags.map(t => escapeHtml(t)).join(', ')}</div>` : ''}
             `;
 
             const editTrigger = card.querySelector('.edit-topic-trigger');
@@ -97,9 +99,8 @@
         const card = container.querySelector(`.list-group-item[data-topic-id="${topic.id}"]`);
         if (!card) return;
 
-        const tagsString = (topic.tags || []).join(', ');
-
         card.style.cursor = 'default';
+        const placeholderId = `tagsManagerPlaceholder-${topic.id || 'new'}`;
         card.innerHTML = `
             <div class="p-2">
                 <div class="mb-3">
@@ -107,8 +108,8 @@
                     <input type="text" class="form-control topic-name-edit" value="${escapeHtml(topic.name)}" placeholder="Введите название темы">
                 </div>
                 <div class="mb-3">
-                    <label class="form-label">Теги (через запятую)</label>
-                    <input type="text" class="form-control topic-tags-edit" value="${escapeHtml(tagsString)}" placeholder="Например: Python, основы, урок 1">
+                    <label class="form-label">Теги</label>
+                    <div id="${placeholderId}"></div>
                 </div>
                 <div class="d-flex justify-content-between align-items-center">
                     <button class="btn btn-danger delete-topic">Удалить тему</button>
@@ -120,8 +121,12 @@
             </div>
         `;
 
+        const placeholder = card.querySelector(`#${placeholderId}`);
+        if (placeholder) {
+            window.initTagManager(placeholder, topic.tags);
+        }
+
         const nameInput = card.querySelector('.topic-name-edit');
-        const tagsInput = card.querySelector('.topic-tags-edit');
         const saveBtn = card.querySelector('.save-topic-edit');
         const cancelBtn = card.querySelector('.cancel-edit');
         const delBtn = card.querySelector('.delete-topic');
@@ -133,8 +138,7 @@
                 showMessage('Название темы не может быть пустым', true);
                 return;
             }
-
-            let newTags = tagsInput.value.split(',').map(t => t.trim()).filter(t => t !== '');
+            const newTags = [...topic.tags];
 
             if (topic.id) {
                 try {
@@ -198,7 +202,7 @@
                 const orig = originalTopics.find(t => t.id === topic.id);
                 if (orig) {
                     topic.name = orig.name;
-                    topic.tags = orig.tags;
+                    topic.tags = [...orig.tags];
                 }
                 renderTopics();
             } else {
@@ -261,6 +265,6 @@
     }
 
     loadTopics();
-    window.updateCourseBreadcrumb(window.COURSE_ID);
-    window.updateSectionBreadcrumb(window.SECTION_ID);
+    if (typeof window.updateCourseBreadcrumb === 'function') window.updateCourseBreadcrumb(window.COURSE_ID);
+    if (typeof window.updateSectionBreadcrumb === 'function') window.updateSectionBreadcrumb(window.SECTION_ID);
 })();
