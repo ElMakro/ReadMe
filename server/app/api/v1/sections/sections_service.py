@@ -3,13 +3,13 @@ from uuid import UUID
 from fastapi import Depends
 
 from server.app.api.v1.courses.courses_manager import CoursesManager
-from server.app.api.v1.courses.courses_service import OperationPermissionError
+from server.app.api.v1.exceptions import OperationPermissionError
 from server.app.api.v1.sections.sections import SectionIDMixin, SectionResponse, SectionsFullListResponse
 from server.app.api.v1.sections.sections_manager import DifferentSourcesContentSwapError, SectionsManager
-from server.app.api.v1.users.enums.access_permissions import AccessPermissions
 from server.app.api.v1.users.users import UserVerification
 from server.app.api.v1.users.users_service import UsersService
-from server.data.data_manager import DataManager
+from server.data.courses_resources.courses_resources_service import CoursesResourcesService
+from server.enums.access_permissions import AccessPermissions
 
 
 class OrderNumberConflictError(
@@ -31,8 +31,8 @@ class SectionsService:
             users_service: UsersService = Depends(
                 UsersService,
             ),
-            data_manager: DataManager = Depends(
-                DataManager,
+            data_manager: CoursesResourcesService = Depends(
+                CoursesResourcesService,
             ),
     ) -> None:
         self.sections_manager = sections_manager
@@ -75,11 +75,6 @@ class SectionsService:
             description,
             order_number,
             tags,
-        )
-
-        await self.data_manager.create_section(
-            section.id,
-            course_id,
         )
 
         return section
@@ -139,11 +134,6 @@ class SectionsService:
 
         await self.sections_manager.delete_section(
             section_id,
-        )
-
-        await self.data_manager.delete_section(
-            section_id,
-            section.course_id,
         )
 
     async def update_section(

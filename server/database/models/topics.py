@@ -1,8 +1,9 @@
 import uuid
 
 from sqlalchemy import ForeignKey, Index, Integer, String
-from sqlalchemy.dialects.postgresql import ARRAY
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy_json import mutable_json_type
 
 from server.database.mixins.id_mixins import IDMixin
 from server.database.mixins.timestamp_mixins import TimestampsMixin
@@ -40,6 +41,24 @@ class Topics(
         ARRAY(
             String,
         ),
+        default=list,
+        nullable=False,
+    )
+    raw_content: Mapped[list[dict[str, str]]] = mapped_column(
+        mutable_json_type(
+            dbtype=JSONB,
+            nested=True,
+        ),
+        default=list,
+        nullable=False,
+    )
+    rendered_content: Mapped[list[dict[str, str]]] = mapped_column(
+        mutable_json_type(
+            dbtype=JSONB,
+            nested=True,
+        ),
+        default=list,
+        nullable=False,
     )
 
     __table_args__ = (

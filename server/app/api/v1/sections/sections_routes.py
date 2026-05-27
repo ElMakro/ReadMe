@@ -5,8 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Path, status
 
 from server.app.api.openapi_docs import openapi_extra_authorization_cookie
 from server.app.api.v1.common_schemas import UNPROCESSABLE_ENTITY_ERROR_TEXT, SwapContentOrder
-from server.app.api.v1.courses.courses_manager import ObjectExistenceError
-from server.app.api.v1.courses.courses_service import OperationPermissionError
+from server.app.api.v1.exceptions import ObjectMissingError, OperationPermissionError
 from server.app.api.v1.sections.sections import (
     SectionCreation,
     SectionIDMixin,
@@ -76,7 +75,7 @@ async def create_section(
                 error,
             ),
         )
-    except ObjectExistenceError as error:
+    except ObjectMissingError as error:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(
@@ -139,7 +138,7 @@ async def get_sections_by_course_id(
                 error,
             ),
         )
-    except ObjectExistenceError as error:
+    except ObjectMissingError as error:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(
@@ -192,7 +191,7 @@ async def swap_sections(
                 error,
             ),
         )
-    except ObjectExistenceError as error:
+    except ObjectMissingError as error:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(
@@ -252,7 +251,7 @@ async def get_section_by_id(
                 error,
             ),
         )
-    except ObjectExistenceError as error:
+    except ObjectMissingError as error:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(
@@ -308,7 +307,7 @@ async def update_section(
                 error,
             ),
         )
-    except ObjectExistenceError as error:
+    except ObjectMissingError as error:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(
@@ -363,7 +362,7 @@ async def delete_section(
                 error,
             ),
         )
-    except ObjectExistenceError as error:
+    except ObjectMissingError as error:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(

@@ -14,6 +14,7 @@ from server.app.api.v1.topics.topics import (
     TopicRawContent,
     TopicRenderedContent,
 )
+from server.data.courses_resources import COURSES_RESOURCES_DIRECTORY
 
 
 class CompilationError(
@@ -29,19 +30,21 @@ class CompilationError(
 
 
 class CompilationManager:
-    async def compile_content(
+    async def compile_topic_content(
             self,
-            topic_path: Path,
             topic_raw_content: TopicRawContent,
+            old_topic_rendered_content: TopicRenderedContent | None = None,
     ) -> TopicRenderedContent:
-        backup_dir = None
         old_rendered_files = []
+        backup_dir = None
 
-        for file_path in topic_path.iterdir():
-            if file_path.suffix in ['.png', '.pdf'] and file_path.name != "raw_content.json":
-                old_rendered_files.append(
-                    file_path,
-                )
+        if old_topic_rendered_content is not None:
+
+            for block in old_topic_rendered_content.root:
+                if block.type == "file":
+                    old_rendered_files.append(
+                        block.rendered_content,
+                    )
 
         if old_rendered_files:
             backup_dir = Path(
@@ -60,7 +63,7 @@ class CompilationManager:
             self.process_block(
                 i,
                 block,
-                topic_path,
+                COURSES_RESOURCES_DIRECTORY,
             )
             for i, block in enumerate(
                 topic_raw_content_root,
@@ -93,7 +96,7 @@ class CompilationManager:
         if compilation_errors:
             if backup_dir and backup_dir.exists():
                 for backup_file in backup_dir.iterdir():
-                    target_file = topic_path / backup_file.name
+                    target_file = COURSES_RESOURCES_DIRECTORY / backup_file.name
                     copy2(
                         backup_file,
                         target_file,

@@ -3,7 +3,7 @@ from uuid import UUID
 from fastapi import Depends
 from sqlalchemy import and_, select
 
-from server.app.api.v1.courses.courses_manager import ObjectExistenceError
+from server.app.api.v1.exceptions import ObjectMissingError
 from server.app.api.v1.sections.sections import SectionIDMixin, SectionResponse, SectionsFullListResponse
 from server.config.db_dependency import DBDependency
 from server.database.models import Sections
@@ -104,7 +104,7 @@ class SectionsManager:
             )
 
         if not section:
-            raise ObjectExistenceError(
+            raise ObjectMissingError(
                 "Раздела курса с таким идентификатором не существует!",
             )
 

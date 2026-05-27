@@ -3,21 +3,19 @@ from uuid import UUID
 from fastapi import Depends
 
 from server.app.api.v1.courses.courses_manager import CoursesManager
-from server.app.api.v1.courses.courses_service import OperationPermissionError
+from server.app.api.v1.exceptions import OperationPermissionError
 from server.app.api.v1.sections.sections_manager import SectionsManager
 from server.app.api.v1.sections.sections_service import OrderNumberConflictError
 from server.app.api.v1.topics.topics import (
     TopicIDMixin,
     TopicRawContent,
-    TopicRenderedContent,
     TopicResponse,
     TopicsFullListResponse,
 )
 from server.app.api.v1.topics.topics_manager import TopicsManager
-from server.app.api.v1.users.enums.access_permissions import AccessPermissions
 from server.app.api.v1.users.users import UserVerification
 from server.app.api.v1.users.users_service import UsersService
-from server.data.data_manager import DataManager
+from server.enums.access_permissions import AccessPermissions
 
 
 class TopicsService:
@@ -32,9 +30,6 @@ class TopicsService:
             topics_manager: TopicsManager = Depends(
                 TopicsManager,
             ),
-            data_manager: DataManager = Depends(
-                DataManager,
-            ),
             users_service: UsersService = Depends(
                 UsersService,
             ),
@@ -42,7 +37,6 @@ class TopicsService:
         self.courses_manager = courses_manager
         self.sections_manager = sections_manager
         self.topics_manager = topics_manager
-        self.data_manager = data_manager
         self.users_service = users_service
 
     async def create_topic(
@@ -52,6 +46,7 @@ class TopicsService:
             name: str,
             order_number: int,
             tags: list[str],
+            raw_content: TopicRawContent,
     ) -> TopicIDMixin:
         section = await self.sections_manager.get_section_by_id(
             section_id,
@@ -81,12 +76,7 @@ class TopicsService:
             order_number,
             course.id,
             tags,
-        )
-
-        await self.data_manager.create_topic(
-            topic.id,
-            section_id,
-            course.id,
+            raw_content,
         )
 
         return topic
@@ -173,18 +163,13 @@ class TopicsService:
             topic_id,
         )
 
-        await self.data_manager.delete_topic(
-            topic_id,
-            topic.section_id,
-            topic.course_id,
-        )
-
     async def update_topic(
             self,
             user: UserVerification,
             topic_id: UUID,
             new_name: str | None,
             new_tags: list[str] | None,
+            new_raw_content: TopicRawContent | None,
     ) -> None:
         topic = await self.topics_manager.get_topic_by_id(
             topic_id,
@@ -198,86 +183,19 @@ class TopicsService:
                 "Пользователь не имеет права на изменение темы!",
             )
 
-        if new_name is None and new_tags is None:
+        if new_name is None and new_tags is None and new_raw_content is None:
             return
 
         result_name = new_name if new_name is not None else topic.name
         result_tags = new_tags if new_tags is not None else topic.tags
+        result_raw_content = new_raw_content if new_raw_content is not None else topic.raw_content
 
-        if topic.name == result_name and topic.tags == result_tags:
+        if topic.name == result_name and topic.tags == result_tags and result_raw_content == topic.raw_content:
             return
 
         await self.topics_manager.update_topic(
             topic_id,
             result_name,
             result_tags,
-        )
-
-    async def get_raw_content(
-            self,
-            user: UserVerification | None,
-            topic_id: UUID,
-    ) -> TopicRawContent:
-        topic = await self.topics_manager.get_topic_by_id(
-            topic_id,
-        )
-
-        if await self.users_service.check_course_access(
-                user,
-                course_id=topic.course_id,
-        ) < AccessPermissions.EDIT_ACCESS:
-            raise OperationPermissionError(
-                "У пользователя нет разрешения на просмотр контента!",
-            )
-
-        return await self.data_manager.get_topic_raw_content(
-            topic.id,
-            topic.section_id,
-            topic.course_id, )
-
-    async def get_rendered_content(
-            self,
-            user: UserVerification | None,
-            topic_id: UUID,
-    ) -> TopicRenderedContent:
-        topic = await self.topics_manager.get_topic_by_id(
-            topic_id,
-        )
-
-        if await self.users_service.check_course_access(
-                user,
-                course_id=topic.course_id,
-        ) < AccessPermissions.CONTENT_ACCESS:
-            raise OperationPermissionError(
-                "У пользователя нет разрешения на просмотр контента!",
-            )
-
-        return await self.data_manager.get_topic_rendered_content(
-            topic.id,
-            topic.section_id,
-            topic.course_id, )
-
-    async def put_topic_content(
-            self,
-            user: UserVerification,
-            topic_id: UUID,
-            topic_raw_content: TopicRawContent,
-    ) -> None:
-        topic = await self.topics_manager.get_topic_by_id(
-            topic_id,
-        )
-
-        if await self.users_service.check_course_access(
-                user,
-                course_id=topic.course_id,
-        ) < AccessPermissions.EDIT_ACCESS:
-            raise OperationPermissionError(
-                "У пользователя нет разрешения на установку контента курса!",
-            )
-
-        await self.data_manager.update_topic_content(
-            topic_raw_content,
-            topic_id,
-            topic.section_id,
-            topic.course_id,
+            result_raw_content,
         )

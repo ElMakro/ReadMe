@@ -1,11 +1,19 @@
+import uuid
 from uuid import UUID
 
 from fastapi import Depends
 from sqlalchemy import and_, select
 
-from server.app.api.v1.courses.courses_manager import ObjectExistenceError
-from server.app.api.v1.topics.topics import TopicIDMixin, TopicResponse, TopicsFullListResponse
+from server.app.api.v1.exceptions import ObjectMissingError
+from server.app.api.v1.topics.topics import (
+    TopicIDMixin,
+    TopicRawContent,
+    TopicRenderedContent,
+    TopicResponse,
+    TopicsFullListResponse,
+)
 from server.config.db_dependency import DBDependency
+from server.data.courses_resources.courses_resources_service import CoursesResourcesService
 from server.database.models import Topics
 
 
@@ -15,8 +23,12 @@ class TopicsManager:
             db: DBDependency = Depends(
                 DBDependency,
             ),
+            courses_resources_manager: CoursesResourcesService = Depends(
+                CoursesResourcesService,
+            ),
     ) -> None:
         self.db = db
+        self.courses_resources_manager = courses_resources_manager
 
     async def create_topic(
             self,
@@ -25,14 +37,25 @@ class TopicsManager:
             order_number: int,
             course_id: UUID,
             tags: list[str],
+            raw_content: TopicRawContent,
     ) -> TopicIDMixin:
+        topic_id = uuid.uuid4()
+        rendered_content = await self.courses_resources_manager.compile_and_register_topic_rendered_content(
+            topic_id,
+            raw_content,
+            None,
+        )
+
         async with self.db.db_session() as session:
             topic = Topics(
+                id=topic_id,
                 section_id=section_id,
                 name=name,
                 order_number=order_number,
                 course_id=course_id,
                 tags=tags,
+                raw_content=[block.model_dump() for block in raw_content.root],
+                rendered_content=[block.model_dump() for block in rendered_content.root],
             )
 
             session.add(
@@ -55,7 +78,7 @@ class TopicsManager:
             )
 
         if topic is None:
-            raise ObjectExistenceError(
+            raise ObjectMissingError(
                 "Темы с таким id не существует!",
             )
 
@@ -149,6 +172,7 @@ class TopicsManager:
             topic_id: UUID,
             name: str,
             tags: list[str],
+            raw_content: TopicRawContent,
     ) -> None:
         async with self.db.db_session() as session:
             topic = await session.get(
@@ -157,7 +181,23 @@ class TopicsManager:
                 with_for_update=True,
             )
 
+            topic_response = TopicResponse.model_validate(
+                topic,
+            )
+
+            assert topic is not None
+
+            rendered_content = await self.courses_resources_manager.compile_and_register_topic_rendered_content(
+                topic_response.id,
+                raw_content,
+                TopicRenderedContent.model_validate(
+                    topic.rendered_content,
+                ),
+            )
+
             topic.name = name
             topic.tags = tags
+            topic.raw_content = [block.model_dump() for block in raw_content.root]
+            topic.rendered_content = [block.model_dump() for block in rendered_content.root]
 
             await session.commit()
