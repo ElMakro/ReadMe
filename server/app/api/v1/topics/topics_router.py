@@ -5,15 +5,12 @@ from fastapi import APIRouter, Depends, HTTPException, Path, status
 
 from server.app.api.openapi_docs import openapi_extra_authorization_cookie
 from server.app.api.v1.common_schemas import UNPROCESSABLE_ENTITY_ERROR_TEXT
-from server.app.api.v1.courses.courses_manager import ObjectExistenceError
-from server.app.api.v1.courses.courses_service import OperationPermissionError
+from server.app.api.v1.exceptions import ObjectMissingError, OperationPermissionError
 from server.app.api.v1.sections.sections_service import OrderNumberConflictError
 from server.app.api.v1.topics.topics import (
     ContentCompilationError,
     TopicCreation,
     TopicIDMixin,
-    TopicRawContent,
-    TopicRenderedContent,
     TopicResponse,
     TopicsFullListResponse,
     TopicUpdate,
@@ -21,7 +18,6 @@ from server.app.api.v1.topics.topics import (
 from server.app.api.v1.topics.topics_service import TopicsService
 from server.app.api.v1.users.users import UserVerification
 from server.app.common_dependencies.depends import get_auth_user, get_current_user
-from server.data.compilation_manager import CompilationError
 
 topics_router = APIRouter(
     prefix="/topics",
@@ -36,6 +32,10 @@ topics_router = APIRouter(
     status_code=status.HTTP_201_CREATED,
     response_model=TopicIDMixin,
     responses={
+        status.HTTP_400_BAD_REQUEST          : {
+            "description": "Ошибка компиляции контента",
+            "model"      : ContentCompilationError,
+        },
         status.HTTP_403_FORBIDDEN            : {
             "description": "У пользователя нет прав на создание темы в данном разделе",
         },
@@ -70,7 +70,8 @@ async def create_topic(
             topic_data.section_id,
             topic_data.name,
             topic_data.order_number,
-            topic_data.tags
+            topic_data.tags,
+            topic_data.raw_content,
         )
     except OperationPermissionError as error:
         raise HTTPException(
@@ -79,7 +80,7 @@ async def create_topic(
                 error,
             ),
         )
-    except ObjectExistenceError as error:
+    except ObjectMissingError as error:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(
@@ -141,7 +142,7 @@ async def get_topics_by_section(
                 error,
             ),
         )
-    except ObjectExistenceError as error:
+    except ObjectMissingError as error:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(
@@ -196,172 +197,7 @@ async def get_topics_by_course(
                 error,
             ),
         )
-    except ObjectExistenceError as error:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(
-                error,
-            ),
-        )
-
-
-@topics_router.get(
-    "/get-rendered-content/{topic_id}",
-    summary="Получить готовый к отображению контент темы",
-    status_code=status.HTTP_200_OK,
-    response_description="Готовый к отображению контент темы успешно получен",
-    response_model=TopicRenderedContent,
-    responses={
-        status.HTTP_403_FORBIDDEN            : {
-            "description": "Пользователь не имеет прав на просмотр контента",
-        },
-        status.HTTP_404_NOT_FOUND            : {
-            "description": "Темы с таким идентификатором не существует",
-        },
-        status.HTTP_422_UNPROCESSABLE_CONTENT: {
-            "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
-        },
-    },
-    openapi_extra=openapi_extra_authorization_cookie,
-)
-async def get_rendered_content(
-        user: Annotated[UserVerification | None, Depends(
-            get_current_user,
-        )],
-        topic_id: UUID = Path(
-            ...,
-            description="Уникальный идентификатор темы",
-        ),
-        topics_service: TopicsService = Depends(
-            TopicsService,
-        ),
-) -> TopicRenderedContent:
-    try:
-        return await topics_service.get_rendered_content(
-            user,
-            topic_id,
-        )
-    except OperationPermissionError as error:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=str(
-                error,
-            ),
-        )
-    except ObjectExistenceError as error:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(
-                error,
-            ),
-        )
-
-
-@topics_router.get(
-    "/get-raw-content/{topic_id}",
-    summary="Получить строковое представление контента темы",
-    status_code=status.HTTP_200_OK,
-    response_description="Строковое представление контента темы успешно получено",
-    response_model=TopicRawContent,
-    responses={
-        status.HTTP_403_FORBIDDEN            : {
-            "description": "Пользователь не имеет прав на просмотр контента",
-        },
-        status.HTTP_404_NOT_FOUND            : {
-            "description": "Темы с таким идентификатором не существует",
-        },
-        status.HTTP_422_UNPROCESSABLE_CONTENT: {
-            "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
-        },
-    },
-    openapi_extra=openapi_extra_authorization_cookie,
-)
-async def get_raw_content(
-        user: Annotated[UserVerification | None, Depends(
-            get_current_user,
-        )],
-        topic_id: UUID = Path(
-            ...,
-            description="Уникальный идентификатор темы",
-        ),
-        topics_service: TopicsService = Depends(
-            TopicsService,
-        ),
-) -> TopicRawContent:
-    try:
-        return await topics_service.get_raw_content(
-            user,
-            topic_id,
-        )
-    except OperationPermissionError as error:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=str(
-                error,
-            ),
-        )
-    except ObjectExistenceError as error:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(
-                error,
-            ),
-        )
-
-
-@topics_router.put(
-    "/put-content/{topic_id}",
-    summary="Установить контент темы",
-    status_code=status.HTTP_204_NO_CONTENT,
-    responses={
-        status.HTTP_400_BAD_REQUEST          : {
-            "description"   : "Ошибка компиляции контента",
-            "model": ContentCompilationError,
-        },
-        status.HTTP_403_FORBIDDEN            : {
-            "description": "Пользователь не имеет прав на установление контента",
-        },
-        status.HTTP_404_NOT_FOUND            : {
-            "description": "Темы с таким идентификатором не существует",
-        },
-        status.HTTP_422_UNPROCESSABLE_CONTENT: {
-            "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
-        },
-    },
-    openapi_extra=openapi_extra_authorization_cookie,
-)
-async def put_topic_content(
-        user: Annotated[UserVerification, Depends(
-            get_auth_user,
-        )],
-        topic_raw_content: TopicRawContent,
-        topic_id: UUID = Path(
-            ...,
-            description="Уникальный идентификатор темы",
-        ),
-        topics_service: TopicsService = Depends(
-            TopicsService,
-        ),
-):
-    try:
-        await topics_service.put_topic_content(
-            user,
-            topic_id,
-            topic_raw_content,
-        )
-    except CompilationError as error:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=[dict(element) for element in error.content_error.root],
-        )
-    except OperationPermissionError as error:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=str(
-                error,
-            ),
-        )
-    except ObjectExistenceError as error:
+    except ObjectMissingError as error:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(
@@ -414,7 +250,7 @@ async def get_topic_by_id(
                 error,
             ),
         )
-    except ObjectExistenceError as error:
+    except ObjectMissingError as error:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(
@@ -429,6 +265,10 @@ async def get_topic_by_id(
     response_description="Тема успешно отредактирована",
     status_code=status.HTTP_204_NO_CONTENT,
     responses={
+        status.HTTP_400_BAD_REQUEST          : {
+            "description": "Ошибка компиляции контента",
+            "model"      : ContentCompilationError,
+        },
         status.HTTP_403_FORBIDDEN            : {
             "description": "У пользователя нет прав на редактирование этой темы",
         },
@@ -463,7 +303,8 @@ async def update_topic(
             user,
             topic_id,
             topic_update.name,
-            topic_update.tags
+            topic_update.tags,
+            topic_update.raw_content,
         )
     except OperationPermissionError as error:
         raise HTTPException(
@@ -472,7 +313,7 @@ async def update_topic(
                 error,
             ),
         )
-    except ObjectExistenceError as error:
+    except ObjectMissingError as error:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(
@@ -527,7 +368,7 @@ async def delete_topic(
                 error,
             ),
         )
-    except ObjectExistenceError as error:
+    except ObjectMissingError as error:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(

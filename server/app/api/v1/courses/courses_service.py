@@ -13,18 +13,13 @@ from server.app.api.v1.courses.courses import (
     CoursesListSearchResponse,
 )
 from server.app.api.v1.courses.courses_manager import CoursesManager
-from server.app.api.v1.users.enums.access_permissions import AccessPermissions
+from server.app.api.v1.exceptions import OperationPermissionError
 from server.app.api.v1.users.users import UserVerification
 from server.app.api.v1.users.users_manager import UserExistenceError, UsersManager
 from server.app.api.v1.users.users_service import UsersService
-from server.data.data_manager import DataManager
+from server.data.courses_resources.courses_resources_service import CoursesResourcesService
+from server.enums.access_permissions import AccessPermissions
 from server.enums.role import Role
-
-
-class OperationPermissionError(
-    ValueError,
-):
-    """Исключение, связанное с наличием у пользователя прав на операцию над объектом информационной системы"""
 
 
 class CoursePrivacyLevelsError(
@@ -66,8 +61,8 @@ class CoursesService:
             users_service: UsersService = Depends(
                 UsersService,
             ),
-            data_manager: DataManager = Depends(
-                DataManager,
+            data_manager: CoursesResourcesService = Depends(
+                CoursesResourcesService,
             ),
     ) -> None:
         self.courses_manager = courses_manager
@@ -129,10 +124,6 @@ class CoursesService:
             is_public=is_public,
             is_content_public=is_content_public,
             tags=tags,
-        )
-
-        self.data_manager.create_course(
-            course.id,
         )
 
         return course
@@ -265,10 +256,6 @@ class CoursesService:
             course_id,
         )
 
-        self.data_manager.delete_course(
-            course_id,
-        )
-
     async def resolve_course_state(
             self,
             user_id: UUID | None,
@@ -324,12 +311,13 @@ class CoursesService:
                 course,
             )
 
+            search_course = course.model_dump()
+            search_course["state"] = state
+
             if state is not None:
                 stated_courses.append(
-                    CourseSearchResponse(
-                        id=course.id,
-                        name=course.name,
-                        state=state,
+                    CourseSearchResponse.model_validate(
+                        search_course,
                     ),
                 )
 

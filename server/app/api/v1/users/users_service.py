@@ -5,7 +5,6 @@ from fastapi import Depends
 from server.app.api.v1.auth.auth_manager import AuthManager
 from server.app.api.v1.courses.courses import CourseResponse
 from server.app.api.v1.courses.courses_manager import CoursesManager
-from server.app.api.v1.users.enums.access_permissions import AccessPermissions
 from server.app.api.v1.users.users import (
     ApplicationById,
     ApplicationChangeStatus,
@@ -19,6 +18,7 @@ from server.app.api.v1.users.users import (
     UserWithRole,
 )
 from server.app.api.v1.users.users_manager import UsersManager
+from server.enums.access_permissions import AccessPermissions
 from server.enums.role import Role
 
 

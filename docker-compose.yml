@@ -240,7 +240,7 @@ services:
         networks:
             - readme-network
         volumes:
-            - readme-content:/content/server/data/content
+            - readme-courses-resources:/content/server/data/courses_resources/resources
         depends_on:
             postgres-database:
                 condition: service_healthy
@@ -270,4 +270,4 @@ volumes:
     readme-postgres-database-data:
     readme-postgres-database-backups:
     readme-redis-database-data:
-    readme-content:
+    readme-courses-resources:

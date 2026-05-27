@@ -5,15 +5,9 @@ from fastapi import Depends
 from sqlalchemy import delete, select
 
 from server.app.api.v1.courses.courses import CourseFullListResponse, CourseIDMixin, CourseResponse, CoursesList
+from server.app.api.v1.exceptions import ObjectMissingError
 from server.config.db_dependency import DBDependency
 from server.database.models import Courses, CoursesForStudents
-
-
-class ObjectExistenceError(
-    ValueError,
-):
-    """Исключение, связанное с отсутствием объекта"""
-    pass
 
 
 class CoursesManager:
@@ -125,7 +119,7 @@ class CoursesManager:
             )
 
         if course is None:
-            raise ObjectExistenceError(
+            raise ObjectMissingError(
                 "Курса с таким ID не существует!",
             )
 

@@ -7,6 +7,60 @@ from server.app.api.v1.common_schemas import TimestampsMixin
 from server.app.api.v1.sections.sections import SectionIDMixin
 
 
+class TopicBlockRawContent(
+    BaseModel,
+):
+    """Модель текстового представления блока контента в теме"""
+    model_config = ConfigDict(
+        from_attributes=True,
+        extra="ignore",
+    )
+
+    type: Literal["markdown", "uml", "latex"] = Field(
+        ...,
+        description="Тип контента в блоке",
+        examples=["latex"],
+    )
+    raw_content: str = Field(
+        ...,
+        description="Строковое представление контента в блоке",
+        examples=[r"E \equals mc^2"],
+    )
+
+
+class TopicRawContent(
+    RootModel[list[TopicBlockRawContent]],
+):
+    """Модель текстового представления контента в теме"""
+
+
+class TopicBlockRenderedContent(
+    BaseModel,
+):
+    """Модель блока готового к отображению контента в теме"""
+    model_config = ConfigDict(
+        from_attributes=True,
+        extra="ignore",
+    )
+
+    type: Literal["markdown", "latex", "file"] = Field(
+        ...,
+        description="Тип контента в блоке",
+        examples=["latex"],
+    )
+    rendered_content: str = Field(
+        ...,
+        description="Представление контента в блоке",
+        examples=["..."],
+    )
+
+
+class TopicRenderedContent(
+    RootModel[list[TopicBlockRenderedContent]],
+):
+    """Модель готового к отображению контента в теме"""
+
+
 class TopicIDMixin(
     BaseModel,
 ):
@@ -51,7 +105,11 @@ class TopicBase(
     tags: list[str] = Field(
         [],
         description="Теги объекта",
-        examples=["Тег1"]
+        examples=[["Тег1"]],
+    )
+    raw_content: TopicRawContent = Field(
+        default_factory=list,
+        description="Текстовое представление контента в теме",
     )
 
 
@@ -84,7 +142,11 @@ class TopicUpdate(
     tags: list[str] = Field(
         None,
         description="Теги объекта",
-        examples=["Тег1"]
+        examples=[["Тег1"]],
+    )
+    raw_content: TopicRawContent = Field(
+        None,
+        description="Текстовое представление контента в теме",
     )
 
 
@@ -104,66 +166,16 @@ class TopicResponse(
         description="Уникальный идентификатор курса, к которому относится тема",
         examples=[uuid.uuid4()],
     )
+    rendered_content: TopicRenderedContent = Field(
+        default_factory=list,
+        description="Представление готового к отображению контента темы",
+    )
 
 
 class TopicsFullListResponse(
     RootModel[list[TopicResponse]],
 ):
     """Полный список тем"""
-
-
-class TopicBlockRawContent(
-    BaseModel,
-):
-    """Модель строкового представления блока контента в теме"""
-    model_config = ConfigDict(
-        from_attributes=True,
-        extra="ignore",
-    )
-
-    type: Literal["markdown", "uml", "latex"] = Field(
-        ...,
-        description="Тип контента в блоке",
-        examples=["latex"],
-    )
-    raw_content: str = Field(
-        ...,
-        description="Строковое представление контента в блоке",
-        examples=[r"E \equals mc^2"],
-    )
-
-
-class TopicRawContent(
-    RootModel[list[TopicBlockRawContent]],
-):
-    """Модель строкового представления контента в теме"""
-
-
-class TopicBlockRenderedContent(
-    BaseModel,
-):
-    """Модель блока готового к отображению контента в теме"""
-    model_config = ConfigDict(
-        from_attributes=True,
-        extra="ignore",
-    )
-
-    type: Literal["markdown", "latex", "file"] = Field(
-        ...,
-        description="Тип контента в блоке",
-        examples=["latex"],
-    )
-    rendered_content: str = Field(
-        ...,
-        description="Представление контента в блоке",
-        examples=["..."],
-    )
-
-
-class TopicRenderedContent(
-    RootModel[list[TopicBlockRenderedContent]],
-):
-    """Модель готового к отображению контента в теме"""
 
 
 class BlockCompilationError(

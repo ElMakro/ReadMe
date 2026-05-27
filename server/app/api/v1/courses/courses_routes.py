@@ -14,15 +14,14 @@ from server.app.api.v1.courses.courses import (
     CoursesListSearchResponse,
     CourseUpdate,
 )
-from server.app.api.v1.courses.courses_manager import ObjectExistenceError
 from server.app.api.v1.courses.courses_service import (
     CourseOwnerConflictError,
     CoursePrivacyLevelsError,
     CoursesService,
-    OperationPermissionError,
     UnsupportedSearchCriteriaError,
     UserEnrollmentError,
 )
+from server.app.api.v1.exceptions import ObjectMissingError, OperationPermissionError
 from server.app.api.v1.users.users import UserVerification
 from server.app.api.v1.users.users_manager import UserExistenceError
 from server.app.common_dependencies.depends import get_auth_user, get_current_user
@@ -264,7 +263,7 @@ async def change_course_professor(
                 error,
             ),
         )
-    except ObjectExistenceError as error:
+    except ObjectMissingError as error:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(
@@ -333,7 +332,7 @@ async def self_enroll_on_course(
                 error,
             ),
         )
-    except ObjectExistenceError as error:
+    except ObjectMissingError as error:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(
@@ -382,7 +381,7 @@ async def self_unenroll_from_course(
             user,
             course_id,
         )
-    except ObjectExistenceError as error:
+    except ObjectMissingError as error:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(
@@ -435,7 +434,7 @@ async def get_course_by_id(
                 error,
             ),
         )
-    except ObjectExistenceError as error:
+    except ObjectMissingError as error:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(
@@ -496,7 +495,7 @@ async def update_course(
                 error,
             ),
         )
-    except ObjectExistenceError as error:
+    except ObjectMissingError as error:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(
@@ -558,7 +557,7 @@ async def delete_course(
                 error,
             ),
         )
-    except ObjectExistenceError as error:
+    except ObjectMissingError as error:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(

@@ -164,9 +164,7 @@ class CourseByName(
 
 
 class CourseSearchResponse(
-    CourseIDMixin,
-    CourseByName,
-    BaseModel,
+    CourseResponse
 ):
     model_config = ConfigDict(
         from_attributes=True,
