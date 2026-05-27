@@ -46,21 +46,21 @@ async def my_courses_page(request: Request):
 
 @client_app.get("/created-courses")
 async def created_courses_page(request: Request):
-    return templates.TemplateResponse(request, "created_courses.html", {
+    return templates.TemplateResponse(request, "course_creation/created_courses.html", {
         "request": request,
         "api_base_url": BACKEND_URL
     })
 
-@client_app.get("/create-course")
-async def create_course_form(request: Request):
-    return templates.TemplateResponse(request, "course_creation/create_course.html", {
-        "request": request,
-        "api_base_url": BACKEND_URL
-    })
+# @client_app.get("/create-course")
+# async def create_course_form(request: Request):
+#     return templates.TemplateResponse(request, "course_creation/course.html", {
+#         "request": request,
+#         "api_base_url": BACKEND_URL
+#     })
 
 @client_app.get("/course/{course_id}/sections")
 async def edit_sections(request: Request, course_id: str):
-    return templates.TemplateResponse(request, "course_creation/edit_sections.html", {
+    return templates.TemplateResponse(request, "course_creation/sections.html", {
         "request": request,
         "course_id": course_id,
         "api_base_url": BACKEND_URL
@@ -68,7 +68,7 @@ async def edit_sections(request: Request, course_id: str):
 
 @client_app.get("/course/{course_id}/section/{section_id}/topics")
 async def edit_topics(request: Request, course_id: str, section_id: str):
-    return templates.TemplateResponse(request, "course_creation/edit_topics.html", {
+    return templates.TemplateResponse(request, "course_creation/topics.html", {
         "request": request,
         "course_id": course_id,
         "section_id": section_id,
@@ -77,7 +77,7 @@ async def edit_topics(request: Request, course_id: str, section_id: str):
 
 @client_app.get("/course/{course_id}/section/{section_id}/topic/{topic_id}/blocks")
 async def edit_blocks(request: Request, course_id: str, section_id: str, topic_id: str):
-    return templates.TemplateResponse(request, "course_creation/edit_blocks.html", {
+    return templates.TemplateResponse(request, "course_creation/blocks.html", {
         "request": request,
         "course_id": course_id,
         "section_id": section_id,
@@ -85,13 +85,13 @@ async def edit_blocks(request: Request, course_id: str, section_id: str, topic_i
         "api_base_url": BACKEND_URL
     })
 
-@client_app.get("/course/{course_id}/edit")
-async def edit_course_page(request: Request, course_id: str):
-    return templates.TemplateResponse(request, "course_creation/create_course.html", {
-        "request": request,
-        "course_id": course_id,
-        "api_base_url": BACKEND_URL
-    })
+# @client_app.get("/course/{course_id}/edit")
+# async def edit_course_page(request: Request, course_id: str):
+#     return templates.TemplateResponse(request, "course_creation/course.html", {
+#         "request": request,
+#         "course_id": course_id,
+#         "api_base_url": BACKEND_URL
+#     })
 
 @client_app.get("/my-notes")
 async def my_notes_page(request: Request):

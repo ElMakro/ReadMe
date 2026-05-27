@@ -19,7 +19,7 @@
             </div>
             <button class="btn btn-outline-accent mb-4" id="addSectionBtn">+ Добавить раздел</button>
             <div class="d-flex justify-content-between">
-                <a href="/course/{{ course_id }}/edit" class="btn btn-outline-secondary" id="backBtn">Назад</a>
+                <a href="/created-courses" class="btn btn-outline-secondary" id="backBtn">Назад</a>
             </div>
         </div>
     </div>
@@ -31,6 +31,7 @@
     window.COURSE_ID = "{{ course_id }}";
     window.API_BASE_URL = "{{ api_base_url }}";
 </script>
-<script src="/static/course_creation/course_helpers.js"></script>
-<script src="/static/course_creation/edit_sections.js"></script>
+<script src="/static/course_creation/breadcrumbs_manager.js"></script>
+<script src="/static/course_creation/tag_manager.js"></script>
+<script src="/static/course_creation/sections.js"></script>
 {% endblock %}

@@ -23,6 +23,15 @@
         }
     }
 
+    function getRoleName(role) {
+        const roleMap = {
+            'admin': 'администратор',
+            'professor': 'преподаватель',
+            'student': 'обучающийся'
+        };
+        return roleMap[role] || 'обучающийся';
+    }
+
     function renderProfile(user) {
         profileContainer.innerHTML = `
             <div class="row mb-5">
@@ -35,7 +44,7 @@
                         <span class="fw-bold me-2">Почта:</span> ${escapeHtml(user.email || 'не указана')}
                     </div>
                     <div class="data-item d-flex align-items-center mb-3">
-                        <span class="fw-bold me-2">Роль:</span> ${escapeHtml(user.role || 'student')}
+                        <span class="fw-bold me-2">Роль:</span> ${escapeHtml(getRoleName(user.role))}
                     </div>
                     <button class="btn btn-outline-accent" id="logoutBtn">Выход</button>
                 </div>
@@ -47,7 +56,6 @@
                 if (window.Auth && window.Auth.logout) {
                     window.Auth.logout();
                 } else {
-                    // fallback
                     fetch(`${window.API_BASE_URL}auth/logout`, { credentials: 'include' })
                         .finally(() => window.location.href = '/');
                 }

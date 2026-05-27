@@ -21,14 +21,14 @@
 /* Глобальные CSS-переменные (зависят от data-theme) */
 :root,
 [data-theme="light"] {
-    --bg-primary: #FFFFFF;                /* белый — уже светлый */
-    --bg-secondary: #FFFBF5;              /* очень светлый кремовый (было #FFF4E2) */
-    --text-primary: #6B4C3A;              /* мягкий тёплый коричневый (было #4D3A2B) */
-    --text-secondary: #C4A98C;            /* светлый бежево-песочный (было #9B8264) */
-    --accent: #F0D69C;                    /* светлый золотистый (было #DEBA6B) */
-    --accent-hover: #F7E5BC;              /* ещё светлее для наведения (было #E8CB8C) */
-    --border-color: #F3EDE2;              /* почти бежевый, очень светлый (было #E7DBC2) */
-    --bs-primary-rgb: 240, 214, 156;      /* RGB для светлого акцента */
+    --bg-primary: #FFF9EF;
+    --bg-secondary: #FFF4E2;
+    --text-primary: #4D3A2B;
+    --text-secondary: #9B8264;
+    --accent: #DEBA6B;
+    --accent-hover: #E8CB8C;
+    --border-color: #E7DBC2;
+    --bs-primary-rgb: 222, 186, 107;
 }
 
 [data-theme="dark"] {
@@ -58,12 +58,11 @@
     --bs-primary-rgb: 56, 189, 248;
 }
 
-/* Базовые стили */
+/* Базовые стили – без глобального перехода */
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-    transition: all 0.3s ease;
 }
 
 body {
@@ -120,7 +119,7 @@ body {
     border-radius: 8px;
     font-size: 0.95rem;
     cursor: pointer;
-    transition: all 0.3s ease;
+    transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
 }
 
 .theme-toggle {
@@ -176,7 +175,7 @@ body {
     color: var(--accent);
 }
 
-/* ========== КАРТОЧКИ КУРСОВ  ========== */
+/* ========== КАРТОЧКИ КУРСОВ ========== */
 .course-card {
     background: var(--bg-secondary);
     border: 1px solid var(--border-color);
@@ -187,7 +186,7 @@ body {
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    transition: all 0.3s ease;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
 .course-card:hover {
@@ -201,16 +200,6 @@ body {
     font-weight: 600;
     color: var(--text-primary);
     margin-bottom: 20px;
-}
-
-
-.course-card:hover {
-    background: var(--accent);
-    opacity: 0.4;
-}
-
-.course-card:hover {
-    opacity: 1;
 }
 
 .course-title {
@@ -230,7 +219,7 @@ body {
     font-size: 0.85rem;
     color: var(--text-secondary);
     display: -webkit-box;
-    -webkit-line-clamp: 3;       /* обрезаем после трёх строк */
+    -webkit-line-clamp: 3;
     -webkit-box-orient: vertical;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -270,7 +259,7 @@ body {
     color: var(--text-secondary);
     text-decoration: none;
     margin-bottom: 8px;
-    transition: color 0.3s ease;
+    transition: color 0.2s ease;
 }
 
 .footer a:hover {
@@ -355,15 +344,9 @@ body {
 .course-sidebar {
     background: var(--bg-secondary);
     border-right: 1px solid var(--border-color);
-    min-height: 100vh;
-}
-
-.course-sidebar h5 {
-    font-weight: 700;                 /* жирное название курса */
-    text-align: left !important;      /* прижимаем к левому краю */
-    margin-bottom: 1.5rem !important;
-    color: var(--text-primary);
-    font-size: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
 }
 
 /* Элементы разделов */
@@ -382,7 +365,7 @@ body {
     color: var(--text-primary);
     text-decoration: none;
     font-weight: 500;
-    transition: background 0.2s;
+    transition: background 0.2s ease, color 0.2s ease;
 }
 
 .section-toggle:hover {
@@ -398,12 +381,12 @@ body {
 
 .toggle-icon {
     font-size: 0.75rem;
-    transition: transform 0.2s;
+    transition: transform 0.2s ease;
 }
 
 /* Список тем */
 .section-topics {
-    margin-left: 1.25rem;            /* отступ относительно раздела */
+    margin-left: 1.25rem;
 }
 
 .topic-link {
@@ -413,7 +396,7 @@ body {
     color: var(--text-secondary);
     text-decoration: none;
     font-size: 0.9rem;
-    transition: background 0.2s, color 0.2s;
+    transition: background 0.2s ease, color 0.2s ease;
 }
 
 .topic-link:hover {
@@ -462,7 +445,7 @@ a:hover {
     padding: 0.75rem 2rem;
     border-radius: 8px;
     font-weight: 600;
-    transition: background 0.2s, transform 0.2s;
+    transition: background 0.2s ease, transform 0.2s ease;
 }
 #checkYourselfBtn:hover {
     background: var(--accent-hover);
@@ -471,15 +454,13 @@ a:hover {
 
 /* ========== ПРИЖАТИЕ ФУТЕРА ========== */
 
-/* 1. Главный контейнер страницы занимает всё окно */
 .main {
     flex: 1 1 auto;
     display: flex;
     flex-direction: column;
-    min-height: 0;                 /* важно для flex-потомков */
+    min-height: 0;
 }
 
-/* Вложенные контейнеры Bootstrap тоже подчиняются flex-вертикали */
 .main .container-fluid {
     flex: 1 1 auto;
     display: flex;
@@ -497,14 +478,6 @@ a:hover {
     margin-right: 0;
 }
 
-/* Боковая панель — скроллится внутри своей высоты */
-.course-sidebar {
-    min-height: 0;                 /* перебиваем ранее заданное 100vh */
-    height: auto;
-    overflow-y: auto;
-}
-
-/* Основная область — тоже скроллится при переполнении */
 .main-content {
     overflow-y: auto;
     min-height: 0;
@@ -549,130 +522,6 @@ a:hover {
     }
 }
 
-/* ========== СТРАНИЦА ПРОФИЛЯ ========== */
-
-/* Фото профиля */
-.profile-photo-wrapper {
-    width: 200px;
-    height: 200px;
-    border-radius: 50%;
-    overflow: hidden;
-    border: 3px solid var(--accent);
-}
-
-.profile-photo {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
-
-/* Элементы данных */
-.data-item span {
-    color: var(--text-primary);
-}
-
-/* Карточки достижений */
-.achievement-card {
-    background: var(--bg-secondary);
-    border: 1px solid var(--border-color);
-    border-radius: 12px;
-    color: var(--text-primary);
-    transition: all 0.3s ease;
-}
-
-.achievement-card:hover {
-    border-color: var(--accent);
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-}
-
-.achievement-icon {
-    font-size: 1.2rem;
-}
-
-/* Кнопка-ссылка в стиле акцента */
-.btn-outline-accent {
-    border: 1px solid var(--accent);
-    color: var(--accent);
-    background: transparent;
-    padding: 0.5rem 1.5rem;
-    border-radius: 8px;
-    text-decoration: none;
-    display: inline-block;
-    transition: all 0.3s ease;
-}
-
-.btn-outline-accent:hover {
-    background: var(--accent);
-    color: var(--bg-primary);
-}
-
-/* дополнительные стили для форм создания */
-.breadcrumb {
-    background: transparent;
-    padding: 0;
-}
-.breadcrumb-item a {
-    color: var(--accent);
-    text-decoration: none;
-}
-.breadcrumb-item.active {
-    color: var(--text-secondary);
-}
-.card.bg-secondary {
-    background: var(--bg-secondary) !important;
-    border: 1px solid var(--border-color);
-}
-.btn-accent {
-    background: var(--accent);
-    color: var(--bg-primary);
-    border: none;
-    padding: 0.5rem 1.5rem;
-    border-radius: 8px;
-}
-.btn-accent:hover {
-    background: var(--accent-hover);
-    transform: translateY(-2px);
-}
-.btn-outline-accent {
-    border: 1px solid var(--accent);
-    color: var(--accent);
-    background: transparent;
-}
-.btn-outline-accent:hover {
-    background: var(--accent);
-    color: var(--bg-primary);
-}
-
-.section-name {
-    flex: 1;
-    margin-right: 10px;
-}
-.section-description {
-    margin-top: 8px;
-}
-
-/* Описание темы в карточке редактирования */
-.topic-description {
-    height: 80px;
-    resize: vertical;
-    overflow-y: auto;
-}
-
-/* Описание раздела в редактировании */
-.section-description {
-    height: 80px;
-    resize: vertical;
-    overflow-y: auto;
-}
-
-/* Текстовые блоки (textarea внутри блоков) */
-.block-textarea {
-    height: 120px;
-    resize: vertical;
-    overflow-y: auto;
-}
-
 /* ========== ОКНО КОНСПЕКТА ========== */
 .floating-window {
     position: fixed;
@@ -689,7 +538,7 @@ a:hover {
     z-index: 1200;
     display: flex;
     flex-direction: column;
-    resize: both;          /* запасное свойство, но мы сделаем свои ручки */
+    resize: both;
     overflow: hidden;
     transition: none !important;
 }
@@ -714,7 +563,7 @@ a:hover {
     cursor: pointer;
     color: var(--text-secondary);
     padding: 0 6px;
-    transition: color 0.2s;
+    transition: color 0.2s ease;
 }
 
 .btn-close-window:hover, .btn-save-conspect:hover {
@@ -744,13 +593,111 @@ a:hover {
     background: transparent;
     z-index: 1210;
 }
-/* углы */
 .resize-handle.nw { top: -5px; left: -5px; cursor: nw-resize; }
 .resize-handle.ne { top: -5px; right: -5px; cursor: ne-resize; }
 .resize-handle.sw { bottom: -5px; left: -5px; cursor: sw-resize; }
 .resize-handle.se { bottom: -5px; right: -5px; cursor: se-resize; }
-/* стороны */
 .resize-handle.n { top: -5px; left: 20%; right: 20%; cursor: n-resize; width: auto; }
 .resize-handle.s { bottom: -5px; left: 20%; right: 20%; cursor: s-resize; width: auto; }
 .resize-handle.e { right: -5px; top: 20%; bottom: 20%; cursor: e-resize; height: auto; }
-.resize-handle.w { left: -5px; top: 20%; bottom: 20%; cursor: w-resize; height: auto; }}
+.resize-handle.w { left: -5px; top: 20%; bottom: 20%; cursor: w-resize; height: auto; }
+
+/* ========== СТРАНИЦА ПРОФИЛЯ ========== */
+.profile-photo-wrapper {
+    width: 200px;
+    height: 200px;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 3px solid var(--accent);
+}
+
+.profile-photo {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.data-item span {
+    color: var(--text-primary);
+}
+
+.achievement-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    color: var(--text-primary);
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.achievement-card:hover {
+    border-color: var(--accent);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.achievement-icon {
+    font-size: 1.2rem;
+}
+
+.btn-outline-accent {
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    background: transparent;
+    padding: 0.5rem 1.5rem;
+    border-radius: 8px;
+    text-decoration: none;
+    display: inline-block;
+    transition: background 0.2s ease, color 0.2s ease;
+}
+
+.btn-outline-accent:hover {
+    background: var(--accent);
+    color: var(--bg-primary);
+}
+
+.breadcrumb {
+    background: transparent;
+    padding: 0;
+}
+.breadcrumb-item a {
+    color: var(--accent);
+    text-decoration: none;
+}
+.breadcrumb-item.active {
+    color: var(--text-secondary);
+}
+.card.bg-secondary {
+    background: var(--bg-secondary) !important;
+    border: 1px solid var(--border-color);
+}
+.btn-accent {
+    background: var(--accent);
+    color: var(--bg-primary);
+    border: none;
+    padding: 0.5rem 1.5rem;
+    border-radius: 8px;
+    transition: background 0.2s ease, transform 0.2s ease;
+}
+.btn-accent:hover {
+    background: var(--accent-hover);
+    transform: translateY(-2px);
+}
+.section-name {
+    flex: 1;
+    margin-right: 10px;
+}
+.topic-description {
+    height: 80px;
+    resize: vertical;
+    overflow-y: auto;
+}
+.section-description {
+    height: 80px;
+    resize: vertical;
+    overflow-y: auto;
+}
+.block-textarea {
+    height: 120px;
+    resize: vertical;
+    overflow-y: auto;
+}
