@@ -18,6 +18,7 @@ from server.app.api.v1.topics.topics import (
 from server.app.api.v1.topics.topics_service import TopicsService
 from server.app.api.v1.users.users import UserVerification
 from server.app.common_dependencies.depends import get_auth_user, get_current_user
+from server.data.courses_resources.compilation_manager import CompilationError
 
 topics_router = APIRouter(
     prefix="/topics",
@@ -72,6 +73,13 @@ async def create_topic(
             topic_data.order_number,
             topic_data.tags,
             topic_data.raw_content,
+        )
+    except CompilationError as error:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=[dict(
+                element,
+            ) for element in error.content_error.root],
         )
     except OperationPermissionError as error:
         raise HTTPException(
@@ -288,11 +296,11 @@ async def update_topic(
         user: Annotated[UserVerification, Depends(
             get_auth_user,
         )],
+        topic_update: TopicUpdate,
         topic_id: UUID = Path(
             ...,
             description="Уникальный идентификатор темы",
         ),
-        topic_update: TopicUpdate = Depends(),
         topics_service: TopicsService = Depends(
             TopicsService,
         ),
@@ -305,6 +313,13 @@ async def update_topic(
             topic_update.name,
             topic_update.tags,
             topic_update.raw_content,
+        )
+    except CompilationError as error:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=[dict(
+                element,
+            ) for element in error.content_error.root],
         )
     except OperationPermissionError as error:
         raise HTTPException(

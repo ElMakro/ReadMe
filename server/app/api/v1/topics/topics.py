@@ -132,7 +132,7 @@ class TopicUpdate(
         extra="ignore",
     )
 
-    name: str | None = Field(
+    name: str = Field(
         None,
         description="Название темы",
         min_length=1,
@@ -169,6 +169,11 @@ class TopicResponse(
     rendered_content: TopicRenderedContent = Field(
         default_factory=list,
         description="Представление готового к отображению контента темы",
+    )
+    topic_directory_path: str = Field(
+        ...,
+        description="Расположение директории темы на сервере",
+        examples=["/"],
     )
 
 

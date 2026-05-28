@@ -1,3 +1,5 @@
+import uuid
+from pathlib import Path
 from uuid import UUID
 
 from fastapi import Depends
@@ -9,18 +11,23 @@ from server.app.api.v1.sections.sections_service import OrderNumberConflictError
 from server.app.api.v1.topics.topics import (
     TopicIDMixin,
     TopicRawContent,
+    TopicRenderedContent,
     TopicResponse,
     TopicsFullListResponse,
 )
 from server.app.api.v1.topics.topics_manager import TopicsManager
 from server.app.api.v1.users.users import UserVerification
 from server.app.api.v1.users.users_service import UsersService
+from server.data.courses_resources.courses_resources_manager import CoursesResourcesManager
 from server.enums.access_permissions import AccessPermissions
 
 
 class TopicsService:
     def __init__(
             self,
+            users_service: UsersService = Depends(
+                UsersService,
+            ),
             courses_manager: CoursesManager = Depends(
                 CoursesManager,
             ),
@@ -30,14 +37,35 @@ class TopicsService:
             topics_manager: TopicsManager = Depends(
                 TopicsManager,
             ),
-            users_service: UsersService = Depends(
-                UsersService,
+            courses_resources_manager: CoursesResourcesManager = Depends(
+                CoursesResourcesManager,
             ),
     ) -> None:
+        self.users_service = users_service
         self.courses_manager = courses_manager
         self.sections_manager = sections_manager
         self.topics_manager = topics_manager
-        self.users_service = users_service
+        self.courses_resources_manager = courses_resources_manager
+
+    @staticmethod
+    def construct_topic_directory_path(
+            topic_id: UUID,
+            section_id: UUID,
+            course_id: UUID,
+    ) -> Path:
+        return Path(
+            str(
+                course_id,
+            ),
+        ) / Path(
+            str(
+                section_id,
+            ),
+        ) / Path(
+            str(
+                topic_id,
+            ),
+        )
 
     async def create_topic(
             self,
@@ -70,13 +98,40 @@ class TopicsService:
                 "Тема с таким порядковым номером уже существует в этом разделе!",
             )
 
+        topic_id = uuid.uuid4()
+
+        topic_directory_path = self.construct_topic_directory_path(
+            topic_id,
+            section.id,
+            course.id,
+        )
+
+        self.courses_resources_manager.create_topic_directory(
+            str(
+                topic_directory_path,
+            ),
+        )
+
+        rendered_content = await self.courses_resources_manager.compile_topic_rendered_content(
+            str(
+                topic_directory_path,
+            ),
+            raw_content,
+            None,
+        )
+
         topic = await self.topics_manager.create_topic(
+            topic_id,
             section_id,
             name,
             order_number,
             course.id,
             tags,
             raw_content,
+            rendered_content,
+            str(
+                topic_directory_path,
+            ),
         )
 
         return topic
@@ -193,9 +248,18 @@ class TopicsService:
         if topic.name == result_name and topic.tags == result_tags and result_raw_content == topic.raw_content:
             return
 
+        rendered_content = await self.courses_resources_manager.compile_topic_rendered_content(
+            topic.topic_directory_path,
+            result_raw_content,
+            TopicRenderedContent.model_validate(
+                topic.rendered_content,
+            ),
+        )
+
         await self.topics_manager.update_topic(
             topic_id,
             result_name,
             result_tags,
             result_raw_content,
+            rendered_content,
         )
