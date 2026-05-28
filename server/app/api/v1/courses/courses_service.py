@@ -17,7 +17,7 @@ from server.app.api.v1.exceptions import OperationPermissionError
 from server.app.api.v1.users.users import UserVerification
 from server.app.api.v1.users.users_manager import UserExistenceError, UsersManager
 from server.app.api.v1.users.users_service import UsersService
-from server.data.courses_resources.courses_resources_service import CoursesResourcesService
+from server.data.courses_resources.courses_resources_manager import CoursesResourcesManager
 from server.enums.access_permissions import AccessPermissions
 from server.enums.role import Role
 
@@ -61,15 +61,15 @@ class CoursesService:
             users_service: UsersService = Depends(
                 UsersService,
             ),
-            data_manager: CoursesResourcesService = Depends(
-                CoursesResourcesService,
+            courses_resources_service: CoursesResourcesManager = Depends(
+                CoursesResourcesManager,
             ),
     ) -> None:
+        self.courses_resources_service = courses_resources_service
+        self.users_service = users_service
         self.courses_manager = courses_manager
         self.auth_manager = auth_manager
         self.users_manager = users_manager
-        self.users_service = users_service
-        self.data_manager = data_manager
 
     async def get_courses_for_user(
             self,
@@ -124,6 +124,10 @@ class CoursesService:
             is_public=is_public,
             is_content_public=is_content_public,
             tags=tags,
+        )
+
+        self.courses_resources_service.create_course_directory(
+            course.id,
         )
 
         return course
@@ -253,6 +257,10 @@ class CoursesService:
             )
 
         await self.courses_manager.delete_course(
+            course_id,
+        )
+
+        self.courses_resources_service.delete_course_directory(
             course_id,
         )
 

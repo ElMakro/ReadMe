@@ -14,7 +14,6 @@ from server.app.api.v1.topics.topics import (
     TopicRawContent,
     TopicRenderedContent,
 )
-from server.data.courses_resources import COURSES_RESOURCES_DIRECTORY
 
 
 class CompilationError(
@@ -32,6 +31,7 @@ class CompilationError(
 class CompilationManager:
     async def compile_topic_content(
             self,
+            full_topic_directory_path: Path,
             topic_raw_content: TopicRawContent,
             old_topic_rendered_content: TopicRenderedContent | None = None,
     ) -> TopicRenderedContent:
@@ -51,9 +51,10 @@ class CompilationManager:
                 mkdtemp(),
             )
             for old_file in old_rendered_files:
+                old_file_path = full_topic_directory_path / Path(old_file)
                 copy2(
-                    old_file,
-                    backup_dir / old_file.name,
+                    old_file_path,
+                    backup_dir / old_file_path.name,
                 )
 
         topic_raw_content_root = topic_raw_content.root
@@ -63,7 +64,7 @@ class CompilationManager:
             self.process_block(
                 i,
                 block,
-                COURSES_RESOURCES_DIRECTORY,
+                full_topic_directory_path,
             )
             for i, block in enumerate(
                 topic_raw_content_root,
@@ -96,7 +97,7 @@ class CompilationManager:
         if compilation_errors:
             if backup_dir and backup_dir.exists():
                 for backup_file in backup_dir.iterdir():
-                    target_file = COURSES_RESOURCES_DIRECTORY / backup_file.name
+                    target_file = full_topic_directory_path / backup_file.name
                     copy2(
                         backup_file,
                         target_file,
@@ -113,8 +114,9 @@ class CompilationManager:
             )
 
         for file_path in old_rendered_files:
-            if file_path.exists():
-                file_path.unlink()
+            full_file_path = full_topic_directory_path / file_path
+            if full_file_path.exists():
+                full_file_path.unlink()
 
         if backup_dir and backup_dir.exists():
             rmtree(

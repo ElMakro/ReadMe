@@ -8,7 +8,7 @@ from server.app.api.v1.sections.sections import SectionIDMixin, SectionResponse,
 from server.app.api.v1.sections.sections_manager import DifferentSourcesContentSwapError, SectionsManager
 from server.app.api.v1.users.users import UserVerification
 from server.app.api.v1.users.users_service import UsersService
-from server.data.courses_resources.courses_resources_service import CoursesResourcesService
+from server.data.courses_resources.courses_resources_manager import CoursesResourcesManager
 from server.enums.access_permissions import AccessPermissions
 
 
@@ -22,6 +22,9 @@ class OrderNumberConflictError(
 class SectionsService:
     def __init__(
             self,
+            courses_resources_service: CoursesResourcesManager = Depends(
+                CoursesResourcesManager,
+            ),
             sections_manager: SectionsManager = Depends(
                 SectionsManager,
             ),
@@ -31,10 +34,12 @@ class SectionsService:
             users_service: UsersService = Depends(
                 UsersService,
             ),
-            data_manager: CoursesResourcesService = Depends(
-                CoursesResourcesService,
+            data_manager: CoursesResourcesManager = Depends(
+                CoursesResourcesManager,
             ),
+
     ) -> None:
+        self.courses_resources_service = courses_resources_service
         self.sections_manager = sections_manager
         self.courses_manager = courses_manager
         self.users_service = users_service
@@ -75,6 +80,11 @@ class SectionsService:
             description,
             order_number,
             tags,
+        )
+
+        await self.courses_resources_service.create_section_directory(
+            section.id,
+            course_id,
         )
 
         return section
@@ -134,6 +144,11 @@ class SectionsService:
 
         await self.sections_manager.delete_section(
             section_id,
+        )
+
+        await self.courses_resources_service.delete_section_directory(
+            section.id,
+            section.course_id,
         )
 
     async def update_section(

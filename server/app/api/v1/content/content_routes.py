@@ -1,4 +1,5 @@
 from typing import Annotated
+from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import FileResponse
@@ -17,7 +18,7 @@ content_router = APIRouter(
 
 
 @content_router.get(
-    "/get-course-resource",
+    "/get-topic-resource",
     description="Получить ресурс курса",
     status_code=status.HTTP_200_OK,
     responses={
@@ -33,11 +34,16 @@ content_router = APIRouter(
     },
     openapi_extra=openapi_extra_authorization_cookie,
 )
-async def get_topic_file(
+async def get_topic_resource(
         user: Annotated[UserVerification | None, Depends(
             get_current_user,
         )],
-        filename: str = Query(
+        topic_id: UUID = Query(
+            ...,
+            description="Идентификатор темы",
+            examples=[uuid4()],
+        ),
+        resource_filename: str = Query(
             ...,
             description="Имя запрашиваемого файла",
             examples=["example.png"],
@@ -48,9 +54,10 @@ async def get_topic_file(
 ) -> FileResponse:
     try:
         return FileResponse(
-            await content_service.get_course_resource(
+            await content_service.get_topic_resource(
                 user,
-                filename,
+                topic_id,
+                resource_filename,
             ),
         )
     except OperationPermissionError as error:

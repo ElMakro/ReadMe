@@ -1,4 +1,3 @@
-import uuid
 from uuid import UUID
 
 from fastapi import Depends
@@ -13,7 +12,6 @@ from server.app.api.v1.topics.topics import (
     TopicsFullListResponse,
 )
 from server.config.db_dependency import DBDependency
-from server.data.courses_resources.courses_resources_service import CoursesResourcesService
 from server.database.models import Topics
 
 
@@ -23,29 +21,21 @@ class TopicsManager:
             db: DBDependency = Depends(
                 DBDependency,
             ),
-            courses_resources_manager: CoursesResourcesService = Depends(
-                CoursesResourcesService,
-            ),
     ) -> None:
         self.db = db
-        self.courses_resources_manager = courses_resources_manager
 
     async def create_topic(
             self,
+            topic_id: UUID,
             section_id: UUID,
             name: str,
             order_number: int,
             course_id: UUID,
             tags: list[str],
             raw_content: TopicRawContent,
+            rendered_content: TopicRenderedContent,
+            topic_directory_path: str,
     ) -> TopicIDMixin:
-        topic_id = uuid.uuid4()
-        rendered_content = await self.courses_resources_manager.compile_and_register_topic_rendered_content(
-            topic_id,
-            raw_content,
-            None,
-        )
-
         async with self.db.db_session() as session:
             topic = Topics(
                 id=topic_id,
@@ -56,6 +46,9 @@ class TopicsManager:
                 tags=tags,
                 raw_content=[block.model_dump() for block in raw_content.root],
                 rendered_content=[block.model_dump() for block in rendered_content.root],
+                topic_directory_path=str(
+                    topic_directory_path,
+                ),
             )
 
             session.add(
@@ -63,8 +56,8 @@ class TopicsManager:
             )
             await session.commit()
 
-        return TopicIDMixin.model_construct(
-            id=topic.id,
+        return TopicIDMixin.model_validate(
+            topic,
         )
 
     async def get_topic_by_id(
@@ -173,26 +166,13 @@ class TopicsManager:
             name: str,
             tags: list[str],
             raw_content: TopicRawContent,
+            rendered_content: TopicRenderedContent,
     ) -> None:
         async with self.db.db_session() as session:
             topic = await session.get(
                 Topics,
                 topic_id,
                 with_for_update=True,
-            )
-
-            topic_response = TopicResponse.model_validate(
-                topic,
-            )
-
-            assert topic is not None
-
-            rendered_content = await self.courses_resources_manager.compile_and_register_topic_rendered_content(
-                topic_response.id,
-                raw_content,
-                TopicRenderedContent.model_validate(
-                    topic.rendered_content,
-                ),
             )
 
             topic.name = name

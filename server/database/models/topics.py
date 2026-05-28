@@ -60,6 +60,13 @@ class Topics(
         default=list,
         nullable=False,
     )
+    topic_directory_path: Mapped[str] = mapped_column(
+        String(
+            255,
+        ),
+        nullable=False,
+        unique=True,
+    )
 
     __table_args__ = (
         Index(
