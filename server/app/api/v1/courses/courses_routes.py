@@ -1,7 +1,8 @@
 from typing import Annotated, Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
+from fastapi import APIRouter, Depends, File, HTTPException, Path, Query, UploadFile, status
+from starlette.responses import FileResponse
 
 from server.app.api.openapi_docs import openapi_extra_authorization_cookie
 from server.app.api.v1.common_schemas import UNPROCESSABLE_ENTITY_ERROR_TEXT, PaginationParameters
@@ -380,6 +381,115 @@ async def self_unenroll_from_course(
         await courses_service.self_unenroll_from_course(
             user,
             course_id,
+        )
+    except ObjectMissingError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(
+                error,
+            ),
+        )
+
+
+@courses_router.post(
+    "/{course_id}/icon",
+    description="Установить иконку курса",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={
+        status.HTTP_403_FORBIDDEN            : {
+            "description": "У пользователя нет права устанавливать иконку на данный курс",
+        },
+        status.HTTP_404_NOT_FOUND            : {
+            "description": "Курс с таким идентификатором не найден",
+        },
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {
+            "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
+        },
+    },
+    openapi_extra=openapi_extra_authorization_cookie,
+)
+async def set_course_icon(
+        user: Annotated[UserVerification, Depends(
+            get_auth_user,
+        )],
+        course_id: UUID = Path(
+            ...,
+            description="Идентификатор курса",
+        ),
+        icon_file: UploadFile = File(
+            ...,
+            description="Файл иконки курса",
+        ),
+        courses_service: CoursesService = Depends(
+            CoursesService,
+        ),
+) -> None:
+    """Установить иконку курса"""
+    try:
+        return await courses_service.set_course_icon(
+            user,
+            course_id,
+            icon_file,
+        )
+    except OperationPermissionError as error:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=str(
+                error,
+            ),
+        )
+    except ObjectMissingError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(
+                error,
+            ),
+        )
+
+
+@courses_router.get(
+    "/{course_id}/icon",
+    description="Получить иконку курса",
+    status_code=status.HTTP_200_OK,
+    responses={
+        status.HTTP_403_FORBIDDEN            : {
+            "description": "У пользователя нет права доступа к этому файлу",
+        },
+        status.HTTP_404_NOT_FOUND            : {
+            "description": "Курс с таким идентификатором не найден или иконка курса не найдена",
+        },
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {
+            "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
+        },
+    },
+    openapi_extra=openapi_extra_authorization_cookie,
+)
+async def get_course_icon(
+        user: Annotated[UserVerification, Depends(
+            get_auth_user,
+        )],
+        course_id: UUID = Path(
+            ...,
+            description="Идентификатор курса",
+        ),
+        courses_service: CoursesService = Depends(
+            CoursesService,
+        ),
+) -> FileResponse:
+    """Установить иконку курса"""
+    try:
+        return FileResponse(
+            await courses_service.get_course_icon_path(
+                user,
+                course_id,
+            ),
+        )
+    except OperationPermissionError as error:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=str(
+                error,
+            ),
         )
     except ObjectMissingError as error:
         raise HTTPException(

@@ -154,7 +154,7 @@ class CompilationManager:
                 )
 
                 return index, TopicBlockRenderedContent.model_construct(
-                    type="file",
+                    type="image",
                     rendered_content=block_rendered_content_filename,
                 ), None
 
