@@ -4,7 +4,7 @@ from uuid import UUID
 from fastapi import Depends
 from sqlalchemy import delete, select
 
-from server.app.api.v1.courses.courses import CourseFullListResponse, CourseIDMixin, CourseResponse, CoursesList
+from server.app.api.v1.courses.courses import CourseFullListResponse, CourseIDMixin, CourseResponse
 from server.app.api.v1.exceptions import ObjectMissingError
 from server.config.db_dependency import DBDependency
 from server.database.models import Courses, CoursesForStudents
@@ -26,12 +26,10 @@ class CoursesManager:
             user_id: uuid.UUID,
             offset: int,
             limit: int,
-    ) -> CoursesList:
+    ) -> CourseFullListResponse:
         async with self.db.db_session() as session:
             query = select(
-                self.courses_model.id,
-                self.courses_model.name,
-                self.courses_model.description,
+                Courses
             ).join(
                 self.courses_for_students_model,
                 self.courses_model.id == self.courses_for_students_model.course_id,
@@ -48,7 +46,7 @@ class CoursesManager:
                 query,
             )
             courses = result.mappings().all()
-            return CoursesList.model_validate(
+            return CourseFullListResponse.model_validate(
                 courses,
             )
 
@@ -57,10 +55,10 @@ class CoursesManager:
             user_id: uuid.UUID,
             offset: int,
             limit: int,
-    ) -> CoursesList:
+    ) -> CourseFullListResponse:
         async with self.db.db_session() as session:
             query = select(
-                self.courses_model,
+                Courses
             ).where(
                 self.courses_model.professor_id == user_id,
             ).order_by(
@@ -76,7 +74,7 @@ class CoursesManager:
             )
 
             courses = result.scalars().all()
-            return CoursesList.model_validate(
+            return CourseFullListResponse.model_validate(
                 courses,
             )
 

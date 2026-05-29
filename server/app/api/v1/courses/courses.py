@@ -181,23 +181,3 @@ class CoursesListSearchResponse(
     RootModel[list[CourseSearchResponse]],
 ):
     """Схема ответа на запрос поиска курсов"""
-
-
-class CourseInfo(
-    CourseIDMixin,
-    CourseByName,
-):
-    model_config = ConfigDict(
-        from_attributes=True,
-        extra="ignore",
-    )
-
-    description: str = Field(
-        description="Описание курса",
-    )
-
-
-class CoursesList(
-    RootModel[list[CourseInfo]],
-):
-    pass

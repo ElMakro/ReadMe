@@ -13,7 +13,7 @@ from server.app.api.v1.courses.courses import (
     CourseResponse,
     CoursesList,
     CoursesListSearchResponse,
-    CourseUpdate,
+    CourseUpdate, CourseFullListResponse,
 )
 from server.app.api.v1.courses.courses_service import (
     CourseOwnerConflictError,
@@ -168,7 +168,7 @@ async def get_followed_courses(
         courses_service: CoursesService = Depends(
             CoursesService,
         ),
-) -> CoursesList:
+) -> CourseFullListResponse:
     """
     Получить пагинированный список курсов, на которых обучается текущий пользователь.
     """
@@ -201,7 +201,7 @@ async def get_controlled_courses(
         courses_service: CoursesService = Depends(
             CoursesService,
         ),
-) -> CoursesList:
+) -> CourseFullListResponse:
     """
     Получить пагинированный список курсов, на которых преподаёт текущий пользователь.
     """

@@ -9,8 +9,7 @@ from server.app.api.v1.courses.courses import (
     CourseIDMixin,
     CourseResponse,
     CourseSearchResponse,
-    CoursesList,
-    CoursesListSearchResponse,
+    CoursesListSearchResponse, CourseFullListResponse,
 )
 from server.app.api.v1.courses.courses_manager import CoursesManager
 from server.app.api.v1.exceptions import ContentTypeError, OperationPermissionError
@@ -76,7 +75,7 @@ class CoursesService:
             user: UserVerification,
             page: int,
             size: int,
-    ) -> CoursesList:
+    ) -> CourseFullListResponse:
         offset = (page - 1) * size
         limit = size
         return await self.courses_manager.get_courses_of_user(
@@ -90,7 +89,7 @@ class CoursesService:
             user: UserVerification,
             page: int,
             records_per_page: int,
-    ) -> CoursesList:
+    ) -> CourseFullListResponse:
         offset = (page - 1) * records_per_page
         return await self.courses_manager.get_controlled_courses(
             user.id,
