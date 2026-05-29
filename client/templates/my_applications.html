@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block title %}Мои заявки на преподавание{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <h1 class="section-title mb-4">Мои заявки на преподавание</h1>
+
+    <div id="applicationsList" class="row g-4">
+        <div class="col-12 text-center py-5">
+            <div class="spinner-border text-accent" role="status">
+                <span class="visually-hidden">Загрузка...</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Пагинация -->
+    <nav id="paginationNav" class="mt-4 d-none">
+        <ul class="pagination justify-content-center">
+            <li class="page-item" id="prevPageBtn">
+                <a class="page-link" href="#" aria-label="Previous">
+                    <span aria-hidden="true">«</span>
+                </a>
+            </li>
+            <li class="page-item disabled"><span class="page-link" id="pageInfo">Страница 1</span></li>
+            <li class="page-item" id="nextPageBtn">
+                <a class="page-link" href="#" aria-label="Next">
+                    <span aria-hidden="true">»</span>
+                </a>
+            </li>
+        </ul>
+    </nav>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', path='my_applications.js') }}"></script>
+{% endblock %}

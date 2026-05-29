@@ -45,7 +45,10 @@
                     <div class="data-item d-flex align-items-center mb-3">
                         <span class="fw-bold me-2">Роль:</span> ${escapeHtml(getRoleName(user.role))}
                     </div>
-                    <button class="btn btn-outline-accent" id="logoutBtn">Выход</button>
+                    <div class="d-flex flex-wrap gap-2">
+                        <button class="btn btn-outline-accent" id="logoutBtn">Выход</button>
+                        <a href="/my-applications" class="btn btn-outline-accent">Мои заявки на преподавание</a>
+                    </div>
                     ${user.role === 'admin' ? `
                         <div class="mt-3">
                             <a href="/admin/applications" class="btn btn-outline-accent w-100">Управление заявками на преподавание</a>
