@@ -6,10 +6,11 @@ from fastapi import Depends, UploadFile
 from server.app.api.v1.auth.auth_manager import AuthManager
 from server.app.api.v1.courses.course_state import CourseState
 from server.app.api.v1.courses.courses import (
+    CourseFullListResponse,
     CourseIDMixin,
     CourseResponse,
     CourseSearchResponse,
-    CoursesListSearchResponse, CourseFullListResponse,
+    CoursesListSearchResponse,
 )
 from server.app.api.v1.courses.courses_manager import CoursesManager
 from server.app.api.v1.exceptions import ContentTypeError, OperationPermissionError

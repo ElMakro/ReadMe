@@ -45,7 +45,7 @@ class CoursesManager:
             result = await session.execute(
                 query,
             )
-            courses = result.mappings().all()
+            courses = result.scalars().all()
             return CourseFullListResponse.model_validate(
                 courses,
             )
