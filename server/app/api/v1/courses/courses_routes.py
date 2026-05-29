@@ -9,11 +9,11 @@ from server.app.api.v1.common_schemas import UNPROCESSABLE_ENTITY_ERROR_TEXT, Pa
 from server.app.api.v1.courses.courses import (
     CourseChangeProfessor,
     CourseCreation,
+    CourseFullListResponse,
     CourseIDMixin,
     CourseResponse,
-    CoursesList,
     CoursesListSearchResponse,
-    CourseUpdate, CourseFullListResponse,
+    CourseUpdate,
 )
 from server.app.api.v1.courses.courses_service import (
     CourseOwnerConflictError,
@@ -147,7 +147,7 @@ async def search_courses(
 
 @courses_router.get(
     path="/followed-courses",
-    response_model=CoursesList,
+    response_model=CourseFullListResponse,
     status_code=status.HTTP_200_OK,
     summary="Получить курсы, на которых обучается пользователь",
     response_description="Курсы пользователя получены",
@@ -185,7 +185,7 @@ async def get_followed_courses(
     summary="Получить курсы, на которых преподаёт текущий пользователь",
     response_description="Список курсов, на которых преподаёт пользователь",
     status_code=status.HTTP_200_OK,
-    response_model=CoursesList,
+    response_model=CourseFullListResponse,
     responses={
         status.HTTP_422_UNPROCESSABLE_CONTENT: {
             "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
