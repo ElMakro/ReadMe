@@ -1,11 +1,9 @@
 (function() {
-    // ---------- Конфигурация ----------
     const API_BASE = (window.API_BASE_URL || 'http://localhost:8080/api/v1').replace(/\/$/, '');
     const PAGE_SIZE = 10;
     let currentPage = 1;
     let isLoading = false;
 
-    // DOM-элементы
     const container = document.getElementById('applicationsList');
     const paginationNav = document.getElementById('paginationNav');
     const prevPageBtn = document.getElementById('prevPageBtn');
@@ -13,7 +11,6 @@
     const pageInfoSpan = document.getElementById('pageInfo');
     const refreshBtn = document.getElementById('refreshBtn');
 
-    // Модальное окно
     const modalElement = document.getElementById('statusModal');
     let statusModal;
     const confirmStatusBtn = document.getElementById('confirmStatusBtn');
@@ -24,7 +21,6 @@
     const currentUserIdInput = document.getElementById('currentUserId');
     const currentNewStatusInput = document.getElementById('currentNewStatus');
 
-    // Toast
     const toastEl = document.getElementById('liveToast');
     let toast;
 
@@ -55,27 +51,25 @@
         });
     }
 
-    // Показать сообщение об ошибке доступа
     function showAccessDenied(message = 'Доступ запрещён.') {
-    container.innerHTML = `
-        <div class="col-12 text-center py-5">
-            <p class="text-danger">${message}</p>
-            <button class="btn btn-accent" id="accessDeniedLoginBtn">Войти</button>
-            <button class="btn btn-outline-accent ms-2" onclick="window.location.href='/'">На главную</button>
-        </div>
-    `;
-    paginationNav.classList.add('d-none');
-    const loginBtn = document.getElementById('accessDeniedLoginBtn');
-    if (loginBtn) {
-        loginBtn.addEventListener('click', () => {
-            const headerLoginBtn = document.getElementById('loginBtn');
-            if (headerLoginBtn) headerLoginBtn.click();
-            else window.location.href = '/';
-        });
+        container.innerHTML = `
+            <div class="col-12 text-center py-5">
+                <p class="text-danger">${message}</p>
+                <button class="btn btn-accent" id="accessDeniedLoginBtn">Войти</button>
+                <button class="btn btn-outline-accent ms-2" onclick="window.location.href='/'">На главную</button>
+            </div>
+        `;
+        paginationNav.classList.add('d-none');
+        const loginBtn = document.getElementById('accessDeniedLoginBtn');
+        if (loginBtn) {
+            loginBtn.addEventListener('click', () => {
+                const headerLoginBtn = document.getElementById('loginBtn');
+                if (headerLoginBtn) headerLoginBtn.click();
+                else window.location.href = '/';
+            });
         }
     }
 
-    // Загрузка страницы
     async function loadPage(page) {
         if (isLoading) return;
         isLoading = true;
@@ -87,8 +81,6 @@
                 credentials: 'include',
                 headers: { 'Content-Type': 'application/json' }
             });
-
-            // Обработка 401 и 403
             if (response.status === 401) {
                 showAccessDenied('Вы не авторизованы. Пожалуйста, войдите в аккаунт.');
                 isLoading = false;
@@ -100,7 +92,6 @@
                 return;
             }
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
             const applications = await response.json();
             if (!Array.isArray(applications)) throw new Error('Неверный формат ответа');
             renderApplications(applications);
@@ -130,8 +121,6 @@
                     <div class="card-body">
                         <h5 class="card-title">${escapeHtml(app.surname)} ${escapeHtml(app.name)} ${escapeHtml(app.patronymic || '')}</h5>
                         <p class="card-text text-secondary small">
-                            <strong>Заявка ID:</strong> ${app.application_id}<br>
-                            <strong>Пользователь ID:</strong> ${app.user_id}<br>
                             <strong>Дата подачи:</strong> ${formatDate(app.created_at)}<br>
                             <strong>Статус:</strong> <span class="badge bg-warning text-dark">${app.status}</span>
                         </p>
@@ -154,7 +143,6 @@
             `;
             container.appendChild(col);
         });
-
         document.querySelectorAll('.approve-btn').forEach(btn => {
             btn.addEventListener('click', () => openStatusModal(btn.dataset.id, btn.dataset.userId, btn.dataset.name, 'approved'));
         });
@@ -175,29 +163,24 @@
         currentPage--;
         loadPage(currentPage);
     }
-
     function goNextPage() {
         if (nextPageBtn.classList.contains('disabled')) return;
         currentPage++;
         loadPage(currentPage);
     }
 
-    // Модальное окно изменения статуса
     let currentAppId, currentUserId, currentNewStatus, currentUserName;
-
     function openStatusModal(appId, userId, userName, newStatus) {
         currentAppId = appId;
         currentUserId = userId;
         currentNewStatus = newStatus;
         currentUserName = userName;
-
         actionTextSpan.innerText = newStatus === 'approved' ? 'одобрить' : 'отклонить';
         userFullNameSpan.innerText = userName;
         adminCommentTextarea.value = '';
         currentApplicationIdInput.value = appId;
         currentUserIdInput.value = userId;
         currentNewStatusInput.value = newStatus;
-
         if (!statusModal) statusModal = new bootstrap.Modal(modalElement);
         statusModal.show();
     }
@@ -210,10 +193,8 @@
             status: currentNewStatus,
             admin_comment: comment
         };
-
         confirmStatusBtn.disabled = true;
         confirmStatusBtn.innerHTML = 'Отправка...';
-
         try {
             const response = await fetch(`${API_BASE}/users/change-application-status`, {
                 method: 'PUT',
@@ -221,7 +202,6 @@
                 credentials: 'include',
                 body: JSON.stringify(payload)
             });
-
             if (response.status === 204) {
                 showToast(`Заявка успешно ${currentNewStatus === 'approved' ? 'одобрена' : 'отклонена'}.`, 'success');
                 statusModal.hide();
@@ -229,7 +209,6 @@
             } else if (response.status === 401 || response.status === 403) {
                 showToast('Недостаточно прав для изменения статуса.', 'danger');
                 statusModal.hide();
-                // обновим страницу, чтобы показать сообщение о доступе
                 loadPage(currentPage);
             } else if (response.status === 409) {
                 const errorData = await response.json().catch(() => ({}));
@@ -247,11 +226,9 @@
         }
     }
 
-    // События
     if (prevPageBtn) prevPageBtn.addEventListener('click', (e) => { e.preventDefault(); goPrevPage(); });
     if (nextPageBtn) nextPageBtn.addEventListener('click', (e) => { e.preventDefault(); goNextPage(); });
     if (refreshBtn) refreshBtn.addEventListener('click', () => loadPage(currentPage));
     if (confirmStatusBtn) confirmStatusBtn.addEventListener('click', confirmStatusChange);
-
     loadPage(1);
 })();

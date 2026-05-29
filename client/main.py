@@ -121,3 +121,15 @@ async def admin_applications_page(request: Request):
             "api_base_url": BACKEND_URL
         }
     )
+
+
+@client_app.get("/my-applications")
+async def my_applications_page(request: Request):
+    return templates.TemplateResponse(
+        request,
+        "my_applications.html",
+        {
+            "request": request,
+            "api_base_url": BACKEND_URL
+        }
+    )
