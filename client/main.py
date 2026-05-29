@@ -110,3 +110,14 @@ async def secret_application_form(request: Request):
             "api_base_url": BACKEND_URL
         }
     )
+
+@client_app.get("/admin/applications")
+async def admin_applications_page(request: Request):
+    return templates.TemplateResponse(
+        request,
+        "admin_applications.html",
+        {
+            "request": request,
+            "api_base_url": BACKEND_URL
+        }
+    )

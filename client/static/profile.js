@@ -5,7 +5,6 @@
     async function loadProfile() {
         profileContainer.innerHTML = '<div class="text-center">Загрузка...</div>';
         try {
-            // Прямой запрос к бэкенду (или через прокси, если вы его оставили)
             const response = await fetch(`${window.API_BASE_URL}users/profile`, {
                 credentials: 'include'
             });
@@ -47,6 +46,11 @@
                         <span class="fw-bold me-2">Роль:</span> ${escapeHtml(getRoleName(user.role))}
                     </div>
                     <button class="btn btn-outline-accent" id="logoutBtn">Выход</button>
+                    ${user.role === 'admin' ? `
+                        <div class="mt-3">
+                            <a href="/admin/applications" class="btn btn-outline-accent w-100">Управление заявками на преподавание</a>
+                        </div>
+                    ` : ''}
                 </div>
             </div>
         `;
