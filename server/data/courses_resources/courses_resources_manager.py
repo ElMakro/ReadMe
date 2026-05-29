@@ -2,7 +2,7 @@ from pathlib import Path
 from shutil import rmtree
 from uuid import UUID
 
-from fastapi import Depends
+from fastapi import Depends, UploadFile
 
 from server.app.api.v1.courses.courses_manager import CoursesManager
 from server.app.api.v1.exceptions import ObjectMissingError
@@ -182,3 +182,41 @@ class CoursesResourcesManager:
             )
 
         return resource_filepath
+
+    def set_course_icon(
+            self,
+            course_id: UUID,
+            icon_upload_file: UploadFile,
+    ) -> None:
+        course_path = self.get_course_directory_path(
+            course_id,
+        )
+        icon_upload_file_filename = icon_upload_file.filename
+        assert icon_upload_file_filename is not None
+        icon_path = course_path / f"icon{Path(icon_upload_file_filename).suffix}"
+        icon_file = icon_upload_file.file
+
+        with open(
+                icon_path,
+                "wb",
+        ) as icon_result_file:
+            icon_result_file.write(
+                icon_file.read(),
+            )
+
+        icon_file.close()
+
+    def get_course_icon_path(
+            self,
+            course_id: UUID,
+    ) -> Path:
+        course_directory_path = self.get_course_directory_path(
+            course_id,
+        )
+        for filepath in course_directory_path.iterdir():
+            if filepath.is_file() and "icon" in filepath.name:
+                return filepath
+
+        raise ObjectMissingError(
+            "Иконка курса не найдена!",
+        )

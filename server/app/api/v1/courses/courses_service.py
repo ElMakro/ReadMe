@@ -1,7 +1,7 @@
 from typing import Literal
 from uuid import UUID
 
-from fastapi import Depends
+from fastapi import Depends, UploadFile
 
 from server.app.api.v1.auth.auth_manager import AuthManager
 from server.app.api.v1.courses.course_state import CourseState
@@ -13,7 +13,7 @@ from server.app.api.v1.courses.courses import (
     CoursesListSearchResponse,
 )
 from server.app.api.v1.courses.courses_manager import CoursesManager
-from server.app.api.v1.exceptions import OperationPermissionError
+from server.app.api.v1.exceptions import ContentTypeError, OperationPermissionError
 from server.app.api.v1.users.users import UserVerification
 from server.app.api.v1.users.users_manager import UserExistenceError, UsersManager
 from server.app.api.v1.users.users_service import UsersService
@@ -61,11 +61,11 @@ class CoursesService:
             users_service: UsersService = Depends(
                 UsersService,
             ),
-            courses_resources_service: CoursesResourcesManager = Depends(
+            courses_resources_manager: CoursesResourcesManager = Depends(
                 CoursesResourcesManager,
             ),
     ) -> None:
-        self.courses_resources_service = courses_resources_service
+        self.courses_resources_manager = courses_resources_manager
         self.users_service = users_service
         self.courses_manager = courses_manager
         self.auth_manager = auth_manager
@@ -126,7 +126,7 @@ class CoursesService:
             tags=tags,
         )
 
-        self.courses_resources_service.create_course_directory(
+        self.courses_resources_manager.create_course_directory(
             course.id,
         )
 
@@ -260,7 +260,7 @@ class CoursesService:
             course_id,
         )
 
-        self.courses_resources_service.delete_course_directory(
+        self.courses_resources_manager.delete_course_directory(
             course_id,
         )
 
@@ -374,9 +374,51 @@ class CoursesService:
             new_professor_id,
         )
 
-    async def search_courses_by_tag(
+    async def set_course_icon(
             self,
             user: UserVerification,
-            tag: str,
-    ) -> CoursesListSearchResponse:
-        pass
+            course_id: UUID,
+            icon_upload_file: UploadFile,
+    ) -> None:
+        if "image" not in icon_upload_file.content_type:
+            raise ContentTypeError(
+                "Некорректный тип файла!",
+            )
+
+        course = await self.courses_manager.get_course_by_id(
+            course_id,
+        )
+
+        if await self.users_service.check_course_access(
+                user,
+                course=course,
+        ) < AccessPermissions.EDIT_ACCESS:
+            raise OperationPermissionError(
+                "У пользователя нет прав на установку иконки курса!",
+            )
+
+        self.courses_resources_manager.set_course_icon(
+            course_id,
+            icon_upload_file,
+        )
+
+    async def get_course_icon_path(
+            self,
+            user: UserVerification,
+            course_id: UUID,
+    ):
+        course = await self.courses_manager.get_course_by_id(
+            course_id,
+        )
+
+        if await self.users_service.check_course_access(
+                user,
+                course=course,
+        ) < AccessPermissions.HEADER_ACCESS:
+            raise OperationPermissionError(
+                "У пользователя нет прав на просмотр иконки курса!",
+            )
+
+        return self.courses_resources_manager.get_course_icon_path(
+            course_id,
+        )
