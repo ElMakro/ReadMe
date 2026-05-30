@@ -126,16 +126,12 @@
 
     async function loadBlocks() {
         try {
-            const res = await fetch(`${window.API_BASE_URL}topics/get-raw-content/${topicId}`, {
+            const res = await fetch(`${window.API_BASE_URL}topics/${topicId}`, {
                 credentials: 'include'
             });
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
-            const data = await res.json();
-            blocks = (Array.isArray(data) ? data : []).map(b => ({
-                type: b.type,
-                raw_content: b.raw_content || '',
-                isEditing: false
-            }));
+            const topicData = await res.json();
+            blocks = topicData.raw_content || [];
             originalBlocks = JSON.parse(JSON.stringify(blocks));
             renderBlocks();
         } catch (err) {
@@ -270,11 +266,12 @@
 
     async function saveAllBlocksToServer() {
         const payload = blocks.map(b => ({ type: b.type, raw_content: b.raw_content }));
-        const res = await fetch(`${window.API_BASE_URL}topics/put-content/${topicId}`, {
+        const updatePayload = { raw_content: payload };
+        const res = await fetch(`${window.API_BASE_URL}topics/${topicId}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
-            body: JSON.stringify(payload)
+            body: JSON.stringify(updatePayload)
         });
         if (!res.ok) {
             let errMsg = 'Ошибка сохранения';

@@ -8,7 +8,8 @@
                 credentials: 'include'
             });
             if (!response.ok) throw new Error('Не удалось загрузить курсы');
-            const courses = await response.json();
+            const data = await response.json();
+            const courses = Array.isArray(data) ? data : (data.courses || []);
             renderCourses(courses);
         } catch (error) {
             console.error(error);

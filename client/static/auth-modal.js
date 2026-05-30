@@ -1,7 +1,7 @@
 (function () {
-  const PREFIX = 'auth-modal-';
+    const PREFIX = 'auth-modal-';
 
-  const template = `
+    const template = `
     <div class="modal-overlay" id="${PREFIX}overlay">
       <div class="modal-container">
         <div class="modal-header">
@@ -12,10 +12,10 @@
           <form id="${PREFIX}form" novalidate>
             <div id="${PREFIX}loginFields">
               <div class="mb-3">
-                <input type="text" class="form-control" placeholder="Никнейм" id="${PREFIX}loginNickname" required>
+                <input type="text" class="form-control" placeholder="Никнейм" id="${PREFIX}loginNickname" autocomplete="username" required>
               </div>
               <div class="mb-3">
-                <input type="password" class="form-control" placeholder="Пароль" id="${PREFIX}loginPassword" required>
+                <input type="password" class="form-control" placeholder="Пароль" id="${PREFIX}loginPassword" autocomplete="current-password" required>
               </div>
             </div>
             <div id="${PREFIX}regFields" style="display: none;">
@@ -44,219 +44,256 @@
     </div>
   `;
 
-  let currentMode = 'login';
-  document.body.insertAdjacentHTML('beforeend', template);
+    let currentMode = 'login';
+    document.body.insertAdjacentHTML('beforeend', template);
 
-  const overlay = document.getElementById(`${PREFIX}overlay`);
-  const closeBtn = document.getElementById(`${PREFIX}close`);
-  const loginFields = document.getElementById(`${PREFIX}loginFields`);
-  const regFields = document.getElementById(`${PREFIX}regFields`);
-  const modalTitle = document.getElementById(`${PREFIX}title`);
-  const submitBtn = document.getElementById(`${PREFIX}submitBtn`);
-  const showLoginBtn = document.getElementById(`${PREFIX}showLoginBtn`);
-  const showRegBtn = document.getElementById(`${PREFIX}showRegBtn`);
-  const form = document.getElementById(`${PREFIX}form`);
+    const overlay = document.getElementById(`${PREFIX}overlay`);
+    const closeBtn = document.getElementById(`${PREFIX}close`);
+    const loginFields = document.getElementById(`${PREFIX}loginFields`);
+    const regFields = document.getElementById(`${PREFIX}regFields`);
+    const modalTitle = document.getElementById(`${PREFIX}title`);
+    const submitBtn = document.getElementById(`${PREFIX}submitBtn`);
+    const showLoginBtn = document.getElementById(`${PREFIX}showLoginBtn`);
+    const showRegBtn = document.getElementById(`${PREFIX}showRegBtn`);
+    const form = document.getElementById(`${PREFIX}form`);
 
-  const loginNickname = document.getElementById(`${PREFIX}loginNickname`);
-  const loginPassword = document.getElementById(`${PREFIX}loginPassword`);
-  const regNickname = document.getElementById(`${PREFIX}regNickname`);
-  const regEmail = document.getElementById(`${PREFIX}regEmail`);
-  const regPassword = document.getElementById(`${PREFIX}regPassword`);
-  const regConfirm = document.getElementById(`${PREFIX}regConfirm`);
+    const loginNickname = document.getElementById(`${PREFIX}loginNickname`);
+    const loginPassword = document.getElementById(`${PREFIX}loginPassword`);
+    const regNickname = document.getElementById(`${PREFIX}regNickname`);
+    const regEmail = document.getElementById(`${PREFIX}regEmail`);
+    const regPassword = document.getElementById(`${PREFIX}regPassword`);
+    const regConfirm = document.getElementById(`${PREFIX}regConfirm`);
 
-  function openModal() {
-    overlay.classList.add('active');
-    switchToLogin();
-  }
-
-  function closeModal() {
-    overlay.classList.remove('active');
-    form.reset();
-    removeError();
-    submitBtn.disabled = false;
-  }
-
-  overlay.addEventListener('click', (e) => {
-    if (e.target === overlay) closeModal();
-  });
-  closeBtn.addEventListener('click', closeModal);
-
-  function switchToLogin() {
-    loginFields.style.display = 'block';
-    regFields.style.display = 'none';
-    showLoginBtn.style.display = 'none';
-    showRegBtn.style.display = 'block';
-
-    loginNickname.required = true;
-    loginPassword.required = true;
-    loginNickname.disabled = false;
-    loginPassword.disabled = false;
-
-    regNickname.required = false;
-    regPassword.required = false;
-    regConfirm.required = false;
-    regNickname.disabled = true;
-    regEmail.disabled = true;
-    regPassword.disabled = true;
-    regConfirm.disabled = true;
-
-    modalTitle.textContent = 'Вход';
-    submitBtn.textContent = 'Войти';
-    currentMode = 'login';
-
-    submitBtn.disabled = false;
-    removeError();
-  }
-
-  function switchToReg() {
-    loginFields.style.display = 'none';
-    regFields.style.display = 'block';
-    showRegBtn.style.display = 'none';
-    showLoginBtn.style.display = 'block';
-
-    loginNickname.required = false;
-    loginPassword.required = false;
-    loginNickname.disabled = true;
-    loginPassword.disabled = true;
-
-    regNickname.required = true;
-    regPassword.required = true;
-    regConfirm.required = true;
-    regNickname.disabled = false;
-    regEmail.disabled = false;
-    regPassword.disabled = false;
-    regConfirm.disabled = false;
-
-    modalTitle.textContent = 'Регистрация';
-    submitBtn.textContent = 'Зарегистрироваться';
-    currentMode = 'reg';
-
-    submitBtn.disabled = false;
-    removeError();
-  }
-
-  showLoginBtn.addEventListener('click', switchToLogin);
-  showRegBtn.addEventListener('click', switchToReg);
-
-  async function fetchProfile() {
-    const profileUrl = `${window.API_BASE_URL}users/profile`;
-    const response = await fetch(profileUrl, {
-      method: 'GET',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' }
-    });
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => null);
-      throw new Error(errorData?.detail || 'Не удалось получить профиль');
+    async function savePasswordWithAPI(nickname, password) {
+        if (!window.PasswordCredential || !navigator.credentials) {
+            console.warn('Credential Management API не поддерживается');
+            return;
+        }
+        try {
+            const cred = new PasswordCredential({
+                id: nickname,
+                password: password,
+                name: nickname,
+            });
+            cred.idName = 'nickname';   // имя поля логина
+            cred.passwordName = 'password';
+            await navigator.credentials.store(cred);
+            // console.log('Пароль сохранён в браузере');
+        } catch (err) {
+            console.warn('Не удалось сохранить пароль:', err);
+        }
     }
-    return response.json();
-  }
 
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    submitBtn.disabled = true;
-    removeError();
-
-    let url, payload;
-
-    try {
-      if (currentMode === 'login') {
-        const nickname = loginNickname.value.trim();
-        const password = loginPassword.value;
-
-        if (!nickname || !password) {
-          throw new Error('Заполните никнейм и пароль');
-        }
-        if (password.length < 8) {
-          throw new Error('Длина пароля должна быть не менее 8 символов');
-        }
-
-        url = `${window.API_BASE_URL}auth/login`;
-        payload = { nickname, password };
-
-        const loginResponse = await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify(payload)
-        });
-
-        if (!loginResponse.ok) {
-          const errorData = await loginResponse.json().catch(() => null);
-          const errorMessage = errorData?.detail
-            ? (Array.isArray(errorData.detail) ? errorData.detail.map(e => e.msg).join(', ') : errorData.detail)
-            : `Ошибка сервера (${loginResponse.status})`;
-          throw new Error(errorMessage);
-        }
-
-        // После успешного входа получаем профиль пользователя
-        const userProfile = await fetchProfile();
-        window.AppState.currentUser = userProfile;
-        window.dispatchEvent(new CustomEvent('auth-changed', { detail: { user: userProfile } }));
-        closeModal();
-      }
-      else { // регистрация
-        const nickname = regNickname.value.trim();
-        const email = regEmail.value.trim() || undefined;
-        const password = regPassword.value;
-        const confirm = regConfirm.value;
-
-        if (!nickname || !password) {
-          throw new Error('Заполните обязательные поля');
-        }
-        if (password !== confirm) {
-          throw new Error('Пароли не совпадают');
-        }
-        if (password.length < 8) {
-          throw new Error('Длина пароля должна быть не менее 8 символов');
-        }
-
-        url = `${window.API_BASE_URL}auth/reg`;
-        payload = { nickname, email, password };
-
-        const regResponse = await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify(payload)
-        });
-
-        if (!regResponse.ok) {
-          const errorData = await regResponse.json().catch(() => null);
-          const errorMessage = errorData?.detail
-            ? (Array.isArray(errorData.detail) ? errorData.detail.map(e => e.msg).join(', ') : errorData.detail)
-            : `Ошибка сервера (${regResponse.status})`;
-          throw new Error(errorMessage);
-        }
-
-        // Регистрация успешна, переключаем на форму входа
+    function openModal() {
+        overlay.classList.add('active');
         switchToLogin();
-        loginNickname.value = nickname;
-        showError('Регистрация прошла успешно! Теперь войдите.', 'success');
-        form.reset();
-      }
-    } catch (error) {
-      console.error('Ошибка:', error);
-      showError(error.message);
-    } finally {
-      submitBtn.disabled = false;
     }
-  });
 
-  function showError(message, type = 'danger') {
-    const old = document.getElementById(`${PREFIX}error`);
-    if (old) old.remove();
-    const div = document.createElement('div');
-    div.id = `${PREFIX}error`;
-    div.className = `alert alert-${type} mt-2`;
-    div.textContent = message;
-    form.appendChild(div);
-  }
+    function closeModal() {
+        overlay.classList.remove('active');
+        form.reset();
+        removeError();
+        submitBtn.disabled = false;
+    }
 
-  function removeError() {
-    const err = document.getElementById(`${PREFIX}error`);
-    if (err) err.remove();
-  }
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) closeModal();
+    });
+    closeBtn.addEventListener('click', closeModal);
 
-  window.AuthModal = { open: openModal, close: closeModal };
+    function switchToLogin() {
+        loginFields.style.display = 'block';
+        regFields.style.display = 'none';
+        showLoginBtn.style.display = 'none';
+        showRegBtn.style.display = 'block';
+
+        loginNickname.required = true;
+        loginPassword.required = true;
+        loginNickname.disabled = false;
+        loginPassword.disabled = false;
+
+        regNickname.required = false;
+        regPassword.required = false;
+        regConfirm.required = false;
+        regNickname.disabled = true;
+        regEmail.disabled = true;
+        regPassword.disabled = true;
+        regConfirm.disabled = true;
+
+        modalTitle.textContent = 'Вход';
+        submitBtn.textContent = 'Войти';
+        currentMode = 'login';
+
+        submitBtn.disabled = false;
+        removeError();
+    }
+
+    function switchToReg() {
+        loginFields.style.display = 'none';
+        regFields.style.display = 'block';
+        showRegBtn.style.display = 'none';
+        showLoginBtn.style.display = 'block';
+
+        loginNickname.required = false;
+        loginPassword.required = false;
+        loginNickname.disabled = true;
+        loginPassword.disabled = true;
+
+        regNickname.required = true;
+        regPassword.required = true;
+        regConfirm.required = true;
+        regNickname.disabled = false;
+        regEmail.disabled = false;
+        regPassword.disabled = false;
+        regConfirm.disabled = false;
+
+        modalTitle.textContent = 'Регистрация';
+        submitBtn.textContent = 'Зарегистрироваться';
+        currentMode = 'reg';
+
+        submitBtn.disabled = false;
+        removeError();
+    }
+
+    showLoginBtn.addEventListener('click', switchToLogin);
+    showRegBtn.addEventListener('click', switchToReg);
+
+    async function fetchProfile() {
+        const profileUrl = `${window.API_BASE_URL}users/profile`;
+        const response = await fetch(profileUrl, {
+            method: 'GET',
+            credentials: 'include',
+            headers: {'Content-Type': 'application/json'}
+        });
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => null);
+            throw new Error(errorData?.detail || 'Не удалось получить профиль');
+        }
+        return response.json();
+    }
+
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        submitBtn.disabled = true;
+        removeError();
+
+        let url, payload;
+
+        try {
+            if (currentMode === 'login') {
+                const nickname = loginNickname.value.trim();
+                const password = loginPassword.value;
+
+                if (!nickname || !password) {
+                    throw new Error('Заполните никнейм и пароль');
+                }
+                if (password.length < 8) {
+                    throw new Error('Длина пароля должна быть не менее 8 символов');
+                }
+
+                url = `${window.API_BASE_URL}auth/login`;
+                payload = {nickname, password};
+
+                const loginResponse = await fetch(url, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    credentials: 'include',
+                    body: JSON.stringify(payload)
+                });
+
+                if (!loginResponse.ok) {
+                    const errorData = await loginResponse.json().catch(() => null);
+                    const errorMessage = errorData?.detail
+                        ? (Array.isArray(errorData.detail) ? errorData.detail.map(e => e.msg).join(', ') : errorData.detail)
+                        : `Ошибка сервера (${loginResponse.status})`;
+                    throw new Error(errorMessage);
+                }
+
+                // После успешного входа получаем профиль пользователя
+                const userProfile = await fetchProfile();
+                window.AppState.currentUser = userProfile;
+                window.dispatchEvent(new CustomEvent('auth-changed', {detail: {user: userProfile}}));
+                savePasswordWithAPI(nickname, password);
+                closeModal();
+            } else { // регистрация
+                const nickname = regNickname.value.trim();
+                const email = regEmail.value.trim() || undefined;
+                const password = regPassword.value;
+                const confirm = regConfirm.value;
+
+                if (!nickname || !password) {
+                    throw new Error('Заполните обязательные поля');
+                }
+                if (password !== confirm) {
+                    throw new Error('Пароли не совпадают');
+                }
+                if (password.length < 8) {
+                    throw new Error('Длина пароля должна быть не менее 8 символов');
+                }
+
+                // 1. Регистрация
+                const regResponse = await fetch(`${window.API_BASE_URL}auth/reg`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    credentials: 'include',
+                    body: JSON.stringify({nickname, email, password})
+                });
+
+                if (!regResponse.ok) {
+                    const errorData = await regResponse.json().catch(() => null);
+                    const errorMessage = errorData?.detail
+                        ? (Array.isArray(errorData.detail) ? errorData.detail.map(e => e.msg).join(', ') : errorData.detail)
+                        : `Ошибка сервера (${regResponse.status})`;
+                    throw new Error(errorMessage);
+                }
+
+                // 2. Автоматический вход после регистрации
+                const loginResponse = await fetch(`${window.API_BASE_URL}auth/login`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    credentials: 'include',
+                    body: JSON.stringify({nickname, password})
+                });
+
+                if (!loginResponse.ok) {
+                    // Если вход не удался, показываем ошибку, но пользователь уже зарегистрирован
+                    throw new Error('Регистрация успешна, но не удалось войти автоматически. Попробуйте войти вручную.');
+                }
+
+                // 3. Получаем профиль и обновляем состояние
+                const userProfile = await fetchProfile();
+                window.AppState.currentUser = userProfile;
+                window.dispatchEvent(new CustomEvent('auth-changed', {detail: {user: userProfile}}));
+
+                // 4. Вызываем сохранение пароля (браузер предложит запомнить)
+
+                savePasswordWithAPI(nickname, password);
+
+                closeModal();
+                // закрываем модалку
+            }
+        } catch (error) {
+            console.error('Ошибка:', error);
+            showError(error.message);
+        } finally {
+            submitBtn.disabled = false;
+        }
+    });
+
+    function showError(message, type = 'danger') {
+        const old = document.getElementById(`${PREFIX}error`);
+        if (old) old.remove();
+        const div = document.createElement('div');
+        div.id = `${PREFIX}error`;
+        div.className = `alert alert-${type} mt-2`;
+        div.textContent = message;
+        form.appendChild(div);
+    }
+
+    function removeError() {
+        const err = document.getElementById(`${PREFIX}error`);
+        if (err) err.remove();
+    }
+
+    window.AuthModal = {open: openModal, close: closeModal};
 })();

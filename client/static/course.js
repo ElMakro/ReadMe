@@ -246,7 +246,7 @@
 
             try {
                 // Используем get-raw-content вместо get-rendered-content
-                const url = `${window.API_BASE_URL}topics/get-raw-content/${topicId}`;
+                const url = `${window.API_BASE_URL}topics/${topicId}`;
                 const resp = await fetch(url, { credentials: 'include' });
                 if (!resp.ok) {
                     if (resp.status === 401 || resp.status === 403) {
@@ -255,9 +255,10 @@
                     }
                     throw new Error(`HTTP ${resp.status}`);
                 }
-                const data = await resp.json(); // data - массив {type, raw_content}
-                renderedCache.set(topicId, data);
-                await renderTopicContent(data);
+                const topicData = await resp.json();
+                const rawContent = topicData.raw_content || [];
+                renderedCache.set(topicId, rawContent);
+                await renderTopicContent(rawContent);
             } catch (err) {
                 console.error('Ошибка загрузки темы:', err);
                 topicContent.innerHTML = '<p class="text-muted">Содержимое темы недоступно.</p>';
@@ -297,9 +298,9 @@
             try {
                 const url = `${window.API_BASE_URL}sections/by_course/${window.COURSE_ID}`;
                 const resp = await fetch(url, { credentials: 'include' });
-                if (!resp.ok) throw new Error(`Sections HTTP ${resp.status}`);
-                const sections = await resp.json();
-                if (!sections?.length) {
+                const data = await resp.json();
+                const sections = Array.isArray(data) ? data : (data.sections || []);
+                if (!sections.length) {
                     sectionList.innerHTML = '<li class="list-group-item text-muted">В курсе нет разделов.</li>';
                     return;
                 }
