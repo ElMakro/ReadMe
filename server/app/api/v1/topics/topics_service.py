@@ -218,6 +218,10 @@ class TopicsService:
             topic_id,
         )
 
+        self.courses_resources_manager.delete_topic_directory(
+            topic.topic_directory_path,
+        )
+
     async def update_topic(
             self,
             user: UserVerification,
