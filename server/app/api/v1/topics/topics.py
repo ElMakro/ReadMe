@@ -43,7 +43,7 @@ class TopicBlockRenderedContent(
         extra="ignore",
     )
 
-    type: Literal["markdown", "latex", "file"] = Field(
+    type: Literal["markdown", "latex", "file", "image"] = Field(
         ...,
         description="Тип контента в блоке",
         examples=["latex"],
