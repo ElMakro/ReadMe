@@ -95,11 +95,7 @@
         const resp = await fetch(url, { credentials: 'include' });
         if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
         const data = await resp.json();
-        // Если пришёл объект с массивом внутри, извлекаем массив
-        if (data && !Array.isArray(data)) {
-            return data.notes || data.items || [];
-        }
-        return data;
+        return Array.isArray(data) ? data : [];
     }
 
     async function getCourseIdByTopicId(topicId) {

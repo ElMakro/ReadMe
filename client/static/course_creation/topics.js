@@ -142,12 +142,15 @@
 
             if (topic.id) {
                 try {
-                    const url = `${window.API_BASE_URL}topics/${topic.id}?name=${encodeURIComponent(newName)}`;
-                    const res = await fetch(url, {
+                    const updateBody = {};
+                    if (newName !== topic.name) updateBody.name = newName;
+                    if (JSON.stringify(newTags) !== JSON.stringify(topic.tags)) updateBody.tags = newTags;
+
+                    const res = await fetch(`${window.API_BASE_URL}topics/${topic.id}`, {
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json' },
                         credentials: 'include',
-                        body: JSON.stringify(newTags)
+                        body: JSON.stringify(updateBody)
                     });
                     if (!res.ok) {
                         let errorMsg = 'Ошибка обновления темы';
@@ -179,7 +182,8 @@
                             name: newName,
                             order_number: topic.order_number,
                             section_id: sectionId,
-                            tags: newTags
+                            tags: newTags,
+                            raw_content: []
                         })
                     });
                     if (!res.ok) throw new Error('Ошибка создания темы');
