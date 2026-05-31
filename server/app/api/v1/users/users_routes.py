@@ -6,16 +6,20 @@ from fastapi import APIRouter, Depends, HTTPException, Path, status
 from server.app.api.v1.common_schemas import (
     APPLICATION_FIELDS_MISMATCH_ERROR_TEXT,
     APPLICATION_REFUSED_ERROR_TEXT,
+    CANT_CHANGE_OWN_ROLE_ERROR_TEXT,
     FORBIDDEN_ERROR_TEXT,
     NOT_FOUND_ERROR_TEXT,
     NOT_UNIQUE_FIELDS_ERROR_TEXT,
     UNAUTHORIZED_ERROR_TEXT,
+    USER_MUST_BE_IN_PROFESSORS_TABLE_ERROR_TEXT,
     PaginationParameters,
 )
+from server.app.api.v1.notes.exceptions import CantChangeOwnRoleError
 from server.app.api.v1.users.exceptions import (
     ApplicationFieldsMismatchError,
     ApplicationRefusedError,
     NotUniqueFieldsError,
+    UserMustBeInProfessorsTableError,
     UserNotFoundError,
 )
 from server.app.api.v1.users.users import (
@@ -156,6 +160,12 @@ async def get_all_users(
         status.HTTP_404_NOT_FOUND: {
             "description": NOT_FOUND_ERROR_TEXT,
         },
+        status.HTTP_409_CONFLICT: {
+            "description": USER_MUST_BE_IN_PROFESSORS_TABLE_ERROR_TEXT,
+        },
+        status.HTTP_409_CONFLICT: {
+            "description": CANT_CHANGE_OWN_ROLE_ERROR_TEXT,
+        }
     },
 )
 async def change_user_role(
@@ -168,10 +178,17 @@ async def change_user_role(
     ),
 ):
     try:
-        return await users_service.change_role(changing_user)
+        return await users_service.change_role(user=changing_user, current_user_id=current_user.id)
     except UserNotFoundError as error:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(
+                error,
+            )
+        )
+    except (UserMustBeInProfessorsTableError, CantChangeOwnRoleError) as error:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
             detail=str(
                 error,
             )

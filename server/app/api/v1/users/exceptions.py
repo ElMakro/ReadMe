@@ -7,6 +7,16 @@ class UserNotFoundError(
     pass
 
 
+class UserMustBeInProfessorsTableError(
+    ValueError,
+):
+    """
+    Исключение, связанное с невозможностью присвоить пользователю роль преподавателя вручную (так как его нет в таблице
+    преподавателей).
+    """
+    pass
+
+
 class NotUniqueFieldsError(
     ValueError,
 ):
