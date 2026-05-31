@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+
+{% block title %}Управление пользователями{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="section-title">Управление пользователями</h1>
+        <button class="btn btn-outline-accent" id="refreshBtn">Обновить</button>
+    </div>
+
+    <div id="usersList" class="row g-3">
+        <div class="col-12 text-center py-5">
+            <div class="spinner-border text-accent" role="status">
+                <span class="visually-hidden">Загрузка...</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Пагинация -->
+    <nav id="paginationNav" class="mt-4 d-none">
+        <ul class="pagination justify-content-center">
+            <li class="page-item" id="prevPageBtn">
+                <a class="page-link" href="#" aria-label="Previous">
+                    <span aria-hidden="true">«</span>
+                </a>
+            </li>
+            <li class="page-item disabled"><span class="page-link" id="pageInfo">Страница 1</span></li>
+            <li class="page-item" id="nextPageBtn">
+                <a class="page-link" href="#" aria-label="Next">
+                    <span aria-hidden="true">»</span>
+                </a>
+            </li>
+        </ul>
+    </nav>
+</div>
+
+<!-- Модальное окно изменения роли -->
+<div class="modal fade" id="roleModal" tabindex="-1" aria-labelledby="roleModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content" style="background: var(--bg-secondary); border: 1px solid var(--border-color);">
+            <div class="modal-header">
+                <h5 class="modal-title" id="roleModalLabel">Изменение роли пользователя</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+            </div>
+            <div class="modal-body">
+                <p>Пользователь: <strong id="roleUserName"></strong></p>
+                <div class="mb-3">
+                    <label for="newRoleSelect" class="form-label">Новая роль</label>
+                    <select id="newRoleSelect" class="form-select" style="background: var(--bg-primary); border-color: var(--border-color); color: var(--text-primary);">
+                        <option value="student">Студент</option>
+                        <option value="professor">Преподаватель</option>
+                        <option value="admin">Администратор</option>
+                    </select>
+                    <div class="form-text text-muted">Примечание: назначение роли "Преподаватель" возможно только если пользователь уже добавлен в таблицу преподавателей (через одобренную заявку).</div>
+                </div>
+                <input type="hidden" id="currentUserId">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-accent" id="confirmRoleBtn">Сохранить</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно подтверждения удаления -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content" style="background: var(--bg-secondary); border: 1px solid var(--border-color);">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteModalLabel">Подтверждение удаления</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+            </div>
+            <div class="modal-body">
+                <p>Вы действительно хотите удалить пользователя <strong id="deleteUserName"></strong>?</p>
+                <p class="text-danger">Это действие необратимо.</p>
+                <input type="hidden" id="deleteUserId">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Удалить</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Toast уведомления -->
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index: 11">
+    <div id="liveToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true" data-bs-autohide="true" data-bs-delay="5000">
+        <div class="toast-header">
+            <strong class="me-auto">Уведомление</strong>
+            <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Закрыть"></button>
+        </div>
+        <div class="toast-body"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', path='admin_users.js') }}"></script>
+{% endblock %}

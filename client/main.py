@@ -133,3 +133,15 @@ async def my_applications_page(request: Request):
             "api_base_url": BACKEND_URL
         }
     )
+
+
+@client_app.get("/admin/users")
+async def admin_users_page(request: Request):
+    return templates.TemplateResponse(
+        request,
+        "admin_users.html",
+        {
+            "request": request,
+            "api_base_url": BACKEND_URL
+        }
+    )
