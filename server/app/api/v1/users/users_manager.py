@@ -1,7 +1,7 @@
 import uuid
 
 from fastapi import Depends
-from sqlalchemy import and_, delete, desc, insert, literal, or_, select, update
+from sqlalchemy import and_, delete, desc, exists, insert, literal, or_, select, update
 from sqlalchemy.exc import IntegrityError
 
 from server.app.api.v1.common_schemas import (
@@ -9,11 +9,13 @@ from server.app.api.v1.common_schemas import (
     APPLICATION_REFUSED_ERROR_TEXT,
     NOT_FOUND_ERROR_TEXT,
     NOT_UNIQUE_FIELDS_ERROR_TEXT,
+    USER_MUST_BE_IN_PROFESSORS_TABLE_ERROR_TEXT,
 )
 from server.app.api.v1.users.exceptions import (
     ApplicationFieldsMismatchError,
     ApplicationRefusedError,
     NotUniqueFieldsError,
+    UserMustBeInProfessorsTableError,
     UserNotFoundError,
 )
 from server.app.api.v1.users.users import (
@@ -117,7 +119,30 @@ class UsersManager:
                 users,
             )
 
-    async def change_role(self, id: uuid.UUID, role: Role) -> None:
+    async def change_role_to_professor(self, id: uuid.UUID) -> None:
+        async with (self.db.db_session() as session):
+            query = update(
+                self.users_model
+            ).where(
+                self.users_model.id == id
+            ).where(
+                exists(
+                    select(
+                        self.professors_model
+                    ).where(
+                        self.professors_model.id == id
+                    )
+                )
+            ).values(
+                role=Role.PROFESSOR
+            )
+            result = await session.execute(query)
+            await session.commit()
+            if not result.rowcount:
+                raise UserMustBeInProfessorsTableError(USER_MUST_BE_IN_PROFESSORS_TABLE_ERROR_TEXT)
+            return
+
+    async def change_role_except_professors(self, id: uuid.UUID, role: Role) -> None:
         async with (self.db.db_session() as session):
             query = update(
                 self.users_model

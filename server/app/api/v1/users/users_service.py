@@ -1,10 +1,13 @@
+import uuid
 from uuid import UUID
 
 from fastapi import Depends
 
 from server.app.api.v1.auth.auth_manager import AuthManager
+from server.app.api.v1.common_schemas import CANT_CHANGE_OWN_ROLE_ERROR_TEXT
 from server.app.api.v1.courses.courses import CourseResponse
 from server.app.api.v1.courses.courses_manager import CoursesManager
+from server.app.api.v1.notes.exceptions import CantChangeOwnRoleError
 from server.app.api.v1.users.users import (
     ApplicationById,
     ApplicationChangeStatus,
@@ -107,8 +110,12 @@ class UsersService:
             limit,
         )
 
-    async def change_role(self, user: UserWithRole) -> None:
-        return await self.users_manager.change_role(id=user.id, role=user.role)
+    async def change_role(self, user: UserWithRole, current_user_id: uuid.UUID) -> None:
+        if current_user_id == user.id:
+            raise CantChangeOwnRoleError(CANT_CHANGE_OWN_ROLE_ERROR_TEXT)
+        if user.role == Role.PROFESSOR:
+            return await self.users_manager.change_role_to_professor(id=user.id)
+        return await self.users_manager.change_role_except_professors(id=user.id, role=user.role)
 
     async def delete_user(self, id: UUID) -> None:
         await self.users_manager.delete_user(id=id)
