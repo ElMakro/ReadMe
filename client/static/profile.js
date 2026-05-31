@@ -50,8 +50,9 @@
                         <a href="/my-applications" class="btn btn-outline-accent">Мои заявки на преподавание</a>
                     </div>
                     ${user.role === 'admin' ? `
-                        <div class="mt-3">
+                        <div class="mt-3 d-flex flex-column gap-2">
                             <a href="/admin/applications" class="btn btn-outline-accent w-100">Управление заявками на преподавание</a>
+                            <a href="/admin/users" class="btn btn-outline-accent w-100">Управление пользователями</a>
                         </div>
                     ` : ''}
                 </div>
