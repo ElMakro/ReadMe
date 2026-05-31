@@ -7,6 +7,7 @@ from server.app.api.v1.common_schemas import (
     APPLICATION_FIELDS_MISMATCH_ERROR_TEXT,
     APPLICATION_REFUSED_ERROR_TEXT,
     CANT_CHANGE_OWN_ROLE_ERROR_TEXT,
+    CANT_DELETE_OWN_PROFILE_ERROR_TEXT,
     FORBIDDEN_ERROR_TEXT,
     NOT_FOUND_ERROR_TEXT,
     NOT_UNIQUE_FIELDS_ERROR_TEXT,
@@ -14,7 +15,7 @@ from server.app.api.v1.common_schemas import (
     USER_MUST_BE_IN_PROFESSORS_TABLE_ERROR_TEXT,
     PaginationParameters,
 )
-from server.app.api.v1.notes.exceptions import CantChangeOwnRoleError
+from server.app.api.v1.notes.exceptions import CantChangeOwnRoleError, CantDeleteOwnProfileError
 from server.app.api.v1.users.exceptions import (
     ApplicationFieldsMismatchError,
     ApplicationRefusedError,
@@ -206,6 +207,9 @@ async def change_user_role(
         status.HTTP_404_NOT_FOUND: {
             "description": NOT_FOUND_ERROR_TEXT,
         },
+        status.HTTP_409_CONFLICT: {
+            "description": CANT_DELETE_OWN_PROFILE_ERROR_TEXT,
+        }
     },
 )
 async def delete_user(
@@ -221,10 +225,17 @@ async def delete_user(
     ),
 ):
     try:
-        return await users_service.delete_user(id=id)
+        return await users_service.delete_user(id=id, current_user_id=user.id)
     except UserNotFoundError as error:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(
+                error,
+            )
+        )
+    except CantDeleteOwnProfileError as error:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
             detail=str(
                 error,
             )
