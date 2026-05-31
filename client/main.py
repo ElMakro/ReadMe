@@ -100,8 +100,8 @@ async def my_notes_page(request: Request):
         "api_base_url": BACKEND_URL
     })
 
-@client_app.get("/s8f7g3h2j1k")
-async def secret_application_form(request: Request):
+@client_app.get("/submit_professor_application")
+async def submit_professor_application_form(request: Request):
     return templates.TemplateResponse(
         request,
         "submit_application.html",
