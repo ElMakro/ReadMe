@@ -83,13 +83,13 @@ class PaginationParameters(
         default=1,
     )
     records_per_page: Annotated[
-        Literal[5, 10, 15, 20, 30],
+        Literal[6, 9, 15, 30],
         BeforeValidator(
             convert_to_int,
         ),
     ] = Query(
         description="Количество записей на странице",
-        default=10,
+        default=9,
     )
 
 
