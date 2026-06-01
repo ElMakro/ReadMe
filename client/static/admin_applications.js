@@ -1,6 +1,6 @@
 (function() {
     const API_BASE = (window.API_BASE_URL || 'http://localhost:8080/api/v1').replace(/\/$/, '');
-    const PAGE_SIZE = 10;
+    const PAGE_SIZE = 9;
     let currentPage = 1;
     let isLoading = false;
 
