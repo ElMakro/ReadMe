@@ -15,11 +15,6 @@ def course_id(professor_client):
     return res.json()["id"]
 
 
-# server/tests/integration/test_sections_topics.py
-
-# ... в начале файла ...
-
-@pytest.mark.skip("Требует фикстуру professor_client — пока не настроена")
 class TestSections:
     @staticmethod
     def test_create_section(professor_client, course_id):
@@ -40,32 +35,31 @@ class TestSections:
         """
         🎯 ОЖИДАЕМЫЙ РЕЗУЛЬТАТ: Список разделов получен (200).
         """
-        # Сначала создаем один
         professor_client.post("/api/v1/sections/create-section", json={
             "course_id": course_id, "name": "S1", "description": "d", "order_number": 1
         })
-
         res = professor_client.get(f"/api/v1/sections/by_course/{course_id}")
         assert res.status_code == 200
         assert len(res.json()) > 0
 
 
-@pytest.mark.skip("Требует фикстуру professor_client — пока не настроена")
 class TestTopics:
     @staticmethod
     def test_create_topic(professor_client, course_id):
         """
         🎯 ОЖИДАЕМЫЙ РЕЗУЛЬТАТ: Тема создана (201).
         """
-        # Нужен раздел
+        # Сначала создаем раздел
         sec_res = professor_client.post("/api/v1/sections/create-section", json={
             "course_id": course_id, "name": "Sec", "description": "d", "order_number": 1
         })
         sec_id = sec_res.json()["id"]
 
+        # 🔧 Добавляем raw_content (пустой список блоков)
         res = professor_client.post("/api/v1/topics/create-topic", json={
             "section_id": sec_id,
             "name": "Topic 1",
-            "order_number": 1
+            "order_number": 1,
+            "raw_content": []  # ← Важно!
         })
         assert res.status_code == 201
