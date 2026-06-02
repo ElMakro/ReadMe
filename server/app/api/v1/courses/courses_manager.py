@@ -73,7 +73,21 @@ class CoursesManager:
     ) -> CourseFullListResponse:
         async with self.db.db_session() as session:
             query = select(
-                Courses
+                self.courses_model.id,
+                self.courses_model.name,
+                self.courses_model.description,
+                self.courses_model.is_public,
+                self.courses_model.is_content_public,
+                self.courses_model.tags,
+                self.courses_model.created_at,
+                self.courses_model.updated_at,
+                self.courses_model.professor_id,
+                self.professors_model.name.label("professor_name"),
+                self.professors_model.surname.label("professor_surname"),
+                self.professors_model.patronymic.label("professor_patronymic"),
+            ).join(
+                self.professors_model,
+                self.professors_model.id == self.courses_model.professor_id,
             ).where(
                 self.courses_model.professor_id == user_id,
             ).order_by(
@@ -88,7 +102,7 @@ class CoursesManager:
                 query,
             )
 
-            courses = result.scalars().all()
+            courses = result.mappings().all()
             return CourseFullListResponse.model_validate(
                 courses,
             )
@@ -126,10 +140,29 @@ class CoursesManager:
             course_id: UUID,
     ) -> CourseResponse:
         async with self.db.db_session() as session:
-            course = await session.get(
-                Courses,
-                course_id,
+            query = select(
+                self.courses_model.id,
+                self.courses_model.name,
+                self.courses_model.description,
+                self.courses_model.is_public,
+                self.courses_model.is_content_public,
+                self.courses_model.tags,
+                self.courses_model.created_at,
+                self.courses_model.updated_at,
+                self.courses_model.professor_id,
+                self.professors_model.name.label("professor_name"),
+                self.professors_model.surname.label("professor_surname"),
+                self.professors_model.patronymic.label("professor_patronymic"),
+            ).join(
+                self.professors_model,
+                self.professors_model.id == self.courses_model.professor_id,
+            ).where(
+                self.courses_model.id == course_id
             )
+            result = await session.execute(
+                query,
+            )
+            course = result.mappings().one_or_none()
 
         if course is None:
             raise ObjectMissingError(
@@ -244,7 +277,21 @@ class CoursesManager:
     ) -> CourseFullListResponse:
         async with self.db.db_session() as session:
             query = select(
-                self.courses_model,
+                self.courses_model.id,
+                self.courses_model.name,
+                self.courses_model.description,
+                self.courses_model.is_public,
+                self.courses_model.is_content_public,
+                self.courses_model.tags,
+                self.courses_model.created_at,
+                self.courses_model.updated_at,
+                self.courses_model.professor_id,
+                self.professors_model.name.label("professor_name"),
+                self.professors_model.surname.label("professor_surname"),
+                self.professors_model.patronymic.label("professor_patronymic"),
+            ).join(
+                self.professors_model,
+                self.professors_model.id == self.courses_model.professor_id,
             ).where(
                 self.courses_model.name.ilike(
                     f"{course_name_prefix}%",
@@ -254,7 +301,7 @@ class CoursesManager:
                 query,
             )
 
-            courses = result.scalars().all()
+            courses = result.mappings().all()
 
             return CourseFullListResponse.model_validate(
                 courses,
@@ -282,7 +329,21 @@ class CoursesManager:
     ) -> CourseFullListResponse:
         async with self.db.db_session() as session:
             query = select(
-                Courses,
+                self.courses_model.id,
+                self.courses_model.name,
+                self.courses_model.description,
+                self.courses_model.is_public,
+                self.courses_model.is_content_public,
+                self.courses_model.tags,
+                self.courses_model.created_at,
+                self.courses_model.updated_at,
+                self.courses_model.professor_id,
+                self.professors_model.name.label("professor_name"),
+                self.professors_model.surname.label("professor_surname"),
+                self.professors_model.patronymic.label("professor_patronymic"),
+            ).join(
+                self.professors_model,
+                self.professors_model.id == self.courses_model.professor_id,
             ).where(
                 Courses.tags.contains(
                     [tag],
@@ -292,7 +353,7 @@ class CoursesManager:
                 query,
             )
 
-            courses = result.scalars().all()
+            courses = result.mappings().all()
 
         return CourseFullListResponse.model_validate(
             courses,
