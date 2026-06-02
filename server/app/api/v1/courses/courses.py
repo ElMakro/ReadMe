@@ -139,6 +139,15 @@ class CourseResponse(
         description="ID преподавателя",
         examples=[uuid.uuid4()],
     )
+    professor_name: str = Field(
+        description="Имя преподавателя"
+    )
+    professor_surname: str = Field(
+        description="Фамилия преподавателя"
+    )
+    professor_patronymic: str = Field(
+        description="Отчество преподавателя"
+    )
 
 
 class CourseFullListResponse(

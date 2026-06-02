@@ -7,7 +7,7 @@ from sqlalchemy import delete, select
 from server.app.api.v1.courses.courses import CourseFullListResponse, CourseIDMixin, CourseResponse
 from server.app.api.v1.exceptions import ObjectMissingError
 from server.config.db_dependency import DBDependency
-from server.database.models import Courses, CoursesForStudents
+from server.database.models import Courses, CoursesForStudents, ProfessorsDetails
 
 
 class CoursesManager:
@@ -20,6 +20,7 @@ class CoursesManager:
         self.db = db
         self.courses_model = Courses
         self.courses_for_students_model = CoursesForStudents
+        self.professors_model = ProfessorsDetails
 
     async def get_courses_of_user(
             self,
@@ -29,10 +30,24 @@ class CoursesManager:
     ) -> CourseFullListResponse:
         async with self.db.db_session() as session:
             query = select(
-                Courses
+                self.courses_model.id,
+                self.courses_model.name,
+                self.courses_model.description,
+                self.courses_model.is_public,
+                self.courses_model.is_content_public,
+                self.courses_model.tags,
+                self.courses_model.created_at,
+                self.courses_model.updated_at,
+                self.courses_model.professor_id,
+                self.professors_model.name.label("professor_name"),
+                self.professors_model.surname.label("professor_surname"),
+                self.professors_model.patronymic.label("professor_patronymic"),
             ).join(
                 self.courses_for_students_model,
                 self.courses_model.id == self.courses_for_students_model.course_id,
+            ).join(
+                self.professors_model,
+                self.professors_model.id == self.courses_model.professor_id,
             ).where(
                 self.courses_for_students_model.student_id == user_id,
             ).order_by(
@@ -45,7 +60,7 @@ class CoursesManager:
             result = await session.execute(
                 query,
             )
-            courses = result.scalars().all()
+            courses = result.mappings().all()
             return CourseFullListResponse.model_validate(
                 courses,
             )
