@@ -161,7 +161,8 @@
 """
 Фикстуры для интеграционных тестов ReadMe.
 • PostgreSQL в Docker через Testcontainers
-• Только student_client — тестируем через запреты (403)
+• Ролевые клиенты: student, professor, admin (синхронные!)
+• Изоляция через подмену зависимости БД
 """
 import os
 import sys
@@ -169,6 +170,7 @@ import pytest
 import uuid
 from testcontainers.postgres import PostgresContainer
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
+from sqlalchemy import create_engine, text  # ← Синхронные импорты
 
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 if project_root not in sys.path:
@@ -184,13 +186,11 @@ from server.config.db_dependency import DBDependency
 def postgres_container():
     """🐳 Поднимает PostgreSQL в Docker и создаёт схему"""
     print("🐳 Запускаем PostgreSQL в Docker...")
-
     with PostgresContainer("postgres:18") as postgres:
-        # 🔧 Меняем драйвер на asyncpg для SQLAlchemy
+        # Заменяем синхронный драйвер на асинхронный asyncpg для основного приложения
         connection_url = postgres.get_connection_url().replace("+psycopg2", "+asyncpg")
         print(f"✅ PostgreSQL запущен: {connection_url}")
 
-        # 🔧 Создаём таблицы напрямую из моделей
         print("🔧 Создаём схему из моделей...")
 
         async def create_tables():
@@ -202,15 +202,14 @@ def postgres_container():
         import asyncio
         asyncio.run(create_tables())
         print("✅ Схема создана")
-
         yield {"url": connection_url}
-
     print("🧹 PostgreSQL контейнер остановлен")
 
 
+# 🔧 ФИКСТУРЫ ДЛЯ АСИНХРОННОГО ПРИЛОЖЕНИЯ
 @pytest.fixture(scope="session")
 def _test_engine(postgres_container):
-    """Внутренняя фикстура: создаёт тестовый движок"""
+    """Внутренняя фикстура: асинхронный тестовый движок"""
     engine = create_async_engine(postgres_container["url"])
     yield engine
     import asyncio
@@ -219,31 +218,43 @@ def _test_engine(postgres_container):
 
 @pytest.fixture(scope="session")
 def _test_sessionmaker(_test_engine):
-    """Внутренняя фикстура: создаёт фабрику сессий"""
+    """Внутренняя фикстура: фабрика асинхронных сессий"""
     return async_sessionmaker(_test_engine, expire_on_commit=False)
 
 
 @pytest.fixture(scope="session")
 def api_client(_test_sessionmaker):
     """🔧 Базовый клиент + подмена зависимости БД"""
-
-    async def override_get_db():
-        async with _test_sessionmaker() as session:
-            yield session
-
-    # 🔧 Подменяем зависимость БД в приложении
     original_db_session = DBDependency.db_session
     DBDependency.db_session = lambda self: _test_sessionmaker()
 
     with TestClient(app) as client:
         yield client
 
-    # 🔧 Восстанавливаем оригинал
     DBDependency.db_session = original_db_session
 
 
+# 🔧 ФИКСТУРЫ ДЛЯ СИНХРОННЫХ ОПЕРАЦИЙ (смена ролей)
+@pytest.fixture(scope="session")
+def _sync_engine(postgres_container):
+    """Внутренняя фикстура: синхронный движок для фикстур"""
+    # 🔧 Используем psycopg2 для синхронных операций
+    sync_url = postgres_container["url"].replace("+asyncpg", "+psycopg2")
+    engine = create_engine(sync_url)
+    yield engine
+    engine.dispose()
+
+
+@pytest.fixture(scope="session")
+def _sync_sessionmaker(_sync_engine):
+    """Внутренняя фикстура: фабрика синхронных сессий"""
+    from sqlalchemy.orm import sessionmaker
+    return sessionmaker(bind=_sync_engine)
+
+
+# 🔧 ВСПОМОГАТЕЛЬНАЯ ФУНКЦИЯ
 def _register_and_login(client, nickname, password="StrongPassword123!"):
-    """Вспомогательная функция: регистрация + вход"""
+    """Регистрация + вход через API"""
     client.post("/api/v1/auth/reg", json={
         "nickname": nickname,
         "email": f"{nickname}@test.com",
@@ -256,8 +267,92 @@ def _register_and_login(client, nickname, password="StrongPassword123!"):
     return client
 
 
+# 🔧 РОЛЕВЫЕ ФИКСТУРЫ (ПОЛНОСТЬЮ СИНХРОННЫЕ!)
 @pytest.fixture
 def student_client(api_client):
     """🎓 Клиент с ролью student (по умолчанию при регистрации)"""
     nick = f"student_{uuid.uuid4().hex[:6]}"
     return _register_and_login(api_client, nick)
+
+
+@pytest.fixture
+def professor_client(admin_client, student_client, _sync_sessionmaker):
+    """
+    Создаём реального преподавателя через заявку и одобрение.
+    """
+    # 1. Подаём заявку от студента
+    submit_res = student_client.post("/api/v1/users/submit-professor-application", json={
+        "name": "Prof", "surname": "Test"
+    })
+    app_id = submit_res.json()["id"]
+    student_profile = student_client.get("/api/v1/users/profile").json()
+    student_id = student_profile["id"]
+
+    # 2. Админ одобряет
+    admin_client.put("/api/v1/users/change-application-status", json={
+        "application_id": app_id,
+        "user_id": student_id,
+        "status": "approved"
+    })
+
+    # 3. Явно обновляем роль в БД до 'PROFESSOR' (на случай, если эндпоинт не меняет роль)
+    with _sync_sessionmaker() as session:
+        session.execute(
+            text("UPDATE users SET role = 'PROFESSOR' WHERE id = :uid"),
+            {"uid": student_id}
+        )
+        session.commit()
+
+    # 4. Очищаем cookies и перелогиниваемся (используем тот же student_client!)
+    student_client.cookies.clear()
+    student_client.post("/api/v1/auth/login", json={
+        "nickname": student_profile["nickname"],
+        "password": "StrongPassword123!"
+    })
+
+    return student_client
+
+
+@pytest.fixture
+def admin_client(api_client, _sync_sessionmaker):
+    """🛡️ Клиент с ролью admin"""
+    nick = f"admin_{uuid.uuid4().hex[:6]}"
+    password = "StrongPassword123!"
+
+    # 1. Регистрация и логин
+    client = _register_and_login(api_client, nick, password)
+
+    # 2. Получаем ID пользователя
+    profile = client.get("/api/v1/users/profile").json()
+    user_id = profile["id"]
+    print(f"🔧 Создаём админа: {nick}, ID: {user_id}")
+
+    # 3. Обновляем роль в БД
+    with _sync_sessionmaker() as session:
+        result = session.execute(
+            text("UPDATE users SET role = 'ADMIN' WHERE id = :uid"),
+            {"uid": user_id}
+        )
+        session.commit()
+        print(f"🔧 Обновлено строк: {result.rowcount}")
+
+        # Проверяем, что роль действительно изменилась
+        check = session.execute(
+            text("SELECT role FROM users WHERE id = :uid"),
+            {"uid": user_id}
+        ).scalar()
+        print(f"🔧 Роль в БД после UPDATE: {check}")
+
+    # 4. Перелогиниваемся для обновления токена
+    client.cookies.clear()
+    login_res = client.post("/api/v1/auth/login", json={
+        "nickname": nick,
+        "password": password
+    })
+    print(f"🔧 Логин статус: {login_res.status_code}")
+
+    # Проверяем профиль после логина
+    new_profile = client.get("/api/v1/users/profile").json()
+    print(f"🔧 Роль в профиле после логина: {new_profile.get('role')}")
+
+    return client
