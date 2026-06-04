@@ -7,6 +7,14 @@
     let sections = [];
     let originalSections = [];
 
+    function autosize(textarea) {
+        textarea.style.height = 'auto';
+        const maxHeight = 200;
+        const newHeight = Math.min(textarea.scrollHeight, maxHeight);
+        textarea.style.height = newHeight + 'px';
+        textarea.style.overflowY = (textarea.scrollHeight > maxHeight) ? 'auto' : 'hidden';
+    }
+
     function truncateWords(text, wordLimit) {
         if (!text) return '';
         const words = text.trim().split(/\s+/);
@@ -94,7 +102,7 @@
                 </div>
                 <div class="mb-3">
                     <label class="form-label">Описание раздела</label>
-                    <textarea class="form-control section-description-edit" rows="3" placeholder="Введите описание раздела">${escapeHtml(sec.description)}</textarea>
+                    <textarea class="form-control section-description-edit" placeholder="Введите описание раздела">${escapeHtml(sec.description)}</textarea>
                 </div>
                 <div class="mb-3">
                     <label class="form-label">Теги</label>
@@ -120,6 +128,11 @@
         const saveBtn = card.querySelector('.save-section-edit');
         const cancelBtn = card.querySelector('.cancel-edit');
         const delBtn = card.querySelector('.delete-section');
+
+        if (descTextarea) {
+            descTextarea.addEventListener('input', function() { autosize(this); });
+            autosize(descTextarea);
+        }
 
         saveBtn.addEventListener('click', async (e) => {
             e.stopPropagation();

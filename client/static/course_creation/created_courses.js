@@ -6,6 +6,14 @@
     let courses = [];
     let originalCourses = [];
 
+    function autosize(textarea) {
+        textarea.style.height = 'auto';
+        const maxHeight = 200;
+        const newHeight = Math.min(textarea.scrollHeight, maxHeight);
+        textarea.style.height = newHeight + 'px';
+        textarea.style.overflowY = (textarea.scrollHeight > maxHeight) ? 'auto' : 'hidden';
+    }
+
     function escapeHtml(str) {
         if (!str) return '';
         const div = document.createElement('div');
@@ -103,7 +111,7 @@
                 </div>
                 <div class="mb-3">
                     <label class="form-label">Описание</label>
-                    <textarea class="form-control course-description-edit" rows="3">${escapeHtml(course.description || '')}</textarea>
+                    <textarea class="form-control course-description-edit" placeholder="Введите описание курса">${escapeHtml(course.description || '')}</textarea>
                 </div>
 
                 <div class="mb-3">
@@ -143,12 +151,17 @@
         }
 
         const nameInput = card.querySelector('.course-name-edit');
-        const descInput = card.querySelector('.course-description-edit');
+        const descTextarea = card.querySelector('.course-description-edit');
         const isPublicSelect = card.querySelector('.course-is-public-edit');
         const isContentPublicSelect = card.querySelector('.course-is-content-public-edit');
         const saveBtn = card.querySelector('.save-course-edit');
         const cancelBtn = card.querySelector('.cancel-edit');
         const delBtn = card.querySelector('.delete-course');
+
+        if (descTextarea) {
+            descTextarea.addEventListener('input', function() { autosize(this); });
+            autosize(descTextarea);
+        }
 
         saveBtn.addEventListener('click', async (e) => {
             e.stopPropagation();
@@ -157,7 +170,7 @@
                 window.showToast('Название курса не может быть пустым', 'danger');
                 return;
             }
-            const newDesc = descInput.value.trim();
+            const newDesc = descTextarea.value.trim();
             const newIsPublic = isPublicSelect.value === 'true';
             const newIsContentPublic = isContentPublicSelect.value === 'true';
             const newTags = [...course.tags];

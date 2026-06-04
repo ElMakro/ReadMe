@@ -131,7 +131,7 @@
         });
     }
 
-    if (filtersBtn) filtersBtn.addEventListener('click', () => window.showToast('Фильтры курсов (демо)', 'info'));
+    if (filtersBtn) filtersBtn.addEventListener('click', () => window.showToast('Фильтры курсов (демо)', 'warning'));
     if (myCoursesBtn) myCoursesBtn.addEventListener('click', () => window.location.href = '/my-courses');
     if (manageCoursesBtn) manageCoursesBtn.addEventListener('click', () => window.location.href = '/created-courses');
 
