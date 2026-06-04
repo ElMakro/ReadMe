@@ -18,7 +18,7 @@ from server.app.api.v1.users.users import (
     UsersList,
     UserUpdatedInfo,
     UserVerification,
-    UserWithRole,
+    UserWithRole, SecretApplicationLink,
 )
 from server.app.api.v1.users.users_manager import UsersManager
 from server.enums.access_permissions import AccessPermissions
@@ -146,3 +146,6 @@ class UsersService:
         offset = (page - 1) * size
         limit = size
         return await self.users_manager.get_user_applications(id=id, offset=offset, limit=limit)
+
+    async def get_secret_application_link(self) -> SecretApplicationLink:
+        return await self.users_manager.get_secret_application_link()

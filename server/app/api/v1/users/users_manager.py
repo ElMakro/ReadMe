@@ -26,10 +26,10 @@ from server.app.api.v1.users.users import (
     UserProfile,
     UsersList,
     UserUpdatedInfo,
-    UserVerification,
+    UserVerification, SecretApplicationLink,
 )
 from server.config.db_dependency import DBDependency
-from server.database.models import ProfessorsApplications, ProfessorsDetails, Users
+from server.database.models import ProfessorsApplications, ProfessorsDetails, Users, ApplicationLink
 from server.enums.application_status import ApplicationStatus
 from server.enums.role import Role
 
@@ -52,6 +52,7 @@ class UsersManager:
         self.users_model = Users
         self.professors_applications_model = ProfessorsApplications
         self.professors_model = ProfessorsDetails
+        self.application_link_model = ApplicationLink
 
     async def get_user_profile_info(self, user_id: uuid.UUID) -> UserProfile:
         async with self.db.db_session() as session:
@@ -307,3 +308,12 @@ class UsersManager:
             return ApplicationsUserList.model_validate(
                 applications,
             )
+
+    async def get_secret_application_link(self) -> SecretApplicationLink:
+        async with self.db.db_session() as session:
+            query = select(
+                self.application_link_model,
+            )
+            result = await session.execute(query)
+            link = result.mappings().one()
+            return SecretApplicationLink.model_validate(link)
