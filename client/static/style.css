@@ -1,35 +1,49 @@
 :root,
 [data-theme="light"] {
-    /* Светлая тема – мягкий голубовато-белый фон, глубокий синий текст, насыщенный синий акцент */
-    --bg-primary: #e9eced;        /* очень светлый голубовато-серый */
-    --bg-secondary: #FFFFFF;      /* чистый белый для карточек */
-    --text-primary: #0F172A;      /* тёмно-синий, почти чёрный */
-    --text-secondary: #334155;    /* спокойный серо-синий для второстепенного текста */
-    --accent: #2563EB;            /* яркий синий (основной акцент) */
-    --accent-hover: #1D4ED8;      /* более тёмный синий для наведения */
-    --accent-light: #DBEAFE;      /* очень светлый синий для подсветки */
-    --border-color: #E2E8F0;      /* нейтральный серый */
+    --bg-primary: #F8FAFC;
+    --bg-secondary: #FFFFFF;
+    --text-primary: #0F172A;
+    --text-secondary: #334155;
+    --accent: #2563EB;
+    --accent-hover: #1D4ED8;
+    --accent-light: #DBEAFE;
+    --border-color: #E2E8F0;
     --bs-primary-rgb: 37, 99, 235;
-    --accent-dark: #1E4ED8;       /* тёмный синий для бейджей */
-    --border-width: 2px;          /* универсальная толщина обводки */
+    --accent-dark: #1E4ED8;
+    --border-width: 1px;
+
+    --bg-primary-rgb: 248, 250, 252;
+    --bg-secondary-rgb: 255, 255, 255;
+    --border-color-rgb: 226, 232, 240;
+
+    --success-color: #10B981;
+    --danger-color: #EF4444;
+    --warning-color: #F59E0B;
 }
 
 [data-theme="dark"] {
-    /* Тёмная тема – глубокий тёмно-синий фон, плавные переходы, читаемый текст */
-    --bg-primary: #0B1120;        /* очень тёмный сине-серый */
-    --bg-secondary: #1E293B;      /* карточки, боковые панели – насыщенный тёмно-синий */
-    --text-primary: #F1F5F9;      /* почти белый, отлично читается */
-    --text-secondary: #94A3B8;    /* серебристо-синий для вспомогательного текста */
-    --accent: #3B82F6;            /* чистый синий, не кричащий, но заметный */
-    --accent-hover: #60A5FA;      /* светлый синий при наведении */
-    --accent-light: #1E3A8A;      /* тёмно-синий для подсветки (почти незаметно) */
-    --border-color: #334155;      /* границы на тон светлее фона */
+    --bg-primary: #0B1120;
+    --bg-secondary: #1E293B;
+    --text-primary: #F1F5F9;
+    --text-secondary: #94A3B8;
+    --accent: #3B82F6;
+    --accent-hover: #60A5FA;
+    --accent-light: #1E3A8A;
+    --border-color: #334155;
     --bs-primary-rgb: 59, 130, 246;
-    --accent-dark: #3B82F6;       /* в тёмной теме можно использовать основной акцент */
-    --border-width: 2px;          /* универсальная толщина обводки */
+    --accent-dark: #3B82F6;
+    --border-width: 1px;
+
+    --bg-primary-rgb: 11, 17, 32;
+    --bg-secondary-rgb: 30, 41, 59;
+    --border-color-rgb: 51, 65, 85;
+
+    --success-color: #34D399;
+    --danger-color: #F87171;
+    --warning-color: #FBBF24;
 }
 
-/* Bootstrap-переменные (чтобы компоненты BS тоже подхватили тему) */
+/* Bootstrap-переменные */
 :root,
 [data-theme="light"],
 [data-theme="dark"] {
@@ -47,7 +61,6 @@
     --bs-primary-rgb: 59, 130, 246;
 }
 
-/* Базовые стили – без глобальных переходов для производительности */
 * {
     margin: 0;
     padding: 0;
@@ -107,37 +120,6 @@ body {
     pointer-events: none;
 }
 
-.theme-toggle, .btn-login, .filters-btn, .pagination-btn {
-    padding: 8px 20px;
-    border-radius: 12px;
-    font-size: 0.95rem;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    font-weight: 500;
-}
-.theme-toggle {
-    background: var(--bg-primary);
-    color: var(--text-primary);
-    border: var(--border-width) solid var(--border-color);
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-}
-.theme-toggle:hover {
-    border-color: var(--accent);
-    color: var(--accent);
-}
-.btn-login {
-    background: var(--text-primary);
-    color: var(--bg-primary);
-    border: none;
-}
-.btn-login:hover {
-    background: var(--accent);
-    color: white;
-    transform: translateY(-2px);
-}
-
 /* ========== MAIN ========== */
 .main {
     flex: 1;
@@ -150,79 +132,6 @@ body {
     font-size: 2rem;
     color: var(--text-primary);
     font-weight: 700;
-}
-.filters-btn {
-    background: var(--bg-secondary);
-    border: var(--border-width) solid var(--border-color);
-    color: var(--text-primary);
-}
-.filters-btn:hover {
-    border-color: var(--accent);
-    color: var(--accent);
-}
-
-/* ========== КАРТОЧКИ КУРСОВ ========== */
-.course-card {
-    background: var(--bg-secondary);
-    border: var(--border-width) solid var(--border-color);
-    border-radius: 20px;
-    padding: 1.25rem;
-    cursor: pointer;
-    aspect-ratio: 1 / 1.4;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s;
-}
-.course-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 12px 24px -8px rgba(0, 0, 0, 0.15);
-    border-color: var(--accent);
-}
-.course-number {
-    font-size: 1.2rem;
-    font-weight: 600;
-    color: var(--text-primary);
-    margin-bottom: 20px;
-}
-.course-title {
-    font-size: 1.3rem;
-    font-weight: 700;
-    color: var(--text-primary);
-    margin-bottom: 0.5rem;
-}
-.course-instructor {
-    font-size: 0.9rem;
-    color: var(--text-secondary);
-    margin-bottom: 0.75rem;
-}
-.course-description {
-    font-size: 0.9rem;
-    color: var(--text-secondary);
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-/* ========== ПАГИНАЦИЯ ========== */
-.pagination-btn {
-    background: var(--bg-secondary);
-    border: var(--border-width) solid var(--border-color);
-    color: var(--text-primary);
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-}
-.pagination-btn:hover:not(:disabled) {
-    border-color: var(--accent);
-    color: var(--accent);
-    transform: translateY(-2px);
-}
-.pagination-btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
 }
 
 /* ========== FOOTER ========== */
@@ -273,110 +182,31 @@ body {
     }
 }
 
-/* ========== МОДАЛЬНОЕ ОКНО (auth-modal) ========== */
-.modal-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0,0,0,0.6);
-    backdrop-filter: blur(8px);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    visibility: hidden;
-    opacity: 0;
-    transition: 0.25s;
-    z-index: 1000;
-}
-.modal-overlay.active {
-    visibility: visible;
-    opacity: 1;
-}
-.modal-container {
-    background: var(--bg-secondary);
-    border-radius: 28px;
-    width: 90%;
-    max-width: 450px;
-    padding: 1.8rem;
-    border: var(--border-width) solid var(--border-color);
-    box-shadow: 0 20px 35px -10px rgba(0,0,0,0.2);
-}
-.modal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1.5rem;
-}
-.modal-close {
-    background: none;
-    border: none;
-    font-size: 1.8rem;
-    cursor: pointer;
-    color: var(--text-secondary);
-    transition: color 0.2s;
-}
-.modal-close:hover {
-    color: var(--accent);
-}
-
-/* ========== СТИЛИ ДЛЯ СТРАНИЦ КУРСОВ (боковая панель, темы) ========== */
-.course-sidebar {
-    background: var(--bg-secondary);
-    border-right: var(--border-width) solid var(--border-color);
+/* ========== ПРИЖАТИЕ ФУТЕРА ========== */
+.main {
+    flex: 1 1 auto;
     display: flex;
     flex-direction: column;
-    overflow: hidden;
+    min-height: 0;
 }
-.section-item {
-    background: transparent !important;
-    border: none !important;
-    padding: 0.25rem 0 !important;
-}
-.section-toggle {
+.main .container-fluid {
+    flex: 1 1 auto;
     display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.6rem 0.75rem;
-    border-radius: 12px;
-    color: var(--text-primary);
-    text-decoration: none;
-    font-weight: 500;
-    transition: background 0.2s, color 0.2s;
+    flex-direction: column;
+    min-height: 0;
+    padding-left: 0;
+    padding-right: 0;
 }
-.section-toggle:hover {
-    background: var(--border-color);
-    color: var(--accent);
+.main .container-fluid > .row {
+    flex: 1 1 auto;
+    display: flex;
+    min-height: 0;
+    margin-left: 0;
+    margin-right: 0;
 }
-.section-toggle.active {
-    background: var(--accent);
-    color: white;
-}
-.toggle-icon {
-    font-size: 0.75rem;
-    transition: transform 0.2s;
-}
-.section-topics {
-    margin-left: 1.25rem;
-}
-.topic-link {
-    display: block;
-    padding: 0.4rem 0.75rem;
-    border-radius: 8px;
-    color: var(--text-secondary);
-    text-decoration: none;
-    font-size: 0.9rem;
-    transition: background 0.2s, color 0.2s;
-}
-.topic-link:hover {
-    background: var(--border-color);
-    color: var(--text-primary);
-}
-.topic-link.active {
-    background: var(--accent);
-    color: white;
-    font-weight: 500;
+.main-content {
+    overflow-y: auto;
+    min-height: 0;
 }
 
 /* Основной контент курса */
@@ -413,208 +243,4 @@ a:hover {
 #checkYourselfBtn:hover {
     background: var(--accent-hover);
     transform: translateY(-2px);
-}
-
-/* ========== ПРИЖАТИЕ ФУТЕРА ========== */
-.main {
-    flex: 1 1 auto;
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-}
-.main .container-fluid {
-    flex: 1 1 auto;
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-    padding-left: 0;
-    padding-right: 0;
-}
-.main .container-fluid > .row {
-    flex: 1 1 auto;
-    display: flex;
-    min-height: 0;
-    margin-left: 0;
-    margin-right: 0;
-}
-.main-content {
-    overflow-y: auto;
-    min-height: 0;
-}
-
-/* ========== ПЛАВАЮЩЕЕ ОКНО КОНСПЕКТА ========== */
-.floating-tab-button {
-    position: fixed;
-    right: -30px;
-    top: 50%;
-    width: 60px;
-    height: 60px;
-    background: var(--accent);
-    border-radius: 50%;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 28px;
-    color: white;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-    z-index: 1100;
-    user-select: none;
-    transition: right 0.2s;
-}
-.floating-tab-button:hover {
-    right: 0;
-}
-.floating-window {
-    position: fixed;
-    width: 320px;
-    height: 280px;
-    min-width: 200px;
-    min-height: 150px;
-    max-width: 90vw;
-    max-height: 90vh;
-    background: var(--bg-secondary);
-    border: var(--border-width) solid var(--border-color);
-    border-radius: 20px;
-    box-shadow: 0 12px 28px rgba(0,0,0,0.2);
-    z-index: 1200;
-    display: flex;
-    flex-direction: column;
-    resize: both;
-    overflow: hidden;
-}
-.window-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 10px 14px;
-    border-bottom: var(--border-width) solid var(--border-color);
-    cursor: move;
-    user-select: none;
-    background: var(--bg-secondary);
-    font-weight: 600;
-    flex-shrink: 0;
-}
-.btn-close-window, .btn-save-conspect {
-    background: none;
-    border: none;
-    font-size: 18px;
-    cursor: pointer;
-    color: var(--text-secondary);
-    padding: 0 6px;
-    transition: color 0.2s;
-}
-.btn-close-window:hover, .btn-save-conspect:hover {
-    color: var(--accent);
-}
-.conspect-content {
-    flex: 1;
-    width: 100%;
-    padding: 12px;
-    font-family: inherit;
-    font-size: 0.9rem;
-    line-height: 1.4;
-    color: var(--text-primary);
-    background: var(--bg-primary);
-    border: none;
-    resize: none;
-    outline: none;
-    overflow: auto;
-}
-.resize-handle {
-    position: absolute;
-    width: 12px;
-    height: 12px;
-    background: transparent;
-    z-index: 1210;
-}
-.resize-handle.nw { top: -5px; left: -5px; cursor: nw-resize; }
-.resize-handle.ne { top: -5px; right: -5px; cursor: ne-resize; }
-.resize-handle.sw { bottom: -5px; left: -5px; cursor: sw-resize; }
-.resize-handle.se { bottom: -5px; right: -5px; cursor: se-resize; }
-.resize-handle.n { top: -5px; left: 20%; right: 20%; cursor: n-resize; width: auto; }
-.resize-handle.s { bottom: -5px; left: 20%; right: 20%; cursor: s-resize; width: auto; }
-.resize-handle.e { right: -5px; top: 20%; bottom: 20%; cursor: e-resize; height: auto; }
-.resize-handle.w { left: -5px; top: 20%; bottom: 20%; cursor: w-resize; height: auto; }
-
-/* ========== СТРАНИЦА ПРОФИЛЯ ========== */
-.profile-photo-wrapper {
-    width: 200px;
-    height: 200px;
-    border-radius: 50%;
-    overflow: hidden;
-    border: calc(var(--border-width) * 3) solid var(--accent);
-}
-.profile-photo {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
-.data-item span {
-    color: var(--text-primary);
-}
-.achievement-card {
-    background: var(--bg-secondary);
-    border: var(--border-width) solid var(--border-color);
-    border-radius: 16px;
-    color: var(--text-primary);
-    transition: all 0.2s;
-}
-.achievement-card:hover {
-    border-color: var(--accent);
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-}
-.achievement-icon {
-    font-size: 1.2rem;
-}
-.btn-outline-accent {
-    border: var(--border-width) solid var(--accent);
-    color: var(--accent);
-    background: transparent;
-    padding: 0.5rem 1.5rem;
-    border-radius: 40px;
-    text-decoration: none;
-    display: inline-block;
-    transition: all 0.2s;
-}
-.btn-outline-accent:hover {
-    background: var(--accent);
-    color: white;
-}
-.breadcrumb {
-    background: transparent;
-    padding: 0;
-}
-.breadcrumb-item a {
-    color: var(--accent);
-    text-decoration: none;
-}
-.breadcrumb-item.active {
-    color: var(--text-secondary);
-}
-.card.bg-secondary {
-    background: var(--bg-secondary) !important;
-    border: var(--border-width) solid var(--border-color);
-    border-radius: 24px;
-}
-.btn-accent {
-    background: var(--accent);
-    color: white;
-    border: none;
-    padding: 0.5rem 1.5rem;
-    border-radius: 40px;
-    transition: all 0.2s;
-}
-.btn-accent:hover {
-    background: var(--accent-hover);
-    transform: translateY(-2px);
-}
-.section-name, .topic-description, .section-description, .block-textarea {
-    width: 100%;
-}
-
-.bg-accent-dark {
-    background-color: var(--accent-dark) !important;
-    color: white;
 }

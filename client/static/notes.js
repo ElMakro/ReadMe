@@ -2,25 +2,6 @@
 (function() {
     const API_BASE = window.API_BASE_URL || '';
 
-    function showMessage(text, isError = false) {
-        const existing = document.getElementById('notesToast');
-        if (existing) existing.remove();
-        const div = document.createElement('div');
-        div.id = 'notesToast';
-        div.textContent = text;
-        div.style.position = 'fixed';
-        div.style.bottom = '20px';
-        div.style.left = '50%';
-        div.style.transform = 'translateX(-50%)';
-        div.style.backgroundColor = isError ? '#dc3545' : '#28a745';
-        div.style.color = 'white';
-        div.style.padding = '8px 16px';
-        div.style.borderRadius = '8px';
-        div.style.zIndex = 10000;
-        document.body.appendChild(div);
-        setTimeout(() => div.remove(), 2500);
-    }
-
     function escapeHtml(str) {
         if (!str) return '';
         const div = document.createElement('div');
@@ -68,7 +49,7 @@
             }
         } catch (err) {
             console.error('saveNote error:', err);
-            showMessage('Не удалось сохранить конспект: ' + err.message, true);
+            window.showToast('Не удалось сохранить конспект: ' + err.message, 'danger');
             throw err;
         }
     }
@@ -81,11 +62,11 @@
                 credentials: 'include'
             });
             if (!resp.ok) throw new Error(`Delete failed: ${resp.status}`);
-            showMessage('Конспект удалён');
+            window.showToast('Конспект удалён');
             return true;
         } catch (err) {
             console.error('deleteNote error:', err);
-            showMessage('Ошибка удаления конспекта', true);
+            window.showToast('Ошибка удаления конспекта', 'danger');
             throw err;
         }
     }
@@ -172,7 +153,7 @@
                     if (courseId) {
                         window.location.href = `/course/${courseId}?topic=${topicId}`;
                     } else {
-                        showMessage('Не удалось определить курс для этой темы', true);
+                        window.showToast('Не удалось определить курс для этой темы', 'danger');
                     }
                 });
 
@@ -208,8 +189,6 @@
         deleteNote,
         getMyNotes,
         initMyNotesPage,
-        showMessage,
-        escapeHtml,
         onTopicChanged: null
     };
 

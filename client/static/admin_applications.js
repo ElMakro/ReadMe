@@ -4,11 +4,13 @@
     const PAGE_SIZE = 9;
     let currentPage = 1;
     let isLoading = false;
+    let totalPages = 1;
 
     const container = document.getElementById('applicationsList');
     const prevPageBtn = document.getElementById('prevPageBtn');
     const nextPageBtn = document.getElementById('nextPageBtn');
     const refreshBtn = document.getElementById('refreshBtn');
+    const pageInfoSpan = document.getElementById('pageInfo');
 
     // Модальное окно
     const modalElement = document.getElementById('statusModal');
@@ -22,17 +24,6 @@
     const currentNewStatusInput = document.getElementById('currentNewStatus');
     const toastEl = document.getElementById('liveToast');
     let toast;
-
-    function showToast(message, type = 'success') {
-        if (!toast) toast = new bootstrap.Toast(toastEl, { autohide: true, delay: 5000 });
-        const toastBody = toastEl.querySelector('.toast-body');
-        toastBody.innerHTML = message;
-        toastEl.classList.remove('bg-success', 'bg-danger', 'bg-warning');
-        if (type === 'success') toastEl.classList.add('bg-success', 'text-white');
-        else if (type === 'danger') toastEl.classList.add('bg-danger', 'text-white');
-        else if (type === 'warning') toastEl.classList.add('bg-warning');
-        toast.show();
-    }
 
     function formatDate(dateStr) {
         if (!dateStr) return '—';
@@ -57,7 +48,6 @@
                 <button class="btn btn-outline-accent ms-2" onclick="window.location.href='/'">На главную</button>
             </div>
         `;
-        // Скрываем пагинацию при ошибке доступа
         const paginationDiv = document.querySelector('.pagination');
         if (paginationDiv) paginationDiv.style.display = 'none';
         const loginBtn = document.getElementById('accessDeniedLoginBtn');
@@ -70,9 +60,12 @@
         }
     }
 
-    function updatePaginationButtons(page, hasNext) {
-        if (prevPageBtn) prevPageBtn.disabled = (page <= 1);
-        if (nextPageBtn) nextPageBtn.disabled = !hasNext;
+    function updatePagination(page, total) {
+        if (prevPageBtn) prevPageBtn.disabled = page <= 1;
+        if (nextPageBtn) nextPageBtn.disabled = page >= total;
+        if (pageInfoSpan) pageInfoSpan.textContent = `Страница ${page} из ${total}`;
+        currentPage = page;
+        totalPages = total;
     }
 
     async function loadPage(page) {
@@ -92,8 +85,8 @@
             if (!Array.isArray(applications)) throw new Error('Неверный формат ответа');
             renderApplications(applications);
             const hasNext = applications.length === PAGE_SIZE;
-            updatePaginationButtons(page, hasNext);
-            currentPage = page;
+            const total = hasNext ? page + 1 : page;
+            updatePagination(page, total);
         } catch (err) {
             console.error(err);
             container.innerHTML = `
@@ -102,7 +95,7 @@
                     <button class="btn btn-outline-accent" onclick="location.reload()">Повторить</button>
                 </div>
             `;
-            updatePaginationButtons(page, false);
+            updatePagination(page, page);
         } finally {
             isLoading = false;
         }
@@ -145,9 +138,8 @@
     function goPrevPage() {
         if (currentPage > 1 && !isLoading) loadPage(currentPage - 1);
     }
-
     function goNextPage() {
-        if (nextPageBtn && !nextPageBtn.disabled && !isLoading) loadPage(currentPage + 1);
+        if (currentPage < totalPages && !isLoading) loadPage(currentPage + 1);
     }
 
     // --- Модальное окно ---
@@ -185,20 +177,20 @@
                 body: JSON.stringify(payload)
             });
             if (response.status === 204) {
-                showToast(`Заявка успешно ${currentNewStatus === 'approved' ? 'одобрена' : 'отклонена'}.`, 'success');
+                window.showToast(`Заявка успешно ${currentNewStatus === 'approved' ? 'одобрена' : 'отклонена'}.`);
                 statusModal.hide();
                 loadPage(currentPage);
             } else if (response.status === 401 || response.status === 403) {
-                showToast('Недостаточно прав для изменения статуса.', 'danger');
+                window.showToast('Недостаточно прав для изменения статуса.', 'danger');
                 statusModal.hide();
                 loadPage(currentPage);
             } else {
                 const errorData = await response.json().catch(() => ({}));
-                showToast(errorData.detail || 'Ошибка при изменении статуса.', 'danger');
+                window.showToast(errorData.detail || 'Ошибка при изменении статуса.', 'danger');
             }
         } catch (err) {
             console.error(err);
-            showToast('Ошибка сети. Попробуйте позже.', 'danger');
+            window.showToast('Ошибка сети. Попробуйте позже.', 'danger');
         } finally {
             confirmStatusBtn.disabled = false;
             confirmStatusBtn.innerHTML = 'Подтвердить';

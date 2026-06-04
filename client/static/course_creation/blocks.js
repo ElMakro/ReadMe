@@ -1,4 +1,4 @@
-// static/course_creation/edit_blocks.js
+// static/course_creation/blocks.js
 (function() {
     const topicId = window.TOPIC_ID;
     const container = document.getElementById('blocksList');
@@ -6,31 +6,6 @@
 
     let blocks = [];
     let originalBlocks = [];
-
-    function showMessage(text, isError = false) {
-        const msgDiv = document.getElementById('toastMessage') || (() => {
-            const div = document.createElement('div');
-            div.id = 'toastMessage';
-            div.style.position = 'fixed';
-            div.style.bottom = '20px';
-            div.style.right = '20px';
-            div.style.zIndex = '9999';
-            div.style.padding = '12px 20px';
-            div.style.borderRadius = '8px';
-            div.style.backgroundColor = isError ? '#dc3545' : '#198754';
-            div.style.color = 'white';
-            div.style.boxShadow = '0 2px 10px rgba(0,0,0,0.2)';
-            document.body.appendChild(div);
-            return div;
-        })();
-        msgDiv.textContent = text;
-        msgDiv.style.backgroundColor = isError ? '#dc3545' : '#198754';
-        msgDiv.style.opacity = '1';
-        setTimeout(() => {
-            msgDiv.style.opacity = '0';
-            setTimeout(() => msgDiv.remove(), 300);
-        }, 2000);
-    }
 
     function escapeHtml(str) {
         if (!str) return '';
@@ -45,21 +20,13 @@
             console.warn('MathJax not loaded, skipping LaTeX validation');
             return true;
         }
-        // Если строка пустая – пропускаем
         if (!latexString || latexString.trim() === '') return true;
 
-        // Пытаемся скомпилировать строку как LaTeX
-        // Используем MathJax.tex2chtmlPromise – он возвращает Promise c HTML-элементом или выбрасывает ошибку
         try {
-            // Оборачиваем в подходящую среду (может быть inline или display)
-            // Обычно для проверки достаточно отрендерить как display-формулу
-            const html = await window.MathJax.tex2chtmlPromise(latexString, { display: true });
-            // Если дошли сюда – формула валидна
+            await window.MathJax.tex2chtmlPromise(latexString, { display: true });
             return true;
         } catch (err) {
-            // Ошибка компиляции LaTeX
             let errorMsg = err.message || err.toString();
-            // MathJax может давать многострочные сообщения, возьмём первую строку
             if (errorMsg.includes('\n')) errorMsg = errorMsg.split('\n')[0];
             throw new Error(`LaTeX ошибка: ${errorMsg}`);
         }
@@ -73,7 +40,6 @@
         if (!umlCode.includes('@enduml')) {
             throw new Error('Диаграмма PlantUML должна заканчиваться @enduml');
         }
-        // Простая проверка баланса фигурных скобок
         let balance = 0;
         let inString = false;
         for (let i = 0; i < umlCode.length; i++) {
@@ -87,7 +53,7 @@
             else if (ch === '}') balance--;
             if (balance < 0) throw new Error('Незакрытая фигурная скобка }');
         }
-        if (balance !== 0) throw new Error('Не все фигурные скобки закрыты (несоответствие)');
+        if (balance !== 0) throw new Error('Не все фигурные скобки закрыты');
         return true;
     }
 
@@ -103,7 +69,6 @@
         } else if (type === 'uml') {
             return validatePlantUml(rawContent);
         } else if (type === 'latex') {
-            // Можно использовать MathJax, но для простоты – базовая проверка скобок
             if (rawContent) {
                 let balance = 0;
                 for (let ch of rawContent) {
@@ -139,7 +104,7 @@
             blocks = [];
             originalBlocks = [];
             renderBlocks();
-            showMessage('Ошибка загрузки блоков', true);
+            window.showToast('Ошибка загрузки блоков', 'danger');
         }
     }
 
@@ -217,15 +182,15 @@
                     try {
                         const newType = typeSelect.value;
                         const newRaw = contentTextarea.value;
-                        await validateBlock(newType, newRaw);    // <--- Здесь будет проверка и для LaTeX
+                        await validateBlock(newType, newRaw);
                         block.type = newType;
                         block.raw_content = newRaw;
                         await saveAllBlocksToServer();
                         block.isEditing = false;
                         renderBlocks();
-                        showMessage('Блок сохранён');
+                        window.showToast('Блок сохранён');
                     } catch (err) {
-                        showMessage(err.message, true);
+                        window.showToast(err.message, 'danger');
                     } finally {
                         saveBtn.disabled = false;
                     }
@@ -247,7 +212,7 @@
                         await saveAllBlocksToServer();
                         originalBlocks = JSON.parse(JSON.stringify(blocks));
                         renderBlocks();
-                        showMessage('Блок удалён');
+                        window.showToast('Блок удалён');
                     }
                 });
             }

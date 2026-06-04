@@ -4,11 +4,13 @@
     const PAGE_SIZE = 9;
     let currentPage = 1;
     let isLoading = false;
+    let totalPages = 1;
 
     const container = document.getElementById('usersList');
     const prevPageBtn = document.getElementById('prevPageBtn');
     const nextPageBtn = document.getElementById('nextPageBtn');
     const refreshBtn = document.getElementById('refreshBtn');
+    const pageInfoSpan = document.getElementById('pageInfo');
 
     // Модальные окна
     const roleModalEl = document.getElementById('roleModal');
@@ -24,20 +26,6 @@
     const deleteUserIdInput = document.getElementById('deleteUserId');
     const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
 
-    const toastEl = document.getElementById('liveToast');
-    let toast;
-
-    function showToast(message, type = 'success') {
-        if (!toast) toast = new bootstrap.Toast(toastEl, { autohide: true, delay: 5000 });
-        const toastBody = toastEl.querySelector('.toast-body');
-        toastBody.innerHTML = message;
-        toastEl.classList.remove('bg-success', 'bg-danger', 'bg-warning');
-        if (type === 'success') toastEl.classList.add('bg-success', 'text-white');
-        else if (type === 'danger') toastEl.classList.add('bg-danger', 'text-white');
-        else if (type === 'warning') toastEl.classList.add('bg-warning');
-        toast.show();
-    }
-
     function escapeHtml(str) {
         if (!str) return '';
         return String(str).replace(/[&<>]/g, function(m) {
@@ -48,9 +36,12 @@
         });
     }
 
-    function updatePaginationButtons(page, hasNext) {
-        if (prevPageBtn) prevPageBtn.disabled = (page <= 1);
-        if (nextPageBtn) nextPageBtn.disabled = !hasNext;
+    function updatePagination(page, total) {
+        if (prevPageBtn) prevPageBtn.disabled = page <= 1;
+        if (nextPageBtn) nextPageBtn.disabled = page >= total;
+        if (pageInfoSpan) pageInfoSpan.textContent = `Страница ${page} из ${total}`;
+        currentPage = page;
+        totalPages = total;
     }
 
     async function loadUsers(page = 1) {
@@ -77,8 +68,8 @@
             if (!Array.isArray(users)) throw new Error('Неверный формат ответа');
             renderUsers(users);
             const hasNext = users.length === PAGE_SIZE;
-            updatePaginationButtons(page, hasNext);
-            currentPage = page;
+            const total = hasNext ? page + 1 : page;
+            updatePagination(page, total);
         } catch (err) {
             console.error(err);
             container.innerHTML = `
@@ -87,7 +78,7 @@
                     <button class="btn btn-outline-accent" onclick="location.reload()">Повторить</button>
                 </div>
             `;
-            updatePaginationButtons(page, false);
+            updatePagination(page, page);
         } finally {
             isLoading = false;
         }
@@ -142,9 +133,8 @@
     function goPrevPage() {
         if (currentPage > 1 && !isLoading) loadUsers(currentPage - 1);
     }
-
     function goNextPage() {
-        if (nextPageBtn && !nextPageBtn.disabled && !isLoading) loadUsers(currentPage + 1);
+        if (currentPage < totalPages && !isLoading) loadUsers(currentPage + 1);
     }
 
     // --- Роли ---
@@ -169,7 +159,7 @@
     async function confirmRoleChange() {
         const newRole = newRoleSelect.value;
         if (newRole === currentRole) {
-            showToast('Роль не изменена (выбрана текущая).', 'warning');
+            window.showToast('Роль не изменена (выбрана текущая).', 'warning');
             if (roleModal) roleModal.hide();
             return;
         }
@@ -184,7 +174,7 @@
                 body: JSON.stringify(payload)
             });
             if (response.status === 204) {
-                showToast(`Роль пользователя ${selectedUserName} изменена на ${getRoleName(newRole)}.`, 'success');
+                window.showToast(`Роль пользователя ${selectedUserName} изменена на ${getRoleName(newRole)}.`);
                 loadUsers(currentPage);
             } else if (response.status === 409) {
                 const errorData = await response.json().catch(() => ({}));
@@ -194,17 +184,17 @@
                 } else if (msg.includes('свою')) {
                     msg = 'Нельзя изменить собственную роль.';
                 }
-                showToast(msg, 'danger');
+                window.showToast(msg, 'danger');
             } else if (response.status === 404) {
-                showToast('Пользователь не найден.', 'danger');
+                window.showToast('Пользователь не найден.', 'danger');
             } else if (response.status === 403) {
-                showToast('Доступ запрещён.', 'danger');
+                window.showToast('Доступ запрещён.', 'danger');
             } else {
-                showToast('Ошибка при изменении роли.', 'danger');
+                window.showToast('Ошибка при изменении роли.', 'danger');
             }
         } catch (err) {
             console.error(err);
-            showToast('Ошибка сети. Попробуйте позже.', 'danger');
+            window.showToast('Ошибка сети. Попробуйте позже.', 'danger');
         } finally {
             confirmRoleBtn.disabled = false;
             confirmRoleBtn.innerHTML = 'Сохранить';
@@ -231,19 +221,19 @@
                 credentials: 'include'
             });
             if (response.status === 204) {
-                showToast(`Пользователь ${userName} удалён.`, 'success');
+                window.showToast(`Пользователь ${userName} удалён.`);
                 loadUsers(currentPage);
             } else if (response.status === 409) {
                 const errorData = await response.json().catch(() => ({}));
-                showToast(errorData.detail || 'Нельзя удалить собственный профиль.', 'danger');
+                window.showToast(errorData.detail || 'Нельзя удалить собственный профиль.', 'danger');
             } else if (response.status === 404) {
-                showToast('Пользователь не найден.', 'danger');
+                window.showToast('Пользователь не найден.', 'danger');
             } else {
-                showToast('Ошибка при удалении.', 'danger');
+                window.showToast('Ошибка при удалении.', 'danger');
             }
         } catch (err) {
             console.error(err);
-            showToast('Ошибка сети.', 'danger');
+            window.showToast('Ошибка сети.', 'danger');
         } finally {
             confirmDeleteBtn.disabled = false;
             confirmDeleteBtn.innerHTML = 'Удалить';

@@ -1,6 +1,5 @@
 // static/course.js
 (function() {
-    // Дожидаемся полной загрузки DOM
     document.addEventListener('DOMContentLoaded', function() {
         const courseTitleHeader = document.getElementById('courseTitleHeader');
         const sectionList = document.getElementById('sectionList');
@@ -18,7 +17,6 @@
         let currentEnrollmentState = null;
         const renderedCache = new Map();
 
-        // ---------- вспомогательные функции ----------
         function escapeHtml(str) {
             if (!str) return '';
             const div = document.createElement('div');
@@ -26,29 +24,17 @@
             return div.innerHTML;
         }
 
-        function showMessage(msg, isError = false) {
-            const toast = document.createElement('div');
-            toast.className = `alert ${isError ? 'alert-danger' : 'alert-success'} position-fixed bottom-0 end-0 m-3`;
-            toast.style.zIndex = '9999';
-            toast.innerText = msg;
-            document.body.appendChild(toast);
-            setTimeout(() => toast.remove(), 3000);
-        }
-
         async function renderMarkdown(mdText) {
             if (!mdText) return '';
-            // marked.parse в новых версиях асинхронный
             const html = await marked.parse(mdText);
             return html;
         }
 
         function prepareLatexBlock(content) {
             if (!content) return '';
-            // Если уже есть явные разделители ($$, \[ \], \( \)), оставляем как есть
             if (content.includes('$$') || content.includes('\\[') || content.includes('\\(')) {
                 return content;
             }
-            // Иначе оборачиваем в display-математику \[ ... \]
             return `\\[ ${content} \\]`;
         }
 
@@ -59,15 +45,13 @@
             try {
                 const encoded = plantumlEncoder.encode(umlCode);
                 const url = `https://www.plantuml.com/plantuml/svg/${encoded}`;
-                // onerror обработает случай, когда сервер вернёт ошибку (картинка с текстом ошибки)
                 return `<img src="${url}" alt="UML диаграмма" class="plantuml-img"
-                               onerror="this.onerror=null; this.style.display='none'; this.parentElement.innerHTML += '<div class=\'alert alert-danger\'>Ошибка рендеринга UML. Проверьте синтаксис диаграммы.</div>';">`;
+                               onerror="this.onerror=null; this.parentElement.innerHTML += '<div class=\'alert alert-danger\'>Ошибка рендеринга UML. Проверьте синтаксис диаграммы.</div>';">`;
             } catch (err) {
                 return `<div class="alert alert-danger">Ошибка кодирования UML: ${escapeHtml(err.message)}</div>`;
             }
         }
 
-        // ---------- работа с записью на курс ----------
         async function fetchCourseState() {
             if (!window.COURSE_ID) return 'enrollable';
             const isAuth = window.Auth && window.Auth.isAuthenticated();
@@ -109,8 +93,8 @@
                 enrollBtn.textContent = 'Войдите, чтобы записаться';
                 enrollBtn.disabled = false;
                 enrollBtn.onclick = () => {
-                    if (window.Auth && window.Auth.login) window.Auth.login();
-                    else showMessage('Необходимо войти в систему', true);
+                    if (window.AuthModal && window.AuthModal.open) window.AuthModal.open();
+                    else window.showToast('Необходимо войти в систему', 'danger');
                 };
                 return;
             }
@@ -138,18 +122,18 @@
                     credentials: 'include'
                 });
                 if (resp.ok) {
-                    showMessage('Вы успешно записались на курс!');
+                    window.showToast('Вы успешно записались на курс!');
                     await updateEnrollButton();
                     if (currentCourse) showCourseDescription();
                 } else if (resp.status === 409) {
-                    showMessage('Вы уже записаны на этот курс', true);
+                    window.showToast('Вы уже записаны на этот курс', 'danger');
                     await updateEnrollButton();
                 } else {
-                    showMessage('Не удалось записаться на курс', true);
+                    window.showToast('Не удалось записаться на курс', 'danger');
                 }
             } catch (err) {
                 console.error(err);
-                showMessage('Ошибка при записи', true);
+                window.showToast('Ошибка при записи', 'danger');
             }
         }
 
@@ -162,21 +146,19 @@
                     credentials: 'include'
                 });
                 if (resp.ok) {
-                    showMessage('Вы отписались от курса');
+                    window.showToast('Вы отписались от курса');
                     await updateEnrollButton();
                     if (currentCourse) showCourseDescription();
                 } else {
-                    showMessage('Не удалось отписаться', true);
+                    window.showToast('Не удалось отписаться', 'danger');
                 }
             } catch (err) {
                 console.error(err);
-                showMessage('Ошибка при отписке', true);
+                window.showToast('Ошибка при отписке', 'danger');
             }
         }
 
-        // ---------- скрытие/показ боковой панели (всегда открыта при загрузке) ----------
         let sidebarVisible = true;
-
         function applySidebarState() {
             const courseSidebar = document.getElementById('courseSidebar');
             const mainContent = document.getElementById('mainContent');
@@ -192,24 +174,17 @@
                 mainContent.classList.remove('col-md-9', 'col-lg-10');
                 mainContent.classList.add('col-md-12', 'col-lg-12');
             }
-
-            if (toggleBtn) {
-                toggleBtn.innerHTML = sidebarVisible ? '◀' : '☰';
-            }
+            if (toggleBtn) toggleBtn.innerHTML = sidebarVisible ? '◀' : '☰';
         }
-
         function toggleSidebar() {
             sidebarVisible = !sidebarVisible;
             applySidebarState();
         }
-
         function initSidebar() {
-            // Всегда открываем панель при загрузке
             sidebarVisible = true;
             applySidebarState();
         }
 
-        // ---------- отображение описания курса и тем ----------
         function showCourseDescription() {
             if (!currentCourse) {
                 topicContent.innerHTML = '<p class="text-muted">Информация о курсе загружается...</p>';
@@ -245,7 +220,6 @@
             }
 
             try {
-                // Используем get-raw-content вместо get-rendered-content
                 const url = `${window.API_BASE_URL}topics/${topicId}`;
                 const resp = await fetch(url, { credentials: 'include' });
                 if (!resp.ok) {
@@ -289,7 +263,6 @@
             topicContent.innerHTML = html;
 
             if (window.MathJax) await MathJax.typesetPromise();
-            // Mermaid больше не нужен для UML, но если есть другие диаграммы – оставь
         }
 
         async function buildSidebar() {
@@ -409,8 +382,8 @@
         function setupCheckYourself() {
             if (checkYourselfBtn) {
                 checkYourselfBtn.addEventListener('click', () => {
-                    if (currentTopicId) alert(`Функция «Проверить себя» для темы "${currentTopicName}" в разработке.`);
-                    else alert('Сначала выберите тему.');
+                    if (currentTopicId) window.showToast(`Функция «Проверить себя» для темы "${currentTopicName}" в разработке.`);
+                    else window.showToast('Сначала выберите тему.', 'warning');
                 });
             }
         }
@@ -434,7 +407,7 @@
             setupCourseTitleClick();
             if (toggleSidebarBtn) {
                 toggleSidebarBtn.addEventListener('click', toggleSidebar);
-                initSidebar(); // всегда открыта, без localStorage
+                initSidebar();
             }
 
             const urlParams = new URLSearchParams(window.location.search);
@@ -461,7 +434,7 @@
     });
 })();
 
-// Плавающее окно конспекта (без изменений)
+// Плавающее окно конспекта (без изменений, но тоже использует Notes.showMessage – заменим на window.showToast)
 (function() {
     document.addEventListener('DOMContentLoaded', function() {
         const win = document.getElementById('floatingWindow');
@@ -589,20 +562,20 @@
         async function saveCurrentNote() {
             const topicId = window.activeTopicId;
             if (!topicId) {
-                window.Notes.showMessage('Сначала выберите тему', true);
+                window.showToast('Сначала выберите тему', 'warning');
                 return;
             }
             const content = textarea.value;
             try {
                 const result = await window.Notes.saveNote(topicId, content, currentNoteId);
                 currentNoteId = result.noteId;
-                window.Notes.showMessage('Конспект сохранён');
+                window.showToast('Конспект сохранён');
             } catch (err) {}
         }
 
         async function deleteCurrentNote() {
             if (!currentNoteId) {
-                window.Notes.showMessage('Нет конспекта для удаления', true);
+                window.showToast('Нет конспекта для удаления', 'warning');
                 return;
             }
             if (!confirm('Вы уверены, что хотите удалить этот конспект?')) return;

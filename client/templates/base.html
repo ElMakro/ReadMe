@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}ReadMe{% endblock %}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-<!--    <link rel="stylesheet" href="../static/style.css">-->
+    <link rel="stylesheet" href="{{ url_for('static', path='components.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', path='style.css') }}">
 </head>
 <body>
@@ -53,9 +53,7 @@
     <script src="{{ url_for('static', path='auth.js') }}"></script>
     <script src="{{ url_for('static', path='auth-modal.js') }}"></script>
     <script src="{{ url_for('static', path='header.js') }}"></script>
-<!--    <script src="../static/auth.js"></script>-->
-<!--    <script src="../static/auth-modal.js"></script>-->
-<!--    <script src="../static/header.js"></script>-->
+    <script src="{{ url_for('static', path='toast.js') }}"></script>
 
     {% block scripts %}{% endblock %}
 </body>
