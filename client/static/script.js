@@ -1,3 +1,4 @@
+// static/script.js
 (function() {
     const coursesGrid = document.getElementById('coursesGrid');
     const prevBtn = document.getElementById('prevPageBtn');
@@ -10,41 +11,33 @@
 
     let currentPage = 1;
     let currentSearch = '';
-    let totalItems = null;        // null = неизвестно общее количество
-    const limit = 10;            // records_per_page
+    const limit = 9;
+    let isLoading = false;
 
     function updateButtonsByAuthAndRole() {
         const isLoggedIn = window.Auth && window.Auth.isAuthenticated();
-
-        // Мои курсы – всем авторизованным
         if (myCoursesBtn) myCoursesBtn.style.display = isLoggedIn ? '' : 'none';
-
-        // Мастерская курсов – только преподавателям и админам
         let showManage = false;
         if (isLoggedIn && window.Auth.getUser) {
             const user = window.Auth.getUser();
-            if (user && (user.role === 'professor' || user.role === 'admin')) {
-                showManage = true;
-            }
+            if (user && (user.role === 'professor' || user.role === 'admin')) showManage = true;
         }
         if (manageCoursesBtn) manageCoursesBtn.style.display = showManage ? '' : 'none';
     }
 
     async function fetchCourses(page = 1, search = '') {
+        if (isLoading) return;
+        isLoading = true;
+        coursesGrid.innerHTML = '<div class="col-12 text-center py-5"><div class="spinner-border text-accent" role="status"></div></div>';
+
         const searchTerm = search.trim();
         const params = new URLSearchParams();
         params.append('page', page);
         params.append('records_per_page', limit);
-        if (searchTerm !== '') {
-            params.append('criteria', 'name_prefix');
-            params.append('value', searchTerm);
-        } else {
-            params.append('criteria', 'name_prefix');
-            params.append('value', '');
-        }
+        params.append('criteria', 'name_prefix');
+        params.append('value', searchTerm);
 
         const url = `${window.API_BASE_URL}courses/search?${params.toString()}`;
-
         try {
             const response = await fetch(url, { credentials: 'include' });
             if (!response.ok) {
@@ -55,34 +48,46 @@
                 }
                 throw new Error('Ошибка загрузки курсов');
             }
-            const data = await response.json();
-            // Ожидаем массив CourseSearchResponse
-            const courses = Array.isArray(data) ? data : (data.courses || []);
+            const courses = await response.json();
+            const fetchedCount = courses.length;
+
+            if (fetchedCount === 0 && page > 1) {
+                currentPage = page - 1;
+                renderCourses([]);
+                updatePagination(currentPage, false);
+                return;
+            }
             renderCourses(courses);
-            // Пагинация: если вернулось меньше limit, значит это последняя страница
-            updatePagination(page, null, courses.length);
+            const hasNext = fetchedCount === limit;
+            updatePagination(page, hasNext);
+            currentPage = page;
         } catch (error) {
             console.error(error);
             coursesGrid.innerHTML = '<p class="text-center text-danger">Не удалось загрузить курсы.</p>';
+            updatePagination(page, false);
+        } finally {
+            isLoading = false;
         }
     }
 
     function renderCourses(courses) {
         if (!coursesGrid) return;
-        coursesGrid.innerHTML = '';
         if (courses.length === 0) {
             coursesGrid.innerHTML = '<p class="text-center">Курсы не найдены.</p>';
             return;
         }
+        coursesGrid.innerHTML = '';
         courses.forEach(course => {
             const col = document.createElement('div');
             col.className = 'col';
             let stateText = '';
-            if (course.state === 'enrolled') stateText = '<span class="badge bg-success">Записан</span>';
-            else if (course.state === 'controlled') stateText = '<span class="badge bg-primary">Преподаю</span>';
-            else if (course.state === 'enrollable') stateText = '<span class="badge bg-secondary">Можно записаться</span>';
-
-            // Добавляем описание курса
+            if (course.state === 'enrolled') {
+                stateText = '<span class="badge bg-success">Записан</span>';
+            } else if (course.state === 'controlled') {
+                stateText = '<span class="badge bg-primary bg-accent-dark">Преподаю</span>';
+            } else {
+                stateText = '<span class="badge bg-secondary">Можно записаться</span>';
+            }
             const description = course.description || 'Описание отсутствует';
             const shortDesc = description.length > 100 ? description.substring(0, 100) + '…' : description;
 
@@ -106,49 +111,14 @@
         return div.innerHTML;
     }
 
-    function updatePagination(page, total, fetchedCount) {
-        let totalPages = null;
-
-        if (total !== null && total !== undefined) {
-            totalPages = Math.ceil(total / limit) || 1;
-        }
-
-        // Кнопка "Назад"
+    function updatePagination(page, hasNext) {
         if (prevBtn) prevBtn.disabled = page <= 1;
-
-        // Кнопка "Вперёд"
-        let nextDisabled = false;
-        if (totalPages !== null) {
-            nextDisabled = page >= totalPages;
-        } else {
-            // Если общее количество неизвестно, следующая страница есть только если получили ровно limit записей
-            nextDisabled = fetchedCount < limit;
-        }
-        if (nextBtn) nextBtn.disabled = nextDisabled;
-
-        // Отображение информации о странице
-        if (pageInfo) {
-            if (totalPages !== null) {
-                pageInfo.textContent = `Страница ${page} из ${totalPages}`;
-            } else {
-                pageInfo.textContent = `Страница ${page}`;
-            }
-        }
-
-        currentPage = page;
+        if (nextBtn) nextBtn.disabled = !hasNext;
+        if (pageInfo) pageInfo.textContent = `Страница ${page}`;
     }
 
-    // Обработчики
-    if (prevBtn) {
-        prevBtn.addEventListener('click', () => {
-            if (currentPage > 1) fetchCourses(currentPage - 1, currentSearch);
-        });
-    }
-    if (nextBtn) {
-        nextBtn.addEventListener('click', () => {
-            fetchCourses(currentPage + 1, currentSearch);
-        });
-    }
+    if (prevBtn) prevBtn.addEventListener('click', () => { if (currentPage > 1 && !isLoading) fetchCourses(currentPage - 1, currentSearch); });
+    if (nextBtn) nextBtn.addEventListener('click', () => { if (!nextBtn.disabled && !isLoading) fetchCourses(currentPage + 1, currentSearch); });
 
     let searchTimeout;
     if (searchInput) {
@@ -162,32 +132,21 @@
         });
     }
 
-    if (filtersBtn) {
-        filtersBtn.addEventListener('click', () => alert('Фильтры курсов (демо)'));
-    }
-    if (myCoursesBtn) {
-        myCoursesBtn.addEventListener('click', () => window.location.href = '/my-courses');
-    }
-    if (manageCoursesBtn) {
-        manageCoursesBtn.addEventListener('click', () => window.location.href = '/created-courses');
-    }
+    if (filtersBtn) filtersBtn.addEventListener('click', () => alert('Фильтры курсов (демо)'));
+    if (myCoursesBtn) myCoursesBtn.addEventListener('click', () => window.location.href = '/my-courses');
+    if (manageCoursesBtn) manageCoursesBtn.addEventListener('click', () => window.location.href = '/created-courses');
 
     window.addEventListener('auth-changed', () => {
         updateButtonsByAuthAndRole();
-        // Сбросить поиск и загрузить первую страницу заново
         currentSearch = '';
         if (searchInput) searchInput.value = '';
         fetchCourses(1, '');
     });
 
     function init() {
-        if (window.Auth && window.Auth.isAuthenticated !== undefined) {
-            updateButtonsByAuthAndRole();
-        } else {
-            document.addEventListener('auth-loaded', updateButtonsByAuth);
-        }
-        fetchCourses(1);
+        if (window.Auth && window.Auth.isAuthenticated !== undefined) updateButtonsByAuthAndRole();
+        else document.addEventListener('auth-loaded', updateButtonsByAuthAndRole);
+        fetchCourses(1, '');
     }
-
     init();
 })();

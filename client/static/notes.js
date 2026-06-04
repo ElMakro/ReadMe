@@ -121,7 +121,7 @@
         const paginationDiv = document.getElementById('notesPagination');
 
         let currentPage = 1;
-        const perPage = 10;
+        const perPage = 9;
         let totalPages = 0;
 
         async function loadNotes(page) {

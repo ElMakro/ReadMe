@@ -1,3 +1,4 @@
+// static/my_applications.js
 (function() {
     const API_BASE = (window.API_BASE_URL || 'http://localhost:8080/api/v1').replace(/\/$/, '');
     const PAGE_SIZE = 9;
@@ -5,15 +6,12 @@
     let isLoading = false;
 
     const container = document.getElementById('applicationsList');
-    const paginationNav = document.getElementById('paginationNav');
     const prevPageBtn = document.getElementById('prevPageBtn');
     const nextPageBtn = document.getElementById('nextPageBtn');
-    const pageInfoSpan = document.getElementById('pageInfo');
 
     function formatDate(dateStr) {
         if (!dateStr) return '—';
-        try { return new Date(dateStr).toLocaleString('ru-RU'); }
-        catch(e) { return dateStr; }
+        try { return new Date(dateStr).toLocaleString('ru-RU'); } catch(e) { return dateStr; }
     }
 
     function escapeHtml(str) {
@@ -35,26 +33,34 @@
         return statusMap[status] || `<span class="badge bg-secondary">${status}</span>`;
     }
 
+    function updatePaginationButtons(page, hasNext) {
+        if (prevPageBtn) prevPageBtn.disabled = (page <= 1);
+        if (nextPageBtn) nextPageBtn.disabled = !hasNext;
+    }
+
     async function loadPage(page) {
         if (isLoading) return;
         isLoading = true;
-        container.innerHTML = `<div class="col-12 text-center py-5"><div class="spinner-border text-accent" role="status"><span class="visually-hidden">Загрузка...</span></div></div>`;
+        container.innerHTML = `<div class="col-12 text-center py-5"><div class="spinner-border text-accent" role="status"></div></div>`;
         try {
             const url = `${API_BASE}/users/get-my-applications?page=${page}&size=${PAGE_SIZE}`;
-            const response = await fetch(url, {
-                method: 'GET',
-                credentials: 'include',
-                headers: { 'Content-Type': 'application/json' }
-            });
+            const response = await fetch(url, { credentials: 'include' });
             if (response.status === 401) {
-                container.innerHTML = `<div class="col-12 text-center py-5"><p class="text-danger">Вы не авторизованы. Пожалуйста, <a href="#" id="loginLink">войдите</a>.</p></div>`;
+                container.innerHTML = `
+                    <div class="col-12 text-center py-5">
+                        <p class="text-danger">Вы не авторизованы. <a href="#" id="loginLink">Войдите</a>.</p>
+                    </div>
+                `;
                 const loginLink = document.getElementById('loginLink');
-                if (loginLink) loginLink.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    const loginBtn = document.getElementById('loginBtn');
-                    if (loginBtn) loginBtn.click();
-                });
-                paginationNav.classList.add('d-none');
+                if (loginLink) {
+                    loginLink.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        const loginBtn = document.getElementById('loginBtn');
+                        if (loginBtn) loginBtn.click();
+                    });
+                }
+                const paginationDiv = document.querySelector('.pagination');
+                if (paginationDiv) paginationDiv.style.display = 'none';
                 isLoading = false;
                 return;
             }
@@ -62,12 +68,18 @@
             const applications = await response.json();
             if (!Array.isArray(applications)) throw new Error('Неверный формат ответа');
             renderApplications(applications);
-            const hasMore = applications.length === PAGE_SIZE;
-            updatePaginationButtons(page, hasMore);
+            const hasNext = applications.length === PAGE_SIZE;
+            updatePaginationButtons(page, hasNext);
+            currentPage = page;
         } catch (err) {
             console.error(err);
-            container.innerHTML = `<div class="col-12 text-center py-5"><p class="text-danger">Ошибка загрузки: ${err.message}</p><button class="btn btn-outline-accent" onclick="location.reload()">Повторить</button></div>`;
-            paginationNav.classList.add('d-none');
+            container.innerHTML = `
+                <div class="col-12 text-center py-5">
+                    <p class="text-danger">Ошибка загрузки: ${err.message}</p>
+                    <button class="btn btn-outline-accent" onclick="location.reload()">Повторить</button>
+                </div>
+            `;
+            updatePaginationButtons(page, false);
         } finally {
             isLoading = false;
         }
@@ -76,7 +88,6 @@
     function renderApplications(applications) {
         if (!applications.length) {
             container.innerHTML = `<div class="col-12 text-center py-5"><p class="text-secondary">Вы ещё не подавали заявок на преподавание.</p></div>`;
-            paginationNav.classList.add('d-none');
             return;
         }
         container.innerHTML = '';
@@ -100,25 +111,16 @@
         });
     }
 
-    function updatePaginationButtons(page, hasNext) {
-        paginationNav.classList.remove('d-none');
-        pageInfoSpan.innerText = `Страница ${page}`;
-        prevPageBtn.classList.toggle('disabled', page <= 1);
-        nextPageBtn.classList.toggle('disabled', !hasNext);
+    function goPrevPage() {
+        if (currentPage > 1 && !isLoading) loadPage(currentPage - 1);
     }
 
-    function goPrevPage() {
-        if (currentPage <= 1) return;
-        currentPage--;
-        loadPage(currentPage);
-    }
     function goNextPage() {
-        if (nextPageBtn.classList.contains('disabled')) return;
-        currentPage++;
-        loadPage(currentPage);
+        if (nextPageBtn && !nextPageBtn.disabled && !isLoading) loadPage(currentPage + 1);
     }
 
     if (prevPageBtn) prevPageBtn.addEventListener('click', (e) => { e.preventDefault(); goPrevPage(); });
     if (nextPageBtn) nextPageBtn.addEventListener('click', (e) => { e.preventDefault(); goNextPage(); });
+
     loadPage(1);
 })();

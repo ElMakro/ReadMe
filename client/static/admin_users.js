@@ -1,3 +1,4 @@
+// static/admin_users.js
 (function() {
     const API_BASE = (window.API_BASE_URL || 'http://localhost:8080/api/v1').replace(/\/$/, '');
     const PAGE_SIZE = 9;
@@ -5,12 +6,11 @@
     let isLoading = false;
 
     const container = document.getElementById('usersList');
-    const paginationNav = document.getElementById('paginationNav');
     const prevPageBtn = document.getElementById('prevPageBtn');
     const nextPageBtn = document.getElementById('nextPageBtn');
-    const pageInfoSpan = document.getElementById('pageInfo');
     const refreshBtn = document.getElementById('refreshBtn');
 
+    // Модальные окна
     const roleModalEl = document.getElementById('roleModal');
     let roleModal;
     const roleUserNameSpan = document.getElementById('roleUserName');
@@ -48,20 +48,27 @@
         });
     }
 
+    function updatePaginationButtons(page, hasNext) {
+        if (prevPageBtn) prevPageBtn.disabled = (page <= 1);
+        if (nextPageBtn) nextPageBtn.disabled = !hasNext;
+    }
+
     async function loadUsers(page = 1) {
         if (isLoading) return;
         isLoading = true;
-        container.innerHTML = `<div class="col-12 text-center py-5"><div class="spinner-border text-accent" role="status"><span class="visually-hidden">Загрузка...</span></div></div>`;
+        container.innerHTML = `<div class="col-12 text-center py-5"><div class="spinner-border text-accent" role="status"></div></div>`;
         try {
             const url = `${API_BASE}/users/all?page=${page}&size=${PAGE_SIZE}`;
-            const response = await fetch(url, {
-                method: 'GET',
-                credentials: 'include',
-                headers: { 'Content-Type': 'application/json' }
-            });
+            const response = await fetch(url, { credentials: 'include' });
             if (response.status === 401 || response.status === 403) {
-                container.innerHTML = `<div class="col-12 text-center py-5"><p class="text-danger">Доступ запрещён. Только для администраторов.</p><button class="btn btn-primary" onclick="window.location.href='/'">На главную</button></div>`;
-                paginationNav.classList.add('d-none');
+                container.innerHTML = `
+                    <div class="col-12 text-center py-5">
+                        <p class="text-danger">Доступ запрещён. Только для администраторов.</p>
+                        <button class="btn btn-primary" onclick="window.location.href='/'">На главную</button>
+                    </div>
+                `;
+                const paginationDiv = document.querySelector('.pagination');
+                if (paginationDiv) paginationDiv.style.display = 'none';
                 isLoading = false;
                 return;
             }
@@ -69,12 +76,18 @@
             const users = await response.json();
             if (!Array.isArray(users)) throw new Error('Неверный формат ответа');
             renderUsers(users);
-            const hasMore = users.length === PAGE_SIZE;
-            updatePaginationButtons(page, hasMore);
+            const hasNext = users.length === PAGE_SIZE;
+            updatePaginationButtons(page, hasNext);
+            currentPage = page;
         } catch (err) {
             console.error(err);
-            container.innerHTML = `<div class="col-12 text-center py-5"><p class="text-danger">Ошибка загрузки: ${err.message}</p><button class="btn btn-outline-accent" onclick="location.reload()">Повторить</button></div>`;
-            paginationNav.classList.add('d-none');
+            container.innerHTML = `
+                <div class="col-12 text-center py-5">
+                    <p class="text-danger">Ошибка загрузки: ${err.message}</p>
+                    <button class="btn btn-outline-accent" onclick="location.reload()">Повторить</button>
+                </div>
+            `;
+            updatePaginationButtons(page, false);
         } finally {
             isLoading = false;
         }
@@ -107,42 +120,34 @@
             `;
             container.appendChild(col);
         });
-        document.querySelectorAll('.change-role-btn').forEach(btn => {
-            btn.addEventListener('click', () => openRoleModal(btn.dataset.id, btn.dataset.name, btn.dataset.role));
-        });
-        document.querySelectorAll('.delete-btn').forEach(btn => {
-            btn.addEventListener('click', () => openDeleteModal(btn.dataset.id, btn.dataset.name));
-        });
+        document.querySelectorAll('.change-role-btn').forEach(btn =>
+            btn.addEventListener('click', () => openRoleModal(btn.dataset.id, btn.dataset.name, btn.dataset.role))
+        );
+        document.querySelectorAll('.delete-btn').forEach(btn =>
+            btn.addEventListener('click', () => openDeleteModal(btn.dataset.id, btn.dataset.name))
+        );
     }
 
     function getRoleName(role) {
         const map = { 'student': 'Студент', 'professor': 'Преподаватель', 'admin': 'Администратор' };
         return map[role] || role;
     }
+
     function getRoleBadgeClass(role) {
         if (role === 'admin') return 'bg-danger';
         if (role === 'professor') return 'bg-success';
         return 'bg-secondary';
     }
 
-    function updatePaginationButtons(page, hasNext) {
-        paginationNav.classList.remove('d-none');
-        pageInfoSpan.innerText = `Страница ${page}`;
-        prevPageBtn.classList.toggle('disabled', page <= 1);
-        nextPageBtn.classList.toggle('disabled', !hasNext);
-    }
-
     function goPrevPage() {
-        if (currentPage <= 1) return;
-        currentPage--;
-        loadUsers(currentPage);
-    }
-    function goNextPage() {
-        if (nextPageBtn.classList.contains('disabled')) return;
-        currentPage++;
-        loadUsers(currentPage);
+        if (currentPage > 1 && !isLoading) loadUsers(currentPage - 1);
     }
 
+    function goNextPage() {
+        if (nextPageBtn && !nextPageBtn.disabled && !isLoading) loadUsers(currentPage + 1);
+    }
+
+    // --- Роли ---
     let selectedUserId, selectedUserName, currentRole;
 
     function openRoleModal(userId, userName, role) {
@@ -207,6 +212,7 @@
         }
     }
 
+    // --- Удаление ---
     function openDeleteModal(userId, userName) {
         deleteUserIdInput.value = userId;
         deleteUserNameSpan.innerText = userName;
@@ -222,8 +228,7 @@
         try {
             const response = await fetch(`${API_BASE}/users/delete-user/${userId}`, {
                 method: 'DELETE',
-                credentials: 'include',
-                headers: { 'Content-Type': 'application/json' }
+                credentials: 'include'
             });
             if (response.status === 204) {
                 showToast(`Пользователь ${userName} удалён.`, 'success');
@@ -246,6 +251,7 @@
         }
     }
 
+    // --- Обработчики ---
     if (prevPageBtn) prevPageBtn.addEventListener('click', (e) => { e.preventDefault(); goPrevPage(); });
     if (nextPageBtn) nextPageBtn.addEventListener('click', (e) => { e.preventDefault(); goNextPage(); });
     if (refreshBtn) refreshBtn.addEventListener('click', () => loadUsers(currentPage));

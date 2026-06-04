@@ -293,10 +293,10 @@
             is_public: true,
             is_content_public: true
         };
-        courses.unshift(newCourse);
+        courses.push(newCourse);          // добавляем в конец, как в sections.js
         renderCourses();
         setTimeout(() => {
-            const newCard = container.querySelector('.list-group-item:first-child');
+            const newCard = container.querySelector('.list-group-item:last-child'); // берём последний
             const editTrigger = newCard?.querySelector('.edit-course-trigger');
             if (editTrigger) editTrigger.click();
         }, 50);
