@@ -38,24 +38,6 @@
 <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/plantuml-encoder@1.4.0/dist/plantuml-encoder.min.js"></script>
-<script>
-    // Инициализация Mermaid (не запускать автоматически)
-    mermaid.initialize({ startOnLoad: false, securityLevel: 'loose' });
-
-    // Дожидаемся загрузки MathJax
-    window.MathJax = {
-        startup: {
-            ready: () => {
-                console.log('MathJax ready');
-                window.MathJax.startup.defaultReady();
-            }
-        },
-        options: {
-            // Отключаем автоматический рендеринг на странице редактирования
-            ignoreHtmlClass: 'no-mathjax'
-        }
-    };
-</script>
 
 <script src="/static/course_creation/breadcrumbs_manager.js"></script>
 <script src="/static/course_creation/blocks.js"></script>

@@ -7,6 +7,20 @@
     let blocks = [];
     let originalBlocks = [];
 
+    // Функция автоподстройки высоты textarea
+    function autosize(textarea, maxHeight = 800) {
+        if (!textarea) return;
+        textarea.style.height = 'auto';
+        const scrollHeight = textarea.scrollHeight;
+        if (scrollHeight > maxHeight) {
+            textarea.style.height = maxHeight + 'px';
+            textarea.style.overflowY = 'auto';
+        } else {
+            textarea.style.height = scrollHeight + 'px';
+            textarea.style.overflowY = 'hidden';
+        }
+    }
+
     function escapeHtml(str) {
         if (!str) return '';
         const div = document.createElement('div');
@@ -14,14 +28,12 @@
         return div.innerHTML;
     }
 
-    // Проверка LaTeX формулы через MathJax
     async function validateLatexWithMathJax(latexString) {
         if (!window.MathJax) {
             console.warn('MathJax not loaded, skipping LaTeX validation');
             return true;
         }
         if (!latexString || latexString.trim() === '') return true;
-
         try {
             await window.MathJax.tex2chtmlPromise(latexString, { display: true });
             return true;
@@ -139,6 +151,7 @@
                 });
                 card.addEventListener('click', () => openEditMode(idx));
             } else {
+                // Режим редактирования
                 card.innerHTML = `
                     <div class="p-2">
                         <div class="mb-3">
@@ -151,7 +164,7 @@
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Содержимое</label>
-                            <textarea class="form-control block-content-edit" rows="6" data-idx="${idx}">${escapeHtml(block.raw_content)}</textarea>
+                            <textarea class="form-control block-content-edit" data-idx="${idx}" placeholder="Введите содержимое блока">${escapeHtml(block.raw_content)}</textarea>
                         </div>
                         <div class="d-flex justify-content-between align-items-center">
                             <button class="btn btn-danger delete-block-btn" data-idx="${idx}">Удалить блок</button>
@@ -169,19 +182,27 @@
                 const cancelBtn = card.querySelector('.cancel-edit-btn');
                 const deleteBtn = card.querySelector('.delete-block-btn');
 
+                if (contentTextarea) {
+                    // contentTextarea.removeAttribute('rows');
+                    contentTextarea.addEventListener('input', function() { autosize(this, 800); });
+                    setTimeout(() => autosize(contentTextarea, 800), 20);
+                }
+
                 typeSelect.addEventListener('change', (e) => {
                     block.type = e.target.value;
                 });
-                contentTextarea.addEventListener('input', (e) => {
-                    block.raw_content = e.target.value;
-                });
+                if (contentTextarea) {
+                    contentTextarea.addEventListener('input', (e) => {
+                        block.raw_content = e.target.value;
+                    });
+                }
                 saveBtn.addEventListener('click', async (e) => {
                     e.stopPropagation();
                     if (saveBtn.disabled) return;
                     saveBtn.disabled = true;
                     try {
                         const newType = typeSelect.value;
-                        const newRaw = contentTextarea.value;
+                        const newRaw = contentTextarea ? contentTextarea.value : '';
                         await validateBlock(newType, newRaw);
                         block.type = newType;
                         block.raw_content = newRaw;
@@ -268,7 +289,7 @@
     });
 
     loadBlocks();
-    window.updateCourseBreadcrumb(window.COURSE_ID);
-    window.updateSectionBreadcrumb(window.SECTION_ID);
-    window.updateTopicBreadcrumb(window.TOPIC_ID);
+    if (typeof window.updateCourseBreadcrumb === 'function') window.updateCourseBreadcrumb(window.COURSE_ID);
+    if (typeof window.updateSectionBreadcrumb === 'function') window.updateSectionBreadcrumb(window.SECTION_ID);
+    if (typeof window.updateTopicBreadcrumb === 'function') window.updateTopicBreadcrumb(window.TOPIC_ID);
 })();
