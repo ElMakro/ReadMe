@@ -1,4 +1,4 @@
-// static/course_creation/edit_topics.js
+// static/course_creation/topics.js
 (function() {
     const courseId = window.COURSE_ID;
     const sectionId = window.SECTION_ID;
@@ -7,31 +7,6 @@
 
     let topics = [];
     let originalTopics = [];
-
-    function showMessage(text, isError = false) {
-        const msgDiv = document.getElementById('toastMessage') || (() => {
-            const div = document.createElement('div');
-            div.id = 'toastMessage';
-            div.style.position = 'fixed';
-            div.style.bottom = '20px';
-            div.style.right = '20px';
-            div.style.zIndex = '9999';
-            div.style.padding = '12px 20px';
-            div.style.borderRadius = '8px';
-            div.style.backgroundColor = isError ? '#dc3545' : '#198754';
-            div.style.color = 'white';
-            div.style.boxShadow = '0 2px 10px rgba(0,0,0,0.2)';
-            document.body.appendChild(div);
-            return div;
-        })();
-        msgDiv.textContent = text;
-        msgDiv.style.backgroundColor = isError ? '#dc3545' : '#198754';
-        msgDiv.style.opacity = '1';
-        setTimeout(() => {
-            msgDiv.style.opacity = '0';
-            setTimeout(() => msgDiv.remove(), 300);
-        }, 2000);
-    }
 
     async function loadTopics() {
         try {
@@ -135,7 +110,7 @@
             e.stopPropagation();
             const newName = nameInput.value.trim();
             if (!newName) {
-                showMessage('Название темы не может быть пустым', true);
+                window.showToast('Название темы не может быть пустым', 'danger');
                 return;
             }
             const newTags = [...topic.tags];
@@ -168,9 +143,9 @@
                         orig.tags = newTags;
                     }
                     renderTopics();
-                    showMessage('Тема обновлена');
+                    window.showToast('Тема обновлена');
                 } catch (err) {
-                    showMessage(err.message, true);
+                    window.showToast(err.message, 'danger');
                 }
             } else {
                 try {
@@ -193,9 +168,9 @@
                     topic.tags = newTags;
                     originalTopics.push({ ...topic });
                     renderTopics();
-                    showMessage('Тема создана');
+                    window.showToast('Тема создана');
                 } catch (err) {
-                    showMessage(err.message, true);
+                    window.showToast(err.message, 'danger');
                 }
             }
         });
@@ -230,9 +205,9 @@
                     if (index !== -1) topics.splice(index, 1);
                     originalTopics = originalTopics.filter(t => t.id !== topic.id);
                     renderTopics();
-                    showMessage('Тема удалена');
+                    window.showToast('Тема удалена');
                 } catch (err) {
-                    showMessage(err.message, true);
+                    window.showToast(err.message, 'danger');
                 }
             } else {
                 const index = topics.findIndex(t => t.id === null && t === topic);

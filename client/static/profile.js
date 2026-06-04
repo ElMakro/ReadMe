@@ -1,8 +1,8 @@
+// static/profile.js
 (function() {
     const profileContainer = document.getElementById('profileContainer');
     if (!profileContainer) return;
 
-    // ---- Вспомогательные функции ----
     function escapeHtml(str) {
         if (!str) return '';
         const div = document.createElement('div');
@@ -23,23 +23,6 @@
         return nickname ? nickname.charAt(0).toUpperCase() : '?';
     }
 
-    function showMessage(text, isError = false) {
-        const toast = document.createElement('div');
-        toast.textContent = text;
-        toast.style.cssText = `
-            position: fixed; bottom: 20px; right: 20px; z-index: 9999;
-            padding: 12px 20px; border-radius: 8px; background: ${isError ? '#dc3545' : '#198754'};
-            color: white; box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-            transition: opacity 0.3s;
-        `;
-        document.body.appendChild(toast);
-        setTimeout(() => {
-            toast.style.opacity = '0';
-            setTimeout(() => toast.remove(), 300);
-        }, 3000);
-    }
-
-    // ---- Загрузка профиля ----
     async function loadProfile() {
         profileContainer.innerHTML = `
             <div class="text-center py-5">
@@ -64,7 +47,6 @@
         }
     }
 
-    // ---- Отображение профиля (карточка + аватар) ----
     function renderProfile(user) {
         const initials = getInitials(user.nickname);
         profileContainer.innerHTML = `
@@ -73,7 +55,6 @@
                     <div class="card border-0 shadow-sm" style="background: var(--bg-secondary);">
                         <div class="card-body p-4">
                             <div class="d-flex flex-column flex-md-row align-items-center gap-4 mb-4">
-                                <!-- Аватар с инициалами -->
                                 <div class="rounded-circle d-flex align-items-center justify-content-center" 
                                      style="width: 90px; height: 90px; background: var(--accent);">
                                     <span style="font-size: 2.2rem; font-weight: bold; color: var(--bg-primary);">
@@ -133,7 +114,6 @@
         if (editBtn) editBtn.addEventListener('click', () => enterEditMode(user));
     }
 
-    // ---- Режим редактирования (две колонки, email опционален) ----
     function enterEditMode(user) {
         profileContainer.innerHTML = `
             <div class="row justify-content-center">
@@ -174,7 +154,7 @@
             const newEmail = document.getElementById('editEmail').value.trim() || null;
 
             if (!newNickname) {
-                showMessage('Никнейм не может быть пустым', true);
+                window.showToast('Никнейм не может быть пустым', 'danger');
                 return;
             }
 
@@ -191,17 +171,17 @@
 
                 if (response.ok) {
                     const updatedUser = await response.json();
-                    showMessage('Профиль успешно обновлён');
+                    window.showToast('Профиль успешно обновлён');
                     renderProfile(updatedUser);
                 } else if (response.status === 409) {
                     const error = await response.json().catch(() => ({}));
-                    showMessage(error.detail || 'Никнейм или email уже заняты', true);
+                    window.showToast(error.detail || 'Никнейм или email уже заняты', 'danger');
                 } else {
                     throw new Error('Ошибка обновления');
                 }
             } catch (err) {
                 console.error(err);
-                showMessage('Не удалось обновить профиль', true);
+                window.showToast('Не удалось обновить профиль', 'danger');
             }
         });
 

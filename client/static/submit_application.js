@@ -1,3 +1,4 @@
+// static/submit_application.js
 (function() {
     const form = document.getElementById('applicationForm');
     const submitBtn = document.getElementById('submitBtn');
@@ -45,7 +46,7 @@
             isValid = false;
         }
         if (!isValid) {
-            showAlert('Пожалуйста, заполните все обязательные поля.', 'danger');
+            window.showToast('Пожалуйста, заполните все обязательные поля.', 'danger');
             return;
         }
 
@@ -87,10 +88,10 @@
                 const errorData = await response.json().catch(() => ({}));
                 errorMessage = errorData.detail || errorMessage;
             }
-            showAlert(errorMessage, 'danger');
+            window.showToast(errorMessage, 'danger');
         } catch (error) {
             console.error('Ошибка сети:', error);
-            showAlert('Не удалось соединиться с сервером. Проверьте, запущен ли бэкенд.', 'danger');
+            window.showToast('Не удалось соединиться с сервером. Проверьте, запущен ли бэкенд.', 'danger');
         } finally {
             submitBtn.disabled = false;
             submitBtn.innerHTML = 'Отправить заявку';

@@ -1,4 +1,4 @@
-// static/course_creation/edit_sections.js
+// static/course_creation/sections.js
 (function() {
     const courseId = window.COURSE_ID;
     const container = document.getElementById('sectionsList');
@@ -12,32 +12,6 @@
         const words = text.trim().split(/\s+/);
         if (words.length <= wordLimit) return text;
         return words.slice(0, wordLimit).join(' ') + '...';
-    }
-
-    function showMessage(text, isError = false) {
-        const msgDiv = document.getElementById('toastMessage') || (() => {
-            const div = document.createElement('div');
-            div.id = 'toastMessage';
-            div.style.position = 'fixed';
-            div.style.bottom = '20px';
-            div.style.right = '20px';
-            div.style.zIndex = '9999';
-            div.style.padding = '12px 20px';
-            div.style.borderRadius = '8px';
-            div.style.backgroundColor = isError ? '#dc3545' : '#198754';
-            div.style.color = 'white';
-            div.style.boxShadow = '0 2px 10px rgba(0,0,0,0.2)';
-            div.style.transition = 'opacity 0.3s';
-            document.body.appendChild(div);
-            return div;
-        })();
-        msgDiv.textContent = text;
-        msgDiv.style.backgroundColor = isError ? '#dc3545' : '#198754';
-        msgDiv.style.opacity = '1';
-        setTimeout(() => {
-            msgDiv.style.opacity = '0';
-            setTimeout(() => msgDiv.remove(), 300);
-        }, 2000);
     }
 
     async function loadSections() {
@@ -151,7 +125,7 @@
             e.stopPropagation();
             const newName = nameInput.value.trim();
             if (!newName) {
-                showMessage('Название раздела не может быть пустым', true);
+                window.showToast('Название раздела не может быть пустым', 'danger');
                 return;
             }
             const newDesc = descTextarea.value.trim();
@@ -176,9 +150,9 @@
                         orig.tags = newTags;
                     }
                     renderSections();
-                    showMessage('Раздел обновлён');
+                    window.showToast('Раздел обновлён');
                 } catch (err) {
-                    showMessage(err.message, true);
+                    window.showToast(err.message, 'danger');
                 }
             } else {
                 try {
@@ -202,9 +176,9 @@
                     sec.tags = newTags;
                     originalSections.push({ ...sec });
                     renderSections();
-                    showMessage('Раздел создан');
+                    window.showToast('Раздел создан');
                 } catch (err) {
-                    showMessage(err.message, true);
+                    window.showToast(err.message, 'danger');
                 }
             }
         });
@@ -240,9 +214,9 @@
                     if (index !== -1) sections.splice(index, 1);
                     originalSections = originalSections.filter(s => s.id !== sec.id);
                     renderSections();
-                    showMessage('Раздел удалён');
+                    window.showToast('Раздел удалён');
                 } catch (err) {
-                    showMessage(err.message, true);
+                    window.showToast(err.message, 'danger');
                 }
             } else {
                 const index = sections.findIndex(s => s.id === null && s === sec);

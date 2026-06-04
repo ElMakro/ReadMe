@@ -1,0 +1,535 @@
+/* ========== УНИВЕРСАЛЬНЫЕ КОМПОНЕНТЫ ========== */
+/* Все переиспользуемые стили: кнопки, карточки, модалки, уведомления, пагинация и т.д. */
+
+/* ---------- Переопределение Bootstrap для работы с темой ---------- */
+.btn-primary {
+    background-color: var(--accent);
+    border-color: var(--accent);
+}
+.btn-primary:hover {
+    background-color: var(--accent-hover);
+    border-color: var(--accent-hover);
+}
+.btn-outline-primary {
+    color: var(--accent);
+    border-color: var(--accent);
+}
+.btn-outline-primary:hover {
+    background-color: var(--accent);
+    border-color: var(--accent);
+    color: white;
+}
+.btn-danger {
+    background-color: var(--danger-color);
+    border-color: var(--danger-color);
+}
+.btn-danger:hover {
+    background-color: #dc2626;
+    border-color: #dc2626;
+}
+.btn-success {
+    background-color: var(--success-color);
+    border-color: var(--success-color);
+}
+.btn-warning {
+    background-color: var(--warning-color);
+    border-color: var(--warning-color);
+    color: #1e293b;
+}
+.btn-outline-secondary {
+    color: var(--text-secondary);
+    border-color: var(--border-color);
+}
+.btn-outline-secondary:hover {
+    background-color: var(--bg-primary);
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+/* ---------- Кастомные кнопки проекта ---------- */
+.theme-toggle, .btn-login, .filters-btn, .pagination-btn {
+    padding: 8px 20px;
+    border-radius: 12px;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-weight: 500;
+}
+
+.theme-toggle {
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    border: var(--border-width) solid var(--border-color);
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+.theme-toggle:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.btn-login {
+    background: var(--text-primary);
+    color: var(--bg-primary);
+    border: none;
+}
+.btn-login:hover {
+    background: var(--accent);
+    color: white;
+    transform: translateY(-2px);
+}
+
+.btn-accent {
+    background: var(--accent);
+    color: white;
+    border: none;
+    padding: 0.5rem 1.5rem;
+    border-radius: 40px;
+    transition: all 0.2s;
+}
+.btn-accent:hover {
+    background: var(--accent-hover);
+    transform: translateY(-2px);
+}
+
+.btn-outline-accent {
+    border: var(--border-width) solid var(--accent);
+    color: var(--accent);
+    background: transparent;
+    padding: 0.5rem 1.5rem;
+    border-radius: 40px;
+    text-decoration: none;
+    display: inline-block;
+    transition: all 0.2s;
+}
+.btn-outline-accent:hover {
+    background: var(--accent);
+    color: white;
+}
+
+.filters-btn {
+    background: var(--bg-secondary);
+    border: var(--border-width) solid var(--border-color);
+    color: var(--text-primary);
+}
+.filters-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+/* ---------- Карточки курсов ---------- */
+.course-card {
+    background: var(--bg-secondary);
+    border: var(--border-width) solid var(--border-color);
+    border-radius: 20px;
+    padding: 1.25rem;
+    cursor: pointer;
+    aspect-ratio: 1 / 1.4;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s;
+}
+.course-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 24px -8px rgba(0, 0, 0, 0.15);
+    border-color: var(--accent);
+}
+.course-number {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 20px;
+}
+.course-title {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+}
+.course-instructor {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.75rem;
+}
+.course-description {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ---------- Пагинация ---------- */
+.pagination-btn {
+    background: var(--bg-secondary);
+    border: var(--border-width) solid var(--border-color);
+    color: var(--text-primary);
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+.pagination-btn:hover:not(:disabled) {
+    border-color: var(--accent);
+    color: var(--accent);
+    transform: translateY(-2px);
+}
+.pagination-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* ---------- Модальные окна (общие) ---------- */
+.modal-content {
+    background: var(--bg-secondary);
+    border: var(--border-width) solid var(--border-color);
+    border-radius: 20px;
+}
+.modal-header {
+    border-bottom-color: var(--border-color);
+}
+.modal-footer {
+    border-top-color: var(--border-color);
+}
+.modal-title {
+    color: var(--text-primary);
+}
+
+/* Специальное модальное окно авторизации (без Bootstrap) */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    visibility: hidden;
+    opacity: 0;
+    transition: 0.25s;
+    z-index: 1000;
+}
+.modal-overlay.active {
+    visibility: visible;
+    opacity: 1;
+}
+.modal-container {
+    background: var(--bg-secondary);
+    border-radius: 28px;
+    width: 90%;
+    max-width: 450px;
+    padding: 1.8rem;
+    border: var(--border-width) solid var(--border-color);
+    box-shadow: 0 20px 35px -10px rgba(0,0,0,0.2);
+}
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 1.8rem;
+    cursor: pointer;
+    color: var(--text-secondary);
+    transition: color 0.2s;
+}
+.modal-close:hover {
+    color: var(--accent);
+}
+
+/* ---------- Уведомления (тосты и алерты) ---------- */
+.toast-notification {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 9999;
+    padding: 12px 20px;
+    border-radius: 12px;
+    color: white;
+    font-weight: 500;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    animation: slideIn 0.3s ease;
+    transition: opacity 0.3s;
+}
+.toast-notification.toast-success {
+    background-color: var(--success-color);
+}
+.toast-notification.toast-danger {
+    background-color: var(--danger-color);
+}
+.toast-notification.toast-warning {
+    background-color: var(--warning-color);
+    color: #1e293b;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* Bootstrap-алерты с темой */
+.alert-success {
+    background-color: var(--success-color);
+    border-color: var(--success-color);
+    color: white;
+}
+.alert-danger {
+    background-color: var(--danger-color);
+    border-color: var(--danger-color);
+    color: white;
+}
+.alert-warning {
+    background-color: var(--warning-color);
+    border-color: var(--warning-color);
+    color: #1e293b;
+}
+
+/* ---------- Боковая панель курса, разделы, темы ---------- */
+.course-sidebar {
+    background: var(--bg-secondary);
+    border-right: var(--border-width) solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+.section-item {
+    background: transparent !important;
+    border: none !important;
+    padding: 0.25rem 0 !important;
+}
+.section-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.6rem 0.75rem;
+    border-radius: 12px;
+    color: var(--text-primary);
+    text-decoration: none;
+    font-weight: 500;
+    transition: background 0.2s, color 0.2s;
+}
+.section-toggle:hover {
+    background: var(--border-color);
+    color: var(--accent);
+}
+.section-toggle.active {
+    background: var(--accent);
+    color: white;
+}
+.toggle-icon {
+    font-size: 0.75rem;
+    transition: transform 0.2s;
+}
+.section-topics {
+    margin-left: 1.25rem;
+}
+.topic-link {
+    display: block;
+    padding: 0.4rem 0.75rem;
+    border-radius: 8px;
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-size: 0.9rem;
+    transition: background 0.2s, color 0.2s;
+}
+.topic-link:hover {
+    background: var(--border-color);
+    color: var(--text-primary);
+}
+.topic-link.active {
+    background: var(--accent);
+    color: white;
+    font-weight: 500;
+}
+
+/* ---------- Плавающее окно конспекта (эффект стекла, повышенная прозрачность) ---------- */
+.floating-tab-button {
+    position: fixed;
+    right: -30px;
+    top: 50%;
+    width: 60px;
+    height: 60px;
+    background: var(--accent);
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    color: white;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    z-index: 1100;
+    user-select: none;
+    transition: right 0.2s;
+}
+.floating-tab-button:hover {
+    right: 0;
+}
+.floating-window {
+    position: fixed;
+    width: 320px;
+    height: 280px;
+    min-width: 200px;
+    min-height: 150px;
+    max-width: 90vw;
+    max-height: 90vh;
+    background: rgba(var(--bg-secondary-rgb), 0.1);      /* более прозрачный фон */
+    backdrop-filter: blur(8px);                         /* усиленное размытие */
+    border: var(--border-width) solid rgba(var(--border-color-rgb), 0.3);
+    border-radius: 20px;
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.2);
+    z-index: 1200;
+    display: flex;
+    flex-direction: column;
+    resize: both;
+    overflow: hidden;
+}
+.window-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 14px;
+    border-bottom: var(--border-width) solid rgba(var(--border-color-rgb), 0.3);
+    cursor: move;
+    user-select: none;
+    background: rgba(var(--bg-secondary-rgb), 0.3);      /* полупрозрачный заголовок */
+    backdrop-filter: blur(12px);
+    font-weight: 600;
+    flex-shrink: 0;
+    color: var(--text-primary);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);          /* лёгкая тень для читаемости */
+}
+.btn-close-window, .btn-save-conspect {
+    background: none;
+    border: none;
+    font-size: 18px;
+    cursor: pointer;
+    color: var(--text-secondary);
+    padding: 0 6px;
+    transition: color 0.2s;
+}
+.btn-close-window:hover, .btn-save-conspect:hover {
+    color: var(--accent);
+}
+.conspect-content {
+    flex: 1;
+    width: 100%;
+    padding: 12px;
+    font-family: inherit;
+    font-size: 0.9rem;
+    line-height: 1.4;
+    color: var(--text-primary);
+    background: rgba(var(--bg-primary-rgb), 0.3);       /* прозрачная область ввода */
+    backdrop-filter: blur(8px);
+    border: none;
+    resize: none;
+    outline: none;
+    overflow: auto;
+}
+.conspect-content::placeholder {
+    color: var(--text-secondary);
+    opacity: 0.7;
+}
+.resize-handle {
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    background: transparent;
+    z-index: 1210;
+}
+.resize-handle.nw { top: -5px; left: -5px; cursor: nw-resize; }
+.resize-handle.ne { top: -5px; right: -5px; cursor: ne-resize; }
+.resize-handle.sw { bottom: -5px; left: -5px; cursor: sw-resize; }
+.resize-handle.se { bottom: -5px; right: -5px; cursor: se-resize; }
+.resize-handle.n { top: -5px; left: 20%; right: 20%; cursor: n-resize; width: auto; }
+.resize-handle.s { bottom: -5px; left: 20%; right: 20%; cursor: s-resize; width: auto; }
+.resize-handle.e { right: -5px; top: 20%; bottom: 20%; cursor: e-resize; height: auto; }
+.resize-handle.w { left: -5px; top: 20%; bottom: 20%; cursor: w-resize; height: auto; }
+
+/* ---------- Хлебные крошки ---------- */
+.breadcrumb {
+    background: transparent;
+    padding: 0;
+}
+.breadcrumb-item a {
+    color: var(--accent);
+    text-decoration: none;
+}
+.breadcrumb-item.active {
+    color: var(--text-secondary);
+}
+
+/* ---------- Карточка Bootstrap с bg-secondary ---------- */
+.card.bg-secondary {
+    background: var(--bg-secondary) !important;
+    border: var(--border-width) solid var(--border-color);
+    border-radius: 24px;
+}
+
+/* ---------- Бейджи ---------- */
+.badge.bg-success {
+    background-color: var(--success-color) !important;
+}
+.badge.bg-danger {
+    background-color: var(--danger-color) !important;
+}
+.badge.bg-warning {
+    background-color: var(--warning-color) !important;
+    color: #1e293b;
+}
+.bg-accent-dark {
+    background-color: var(--accent-dark) !important;
+    color: white;
+}
+
+/* ---------- Стили для страницы профиля ---------- */
+.profile-photo-wrapper {
+    width: 200px;
+    height: 200px;
+    border-radius: 50%;
+    overflow: hidden;
+    border: calc(var(--border-width) * 3) solid var(--accent);
+}
+.profile-photo {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.data-item span {
+    color: var(--text-primary);
+}
+.achievement-card {
+    background: var(--bg-secondary);
+    border: var(--border-width) solid var(--border-color);
+    border-radius: 16px;
+    color: var(--text-primary);
+    transition: all 0.2s;
+}
+.achievement-card:hover {
+    border-color: var(--accent);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+.achievement-icon {
+    font-size: 1.2rem;
+}
+
+/* ---------- Вспомогательные классы для форм редактирования ---------- */
+.section-name, .topic-description, .section-description, .block-textarea {
+    width: 100%;
+}

@@ -6,31 +6,6 @@
     let courses = [];
     let originalCourses = [];
 
-    function showMessage(text, isError = false) {
-        let msgDiv = document.getElementById('toastMessage');
-        if (!msgDiv) {
-            msgDiv = document.createElement('div');
-            msgDiv.id = 'toastMessage';
-            msgDiv.style.position = 'fixed';
-            msgDiv.style.bottom = '20px';
-            msgDiv.style.right = '20px';
-            msgDiv.style.zIndex = '9999';
-            msgDiv.style.padding = '12px 20px';
-            msgDiv.style.borderRadius = '8px';
-            msgDiv.style.backgroundColor = isError ? '#dc3545' : '#198754';
-            msgDiv.style.color = 'white';
-            msgDiv.style.boxShadow = '0 2px 10px rgba(0,0,0,0.2)';
-            document.body.appendChild(msgDiv);
-        }
-        msgDiv.textContent = text;
-        msgDiv.style.backgroundColor = isError ? '#dc3545' : '#198754';
-        msgDiv.style.opacity = '1';
-        setTimeout(() => {
-            msgDiv.style.opacity = '0';
-            setTimeout(() => msgDiv.remove(), 300);
-        }, 2000);
-    }
-
     function escapeHtml(str) {
         if (!str) return '';
         const div = document.createElement('div');
@@ -179,7 +154,7 @@
             e.stopPropagation();
             const newName = nameInput.value.trim();
             if (!newName) {
-                showMessage('Название курса не может быть пустым', true);
+                window.showToast('Название курса не может быть пустым', 'danger');
                 return;
             }
             const newDesc = descInput.value.trim();
@@ -210,9 +185,9 @@
                     const orig = originalCourses.find(c => c.id === course.id);
                     if (orig) Object.assign(orig, course);
                     renderCourses();
-                    showMessage('Курс обновлён');
+                    window.showToast('Курс обновлён');
                 } catch (err) {
-                    showMessage(err.message, true);
+                    window.showToast(err.message, 'danger');
                 }
             } else {
                 try {
@@ -238,9 +213,9 @@
                     course.is_content_public = newIsContentPublic;
                     originalCourses.push({ ...course });
                     renderCourses();
-                    showMessage('Курс создан');
+                    window.showToast('Курс создан');
                 } catch (err) {
-                    showMessage(err.message, true);
+                    window.showToast(err.message, 'danger');
                 }
             }
         });
@@ -277,9 +252,9 @@
                 if (idx !== -1) courses.splice(idx, 1);
                 originalCourses = originalCourses.filter(c => c.id !== course.id);
                 renderCourses();
-                showMessage('Курс удалён');
+                window.showToast('Курс удалён');
             } catch (err) {
-                showMessage(err.message, true);
+                window.showToast(err.message, 'danger');
             }
         });
     }
@@ -293,10 +268,10 @@
             is_public: true,
             is_content_public: true
         };
-        courses.push(newCourse);          // добавляем в конец, как в sections.js
+        courses.push(newCourse);
         renderCourses();
         setTimeout(() => {
-            const newCard = container.querySelector('.list-group-item:last-child'); // берём последний
+            const newCard = container.querySelector('.list-group-item:last-child');
             const editTrigger = newCard?.querySelector('.edit-course-trigger');
             if (editTrigger) editTrigger.click();
         }, 50);

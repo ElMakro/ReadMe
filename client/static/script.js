@@ -5,7 +5,7 @@
     const nextBtn = document.getElementById('nextPageBtn');
     const searchInput = document.getElementById('searchInput');
     const filtersBtn = document.getElementById('filtersBtn');
-    const pageInfo = document.getElementById('pageInfo');
+    const pageInfoSpan = document.getElementById('pageInfo');
     const myCoursesBtn = document.getElementById('myCoursesBtn');
     const manageCoursesBtn = document.getElementById('manageCoursesBtn');
 
@@ -13,6 +13,7 @@
     let currentSearch = '';
     const limit = 9;
     let isLoading = false;
+    let totalPages = 1;
 
     function updateButtonsByAuthAndRole() {
         const isLoggedIn = window.Auth && window.Auth.isAuthenticated();
@@ -59,12 +60,14 @@
             }
             renderCourses(courses);
             const hasNext = fetchedCount === limit;
-            updatePagination(page, hasNext);
+            const total = hasNext ? page + 1 : page;
+            updatePagination(page, total);
             currentPage = page;
+            totalPages = total;
         } catch (error) {
             console.error(error);
             coursesGrid.innerHTML = '<p class="text-center text-danger">Не удалось загрузить курсы.</p>';
-            updatePagination(page, false);
+            updatePagination(page, page);
         } finally {
             isLoading = false;
         }
@@ -81,13 +84,9 @@
             const col = document.createElement('div');
             col.className = 'col';
             let stateText = '';
-            if (course.state === 'enrolled') {
-                stateText = '<span class="badge bg-success">Записан</span>';
-            } else if (course.state === 'controlled') {
-                stateText = '<span class="badge bg-primary bg-accent-dark">Преподаю</span>';
-            } else {
-                stateText = '<span class="badge bg-secondary">Можно записаться</span>';
-            }
+            if (course.state === 'enrolled') stateText = '<span class="badge bg-success">Записан</span>';
+            else if (course.state === 'controlled') stateText = '<span class="badge bg-accent-dark">Преподаю</span>';
+            else stateText = '<span class="badge bg-secondary">Можно записаться</span>';
             const description = course.description || 'Описание отсутствует';
             const shortDesc = description.length > 100 ? description.substring(0, 100) + '…' : description;
 
@@ -111,14 +110,14 @@
         return div.innerHTML;
     }
 
-    function updatePagination(page, hasNext) {
+    function updatePagination(page, total) {
         if (prevBtn) prevBtn.disabled = page <= 1;
-        if (nextBtn) nextBtn.disabled = !hasNext;
-        if (pageInfo) pageInfo.textContent = `Страница ${page}`;
+        if (nextBtn) nextBtn.disabled = page >= total;
+        if (pageInfoSpan) pageInfoSpan.textContent = `Страница ${page} из ${total}`;
     }
 
     if (prevBtn) prevBtn.addEventListener('click', () => { if (currentPage > 1 && !isLoading) fetchCourses(currentPage - 1, currentSearch); });
-    if (nextBtn) nextBtn.addEventListener('click', () => { if (!nextBtn.disabled && !isLoading) fetchCourses(currentPage + 1, currentSearch); });
+    if (nextBtn) nextBtn.addEventListener('click', () => { if (currentPage < totalPages && !isLoading) fetchCourses(currentPage + 1, currentSearch); });
 
     let searchTimeout;
     if (searchInput) {
@@ -132,7 +131,7 @@
         });
     }
 
-    if (filtersBtn) filtersBtn.addEventListener('click', () => alert('Фильтры курсов (демо)'));
+    if (filtersBtn) filtersBtn.addEventListener('click', () => window.showToast('Фильтры курсов (демо)', 'info'));
     if (myCoursesBtn) myCoursesBtn.addEventListener('click', () => window.location.href = '/my-courses');
     if (manageCoursesBtn) manageCoursesBtn.addEventListener('click', () => window.location.href = '/created-courses');
 

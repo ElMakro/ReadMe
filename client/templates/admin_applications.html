@@ -9,7 +9,6 @@
         <button class="btn btn-outline-accent" id="refreshBtn">Обновить</button>
     </div>
 
-    <!-- Список заявок будет вставлен сюда -->
     <div id="applicationsList" class="row g-4">
         <div class="col-12 text-center py-5">
             <div class="spinner-border text-accent" role="status">
@@ -19,13 +18,10 @@
     </div>
 
     <!-- Пагинация -->
-    <div class="pagination d-flex justify-content-center gap-3 flex-wrap align-items-center mt-4">
-        <button class="pagination-btn" id="prevPageBtn">
-            <span>←</span> Предыдущий
-        </button>
-        <button class="pagination-btn" id="nextPageBtn">
-            Следующий <span>→</span>
-        </button>
+    <div class="pagination d-flex justify-content-center gap-2 mt-4">
+        <button class="btn btn-outline-secondary" id="prevPageBtn">← Пред.</button>
+        <span id="pageInfo" class="mx-3 align-self-center"></span>
+        <button class="btn btn-outline-secondary" id="nextPageBtn">След. →</button>
     </div>
 </div>
 
