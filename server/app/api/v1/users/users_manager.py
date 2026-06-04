@@ -53,6 +53,20 @@ class UsersManager:
         self.professors_applications_model = ProfessorsApplications
         self.professors_model = ProfessorsDetails
 
+    async def get_user_profile_info(self, user_id: uuid.UUID) -> UserProfile:
+        async with self.db.db_session() as session:
+            query = select(
+                self.users_model.id,
+                self.users_model.nickname,
+                self.users_model.email,
+                self.users_model.role,
+            ).where(
+                self.users_model.id == user_id,
+            )
+            result = await session.execute(query)
+            user = result.mappings().one()
+            return UserProfile.model_validate(user)
+
     async def get_user_by_nickname(
             self,
             nickname: str,
