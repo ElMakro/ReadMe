@@ -33,7 +33,7 @@ from server.app.api.v1.users.users import (
     UsersList,
     UserUpdatedInfo,
     UserVerification,
-    UserWithRole,
+    UserWithRole, SecretApplicationLink,
 )
 from server.app.api.v1.users.users_service import UsersService
 from server.app.common_dependencies.depends import check_role, get_auth_user
@@ -240,6 +240,28 @@ async def delete_user(
                 error,
             )
         )
+
+@users_router.get(
+    path="/get-application-link",
+    summary="Получить секретную ссылку для подачи заявки",
+    status_code=status.HTTP_200_OK,
+    response_model=SecretApplicationLink,
+    response_description="Ссылка получена",
+    responses={
+        status.HTTP_403_FORBIDDEN         : {
+            "description": FORBIDDEN_ERROR_TEXT,
+        },
+    },
+)
+async def get_secret_application_link(
+    user: Annotated[UserVerification, Depends(
+            check_role([Role.ADMIN]),
+    )],
+    users_service: UsersService = Depends(
+        UsersService,
+    ),
+) -> SecretApplicationLink:
+    return await users_service.get_secret_application_link()
 
 @users_router.post(
     path="/submit-professor-application",

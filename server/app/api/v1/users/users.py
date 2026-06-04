@@ -318,3 +318,16 @@ class ApplicationsUserList(
     RootModel[list[ApplicationUserInfo]]
 ):
     pass
+
+
+class SecretApplicationLink(
+    BaseModel,
+):
+    model_config = ConfigDict(
+        from_attributes=True,
+        extra='ignore',
+    )
+
+    secret_part: str = Field(
+        description="Секретная часть ссылки на подачу заявки на роль преподавателя"
+    )

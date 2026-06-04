@@ -43,6 +43,7 @@ class Settings(BaseSettings):
     uvicorn_settings: UvicornSettings = UvicornSettings()
     secret_key: SecretStr
     token_expire: int
+    secret_application_link_part: str
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf8", extra="ignore")
 
