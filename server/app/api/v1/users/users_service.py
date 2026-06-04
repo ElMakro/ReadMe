@@ -42,16 +42,11 @@ class UsersService:
         self.users_manager = users_manager
         self.courses_manager = courses_manager
 
-    def get_info_for_user_profile(
+    async def get_info_for_user_profile(
             self,
             user: UserVerification,
     ) -> UserProfile:
-        return UserProfile(
-            id=user.id,
-            nickname=user.nickname,
-            email=user.email,
-            role=user.role,
-        )
+        return await self.users_manager.get_user_profile_info(user_id=user.id)
 
     async def update_user_profile(
             self,

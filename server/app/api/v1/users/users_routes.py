@@ -68,7 +68,7 @@ async def user_profile(
             UsersService,
         ),
 ) -> UserProfile:
-    return users_service.get_info_for_user_profile(
+    return await users_service.get_info_for_user_profile(
         user,
     )
 
