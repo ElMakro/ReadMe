@@ -53,13 +53,13 @@ services:
         deploy:
             resources:
                 limits:
-                    cpus: '1'
+                    cpus: 1
                     memory: 1G
         logging:
             driver: json-file
             options:
-                max-size: "10m"
-                max-file: "3"
+                max-size: 10m
+                max-file: 3
 
     redis-database:
         image: redis:7.4.8-alpine3.21
@@ -82,13 +82,13 @@ services:
         deploy:
             resources:
                 limits:
-                    cpus: "0.5"
+                    cpus: 0.5
                     memory: 512M
         logging:
             driver: json-file
             options:
-                max-size: "10m"
-                max-file: "3"
+                max-size: 10m
+                max-file: 3
 
     postgres-database-backups:
         image: prodrigestivill/postgres-backup-local:18-alpine-d257e5d
@@ -111,13 +111,13 @@ services:
         deploy:
             resources:
                 limits:
-                    cpus: "0.5"
+                    cpus: 0.5
                     memory: 256M
         logging:
             driver: json-file
             options:
-                max-size: "10m"
-                max-file: "3"
+                max-size: 10m
+                max-file: 3
 
     database-manager:
         build:
@@ -144,13 +144,13 @@ services:
         deploy:
             resources:
                 limits:
-                    cpus: "0.5"
+                    cpus: 0.5
                     memory: 256M
         logging:
             driver: json-file
             options:
-                max-size: "10m"
-                max-file: "3"
+                max-size: 10m
+                max-file: 3
 
     auto-migrations:
         build:
@@ -177,17 +177,17 @@ services:
         depends_on:
             postgres-database:
                 condition: service_healthy
-        restart: "no"
+        restart: no
         deploy:
             resources:
                 limits:
-                    cpus: "0.5"
+                    cpus: 0.5
                     memory: 256M
         logging:
             driver: json-file
             options:
-                max-size: "10m"
-                max-file: "3"
+                max-size: 10m
+                max-file: 3
 
     client:
         build:
@@ -195,11 +195,12 @@ services:
             dockerfile: Dockerfile
         container_name: readme-client
         environment:
+            - CLIENT_HOST=${CLIENT_HOST}
             - CLIENT_PORT=${CLIENT_PORT}
         networks:
             - readme-network
         ports:
-            - ${CLIENT_PORT}:${CLIENT_PORT}
+            - "${CLIENT_PORT}:${CLIENT_PORT}"
         volumes:
             - ./client:/content/client
         restart: unless-stopped
@@ -209,13 +210,13 @@ services:
         deploy:
             resources:
                 limits:
-                    cpus: "1"
+                    cpus: 1
                     memory: 512M
         logging:
             driver: json-file
             options:
-                max-size: "10m"
-                max-file: "3"
+                max-size: 10m
+                max-file: 3
 
     server:
         build:
@@ -233,6 +234,7 @@ services:
             - REDIS_PORT=${REDIS_PORT}
             - REDIS_DB=${REDIS_DB}
             - REDIS_PASSWORD=${REDIS_PASSWORD}
+            - SERVER_HOST=${SERVER_HOST}
             - SERVER_PORT=${SERVER_PORT}
             - TOKEN_EXPIRE=${TOKEN_EXPIRE}
             - SECRET_KEY=${SECRET_KEY}
@@ -254,13 +256,13 @@ services:
         deploy:
             resources:
                 limits:
-                    cpus: "1"
+                    cpus: 1
                     memory: 512M
         logging:
             driver: json-file
             options:
-                max-size: "10m"
-                max-file: "3"
+                max-size: 10m
+                max-file: 3
 
 
 networks:

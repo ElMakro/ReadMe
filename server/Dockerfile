@@ -37,4 +37,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
 
 EXPOSE $SERVER_PORT
 
-CMD uvicorn main:app --host 0.0.0.0 --port $SERVER_PORT
+CMD uvicorn main:app --host $SERVER_HOST --port $SERVER_PORT

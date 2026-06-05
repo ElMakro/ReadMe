@@ -53,13 +53,13 @@ services:
         deploy:
             resources:
                 limits:
-                    cpus: '1'
+                    cpus: 1
                     memory: 1G
         logging:
             driver: json-file
             options:
-                max-size: "10m"
-                max-file: "3"
+                max-size: 10m
+                max-file: 3
 
     redis-database:
         image: redis:7.4.8-alpine3.21
@@ -82,13 +82,13 @@ services:
         deploy:
             resources:
                 limits:
-                    cpus: "0.5"
+                    cpus: 0.5
                     memory: 512M
         logging:
             driver: json-file
             options:
-                max-size: "10m"
-                max-file: "3"
+                max-size: 10m
+                max-file: 3
 
     postgres-database-backups:
         image: prodrigestivill/postgres-backup-local:18-alpine-d257e5d
@@ -111,19 +111,16 @@ services:
         deploy:
             resources:
                 limits:
-                    cpus: "0.5"
+                    cpus: 0.5
                     memory: 256M
         logging:
             driver: json-file
             options:
-                max-size: "10m"
-                max-file: "3"
+                max-size: 10m
+                max-file: 3
 
     database-manager:
         image: readmeivtyarsu/readme-database-manager:0.1.0
-        build:
-            context: .
-            dockerfile: database_manager/Dockerfile
         container_name: readme-database-manager
         environment:
             - DB_HOST=${DB_HOST}
@@ -145,19 +142,16 @@ services:
         deploy:
             resources:
                 limits:
-                    cpus: "0.5"
+                    cpus: 0.5
                     memory: 256M
         logging:
             driver: json-file
             options:
-                max-size: "10m"
-                max-file: "3"
+                max-size: 10m
+                max-file: 3
 
     auto-migrations:
         image: readmeivtyarsu/readme-database-manager:0.1.0
-        build:
-            context: .
-            dockerfile: database_manager/Dockerfile
         container_name: readme-auto-migrations
         environment:
             - DB_NAME=${DB_NAME}
@@ -179,25 +173,23 @@ services:
         depends_on:
             postgres-database:
                 condition: service_healthy
-        restart: "no"
+        restart: no
         deploy:
             resources:
                 limits:
-                    cpus: "0.5"
+                    cpus: 0.5
                     memory: 256M
         logging:
             driver: json-file
             options:
-                max-size: "10m"
-                max-file: "3"
+                max-size: 10m
+                max-file: 3
 
     client:
         image: readmeivtyarsu/readme-client:0.1.0
-        build:
-            context: client
-            dockerfile: Dockerfile
         container_name: readme-client
         environment:
+            - CLIENT_HOST=${CLIENT_HOST}
             - CLIENT_PORT=${CLIENT_PORT}
         networks:
             - readme-network
@@ -210,19 +202,16 @@ services:
         deploy:
             resources:
                 limits:
-                    cpus: "1"
+                    cpus: 1
                     memory: 512M
         logging:
             driver: json-file
             options:
-                max-size: "10m"
-                max-file: "3"
+                max-size: 10m
+                max-file: 3
 
     server:
         image: readmeivtyarsu/readme-server:0.1.0
-        build:
-            context: server
-            dockerfile: Dockerfile
         container_name: readme-server
         environment:
             - DB_NAME=${DB_NAME}
@@ -235,6 +224,7 @@ services:
             - REDIS_PORT=${REDIS_PORT}
             - REDIS_DB=${REDIS_DB}
             - REDIS_PASSWORD=${REDIS_PASSWORD}
+            - SERVER_HOST=${SERVER_HOST}
             - SERVER_PORT=${SERVER_PORT}
             - TOKEN_EXPIRE=${TOKEN_EXPIRE}
             - SECRET_KEY=${SECRET_KEY}
@@ -255,13 +245,14 @@ services:
         deploy:
             resources:
                 limits:
-                    cpus: "1"
+                    cpus: 1
                     memory: 512M
         logging:
             driver: json-file
             options:
-                max-size: "10m"
-                max-file: "3"
+                max-size: 10m
+                max-file: 3
+
 
 networks:
     readme-network:
