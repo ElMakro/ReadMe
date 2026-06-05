@@ -120,7 +120,6 @@ services:
                 max-file: "3"
 
     database-manager:
-        #        image: readmeivtyarsu/readme-database-manager:dev-main-1.1.0
         build:
             context: .
             dockerfile: database_manager/Dockerfile
@@ -154,7 +153,6 @@ services:
                 max-file: "3"
 
     auto-migrations:
-        #        image: readmeivtyarsu/readme-database-manager:dev-main-1.1.0
         build:
             context: .
             dockerfile: database_manager/Dockerfile
@@ -192,7 +190,6 @@ services:
                 max-file: "3"
 
     client:
-        #        image: readmeivtyarsu/readme-client:dev-main-1.1.0
         build:
             context: client
             dockerfile: Dockerfile
@@ -202,7 +199,9 @@ services:
         networks:
             - readme-network
         ports:
-            - "${CLIENT_PORT}:${CLIENT_PORT}"
+            - ${CLIENT_PORT}:${CLIENT_PORT}
+        volumes:
+            - ./client:/content
         restart: unless-stopped
         depends_on:
             server:
@@ -217,8 +216,6 @@ services:
             options:
                 max-size: "10m"
                 max-file: "3"
-        volumes:
-            -   ".:/content"
 
     server:
         build:
@@ -241,8 +238,8 @@ services:
             - SECRET_KEY=${SECRET_KEY}
         networks:
             - readme-network
-#        volumes:
-#            - readme-courses-resources:/content/server/data/courses_resources/resources
+        volumes:
+            - readme-courses-resources:/content/server/data/courses_resources/resources
         depends_on:
             postgres-database:
                 condition: service_healthy
@@ -263,6 +260,7 @@ services:
             options:
                 max-size: "10m"
                 max-file: "3"
+
 
 networks:
     readme-network:

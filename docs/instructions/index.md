@@ -1,3 +1,3 @@
 # Инструкции: навигация
 
-[Инструкция по работе с Docker-контейнером PostgreSQL](docker_postgresql.md)
+[Инструкция по работе с Docker-контейнером](docker_deployment.md)
