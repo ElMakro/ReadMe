@@ -25,4 +25,4 @@ WORKDIR /content/client
 
 EXPOSE $CLIENT_PORT
 
-CMD uvicorn main:client_app --host 0.0.0.0 --port $CLIENT_PORT
+CMD uvicorn main:client_app --host $CLIENT_HOST --port $CLIENT_PORT

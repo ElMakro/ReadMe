@@ -118,7 +118,7 @@ async def search_courses(
         ),
         value: str = Query(
             "",
-            description="Значение, по которому проихсодит поиск",
+            description="Значение, по которому происходит поиск",
             examples=["Назван"],
         ),
         courses_service: CoursesService = Depends(
