@@ -1,0 +1,274 @@
+services:
+    postgres-database:
+        image: postgres:18.3-alpine3.23
+        container_name: readme-postgres-database
+        command:
+            - "postgres"
+            - "-c"
+            - "max_connections=50"
+            - "-c"
+            - "shared_buffers=1GB"
+            - "-c"
+            - "effective_cache_size=4GB"
+            - "-c"
+            - "work_mem=16MB"
+            - "-c"
+            - "maintenance_work_mem=512MB"
+            - "-c"
+            - "random_page_cost=1.1"
+            - "-c"
+            - "temp_file_limit=5GB"
+            - "-c"
+            - "log_min_duration_statement=200ms"
+            - "-c"
+            - "idle_in_transaction_session_timeout=10s"
+            - "-c"
+            - "lock_timeout=1s"
+            - "-c"
+            - "statement_timeout=60s"
+            - "-c"
+            - "shared_preload_libraries=pg_stat_statements"
+            - "-c"
+            - "pg_stat_statements.max=10000"
+            - "-c"
+            - "pg_stat_statements.track=all"
+        environment:
+            POSTGRES_DB: ${DB_NAME}
+            POSTGRES_USER: ${DB_USER}
+            POSTGRES_PASSWORD: ${DB_PASSWORD}
+            PGDATA: "/var/lib/postgresql/data/pgdata"
+        volumes:
+            - readme-postgres-database-data:/var/lib/postgresql/data
+        ports:
+            - "5432:5432"
+        networks:
+            - readme-network
+        healthcheck:
+            test: [ "CMD-SHELL", "pg_isready -U readmepguser -d readmedb" ]
+            interval: 10s
+            timeout: 5s
+            retries: 5
+            start_period: 10s
+        restart: unless-stopped
+        deploy:
+            resources:
+                limits:
+                    cpus: '1'
+                    memory: 1G
+        logging:
+            driver: json-file
+            options:
+                max-size: "10m"
+                max-file: "3"
+
+    redis-database:
+        image: redis:7.4.8-alpine3.21
+        container_name: readme-redis-database
+        command: [ "redis-server", "/usr/local/etc/redis/redis.conf", "--requirepass", "${REDIS_PASSWORD}" ]
+        volumes:
+            - readme-redis-database-data:/data
+            - ./server/config/redis.conf:/usr/local/etc/redis/redis.conf:ro
+        ports:
+            - "6379:6379"
+        networks:
+            - readme-network
+        healthcheck:
+            test: [ "CMD", "redis-cli", "--pass", "${REDIS_PASSWORD}", "ping" ]
+            interval: 10s
+            timeout: 5s
+            retries: 5
+            start_period: 10s
+        restart: unless-stopped
+        deploy:
+            resources:
+                limits:
+                    cpus: "0.5"
+                    memory: 512M
+        logging:
+            driver: json-file
+            options:
+                max-size: "10m"
+                max-file: "3"
+
+    postgres-database-backups:
+        image: prodrigestivill/postgres-backup-local:18-alpine-d257e5d
+        container_name: readme-postgres-database-backups
+        restart: always
+        environment:
+            - POSTGRES_HOST=${DB_HOST}
+            - POSTGRES_DB=${DB_NAME}
+            - POSTGRES_USER=${DB_USER}
+            - POSTGRES_PASSWORD=${DB_PASSWORD}
+            - SCHEDULE=@every 12h00m00s
+            - BACKUP_KEEP_DAYS=7
+        volumes:
+            - readme-postgres-database-backups:/backups
+        networks:
+            - readme-network
+        depends_on:
+            postgres-database:
+                condition: service_healthy
+        deploy:
+            resources:
+                limits:
+                    cpus: "0.5"
+                    memory: 256M
+        logging:
+            driver: json-file
+            options:
+                max-size: "10m"
+                max-file: "3"
+
+    database-manager:
+        image: readmeivtyarsu/readme-database-manager:0.1.0
+        build:
+            context: .
+            dockerfile: database_manager/Dockerfile
+        container_name: readme-database-manager
+        environment:
+            - DB_HOST=${DB_HOST}
+            - DB_PORT=${DB_PORT}
+            - DB_NAME=${DB_NAME}
+            - DB_USER=${DB_USER}
+            - DB_PASSWORD=${DB_PASSWORD}
+        stdin_open: true
+        tty: true
+        volumes:
+            - readme-postgres-database-backups:/backups
+        networks:
+            - readme-network
+        depends_on:
+            postgres-database:
+                condition: service_healthy
+            redis-database:
+                condition: service_healthy
+        deploy:
+            resources:
+                limits:
+                    cpus: "0.5"
+                    memory: 256M
+        logging:
+            driver: json-file
+            options:
+                max-size: "10m"
+                max-file: "3"
+
+    auto-migrations:
+        image: readmeivtyarsu/readme-database-manager:0.1.0
+        build:
+            context: .
+            dockerfile: database_manager/Dockerfile
+        container_name: readme-auto-migrations
+        environment:
+            - DB_NAME=${DB_NAME}
+            - DB_USER=${DB_USER}
+            - DB_PASSWORD=${DB_PASSWORD}
+            - DB_HOST=${DB_HOST}
+            - DB_PORT=${DB_PORT}
+            - DB_ECHO=${DB_ECHO}
+            - REDIS_HOST=${REDIS_HOST}
+            - REDIS_PORT=${REDIS_PORT}
+            - REDIS_DB=${REDIS_DB}
+            - REDIS_PASSWORD=${REDIS_PASSWORD}
+            - SERVER_PORT=${SERVER_PORT}
+            - TOKEN_EXPIRE=${TOKEN_EXPIRE}
+            - SECRET_KEY=${SECRET_KEY}
+        command: [ "migrate", "auto" ]
+        networks:
+            - readme-network
+        depends_on:
+            postgres-database:
+                condition: service_healthy
+        restart: "no"
+        deploy:
+            resources:
+                limits:
+                    cpus: "0.5"
+                    memory: 256M
+        logging:
+            driver: json-file
+            options:
+                max-size: "10m"
+                max-file: "3"
+
+    client:
+        image: readmeivtyarsu/readme-client:0.1.0
+        build:
+            context: client
+            dockerfile: Dockerfile
+        container_name: readme-client
+        environment:
+            - CLIENT_PORT=${CLIENT_PORT}
+        networks:
+            - readme-network
+        ports:
+            - "${CLIENT_PORT}:${CLIENT_PORT}"
+        restart: unless-stopped
+        depends_on:
+            server:
+                condition: service_healthy
+        deploy:
+            resources:
+                limits:
+                    cpus: "1"
+                    memory: 512M
+        logging:
+            driver: json-file
+            options:
+                max-size: "10m"
+                max-file: "3"
+
+    server:
+        image: readmeivtyarsu/readme-server:0.1.0
+        build:
+            context: server
+            dockerfile: Dockerfile
+        container_name: readme-server
+        environment:
+            - DB_NAME=${DB_NAME}
+            - DB_USER=${DB_USER}
+            - DB_PASSWORD=${DB_PASSWORD}
+            - DB_HOST=${DB_HOST}
+            - DB_PORT=${DB_PORT}
+            - DB_ECHO=${DB_ECHO}
+            - REDIS_HOST=${REDIS_HOST}
+            - REDIS_PORT=${REDIS_PORT}
+            - REDIS_DB=${REDIS_DB}
+            - REDIS_PASSWORD=${REDIS_PASSWORD}
+            - SERVER_PORT=${SERVER_PORT}
+            - TOKEN_EXPIRE=${TOKEN_EXPIRE}
+            - SECRET_KEY=${SECRET_KEY}
+        networks:
+            - readme-network
+        volumes:
+            - readme-courses-resources:/content/server/data/courses_resources/resources
+        depends_on:
+            postgres-database:
+                condition: service_healthy
+            redis-database:
+                condition: service_healthy
+            auto-migrations:
+                condition: service_completed_successfully
+        ports:
+            - "${SERVER_PORT}:${SERVER_PORT}"
+        restart: unless-stopped
+        deploy:
+            resources:
+                limits:
+                    cpus: "1"
+                    memory: 512M
+        logging:
+            driver: json-file
+            options:
+                max-size: "10m"
+                max-file: "3"
+
+networks:
+    readme-network:
+        driver: bridge
+
+volumes:
+    readme-postgres-database-data:
+    readme-postgres-database-backups:
+    readme-redis-database-data:
+    readme-courses-resources:
