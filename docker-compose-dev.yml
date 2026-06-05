@@ -201,7 +201,7 @@ services:
         ports:
             - ${CLIENT_PORT}:${CLIENT_PORT}
         volumes:
-            - ./client:/content
+            - ./client:/content/client
         restart: unless-stopped
         depends_on:
             server:
@@ -239,6 +239,7 @@ services:
         networks:
             - readme-network
         volumes:
+            - ./server:/content/server
             - readme-courses-resources:/content/server/data/courses_resources/resources
         depends_on:
             postgres-database:
