@@ -6,6 +6,8 @@ from uuid import UUID
 from fastapi import Query
 from pydantic import BaseModel, BeforeValidator, ConfigDict, Field
 
+from server.config.constants import ALLOWED_LINK_CHARACTERS
+
 UNAUTHORIZED_ERROR_TEXT = "Пользователь не произвёл вход"
 FORBIDDEN_ERROR_TEXT = "Недостаточно прав для выполнения операции"
 NOT_FOUND_ERROR_TEXT = "Запрашиваемый ресурс не найден"
@@ -20,6 +22,10 @@ CANT_CHANGE_OWN_ROLE_ERROR_TEXT = "Запрещено изменять собс�
 CANT_DELETE_OWN_PROFILE_ERROR_TEXT = "Запрещено удалять собственный профиль. Обратитесь к другому администратору"
 APPLICATION_FIELDS_MISMATCH_ERROR_TEXT = "Поле id заявки не соответвует id пользователя"
 APPLICATION_REFUSED_ERROR_TEXT = "Пользователь уже является преподавателем или его заявка уже находится на рассмотрении"
+UPDATED_LINK_ERROR_TEXT = (f"Ссылка содержит недопустимые символы или имеет недопустимую длину; "
+                           f"ориентируйтесь на регулярное выражение: {ALLOWED_LINK_CHARACTERS}")
+WRONG_APPLICATION_LINK_ERROR_TEXT = "Неверный адрес, уточните ссылку для подачи заявки у администратора"
+NOT_EXISTING_LINK_ERROR_TEXT = "Секретная часть ссылки не задана"
 
 
 class CreatedAtMixin:

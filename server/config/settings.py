@@ -37,13 +37,31 @@ class UvicornSettings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf8", extra="ignore")
 
 
+class ClientSettings(BaseSettings):
+    client_port: int
+    client_host: str
+
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf8", extra="ignore")
+
+    @property
+    def professor_application_base_url(self):
+        return (
+            f"http://"
+            f"{self.client_host}:"
+            f"{self.client_port}"
+            f"/users/submit_professor_application"
+        )
+
+
 class Settings(BaseSettings):
     db_settings: DBSettings = DBSettings()
     redis_settings: RedisSettings = RedisSettings()
     uvicorn_settings: UvicornSettings = UvicornSettings()
+    client_settings: ClientSettings = ClientSettings()
     secret_key: SecretStr
     token_expire: int
-    secret_application_link_part: str
+    default_secret_application_link_part: str
+    secret_link_key: SecretStr
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf8", extra="ignore")
 

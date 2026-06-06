@@ -6,6 +6,7 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field, RootModel, StringCo
 
 from server.enums.application_status import ApplicationStatus
 from server.enums.role import Role
+from server.enums.updated_link_type import LinkType
 
 
 class UserByID(
@@ -330,4 +331,22 @@ class SecretApplicationLink(
 
     secret_part: str = Field(
         description="Секретная часть ссылки на подачу заявки на роль преподавателя"
+    )
+
+
+class UpdatedLinkContent(
+    BaseModel,
+):
+    model_config = ConfigDict(
+        from_attributes=True,
+        extra='ignore',
+    )
+
+    type: LinkType = Field(
+        description="Тип обновляемой ссылки",
+        default=LinkType.DEFAULT,
+    )
+    content: str | None = Field(
+        description="Новая ссылка",
+        default=None,
     )

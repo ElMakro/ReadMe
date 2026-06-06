@@ -17,3 +17,4 @@ pytest-env==1.6.0
 ruff==0.15.12
 sqlalchemy-json==0.7.0
 python-multipart==0.0.29
+cryptography==48.0.0
