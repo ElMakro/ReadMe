@@ -52,8 +52,8 @@ class TestProfessorApplication:
 
         # Регистрируем админа через API
         api_client.post("/api/v1/auth/reg", json={
-            "nickname": admin_nick,
             "email": f"{admin_nick}@test.com",
+            "nickname": admin_nick,
             "password": admin_password
         })
 
@@ -75,14 +75,14 @@ class TestProfessorApplication:
 
         # Выходим из админа
         api_client.get("/api/v1/auth/logout")
-
+        api_client.cookies.clear()
         # ========== ШАГ 1: Создаём студента и подаём заявку ==========
         student_nick = f"student_{uuid.uuid4().hex[:6]}"
         student_password = "StrongPassword123!"
 
         api_client.post("/api/v1/auth/reg", json={
-            "nickname": student_nick,
             "email": f"{student_nick}@test.com",
+            "nickname": student_nick,
             "password": student_password
         })
         api_client.post("/api/v1/auth/login", json={
@@ -102,7 +102,7 @@ class TestProfessorApplication:
 
         # Студент выходит
         api_client.get("/api/v1/auth/logout")
-
+        api_client.cookies.clear()
         # ========== ШАГ 2: Входим как админ (зная логин/пароль!) ==========
         login_res = api_client.post("/api/v1/auth/login", json={
             "nickname": admin_nick,
@@ -126,6 +126,7 @@ class TestProfessorApplication:
 
         # Админ выходит
         api_client.get("/api/v1/auth/logout")
+        api_client.cookies.clear()
 
         # ========== ШАГ 4: Студент заходит заново и проверяет роль ==========
         login_res = api_client.post("/api/v1/auth/login", json={
@@ -134,8 +135,11 @@ class TestProfessorApplication:
         })
         assert login_res.status_code == 200, f"Ошибка входа студента: {login_res.text}"
 
+        current_profile = api_client.get("/api/v1/users/profile").json()
+        assert current_profile["nickname"] == student_nick, f"Не тот профиль! Никнейм: {current_profile['nickname']}"
+
         new_profile = api_client.get("/api/v1/users/profile").json()
-        assert new_profile["role"] == "professor", \
-            f"Роль не изменилась! Текущая: {new_profile['role']}"
+        assert current_profile["role"] == "professor", \
+            f"Роль не изменилась! Текущая: {current_profile['role']}"
 
         print("🎉 Тест пройден: студент стал преподавателем через полный API-сценарий!")

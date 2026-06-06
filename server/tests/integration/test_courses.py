@@ -16,7 +16,7 @@ class TestCourseCreation:
             "description": "Test course",
             "is_public": True
         })
-        assert res.status_code == 201
+        assert res.status_code == 201, f"Не удалось создать курс: {res.text}"
         assert "id" in res.json()
 
     @staticmethod
@@ -28,7 +28,7 @@ class TestCourseCreation:
             "name": "Forbidden Course",
             "is_public": True
         })
-        assert res.status_code == 403
+        assert res.status_code == 403, f"Ожидали 403, получили {res.status_code}: {res.text}"
 
 
 class TestCourseAccess:
@@ -40,10 +40,12 @@ class TestCourseAccess:
         create_res = professor_client.post("/api/v1/courses/create-course", json={
             "name": "GetTest", "is_public": True
         })
+        assert create_res.status_code == 201, f"Не удалось создать курс: {create_res.text}"
         course_id = create_res.json()["id"]
+        print(f"Получен id курса: {course_id}")
 
         get_res = professor_client.get(f"/api/v1/courses/{course_id}")
-        assert get_res.status_code == 200
+        assert get_res.status_code == 200, f"Не удалось получить курс: {get_res.text}"
         assert get_res.json()["name"] == "GetTest"
 
     @staticmethod
@@ -55,4 +57,4 @@ class TestCourseAccess:
             "criteria": "name_prefix",
             "value": "M"
         })
-        assert res.status_code == 200
+        assert res.status_code == 200, f"Не удалось выполнить поиск: {res.text}"
