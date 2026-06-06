@@ -19,9 +19,6 @@ ENV PYTHONBUFFERED=1 \
     PYTHONPATH=/content \
     PLANTUML_JAR_PATH=/opt/plantuml.jar
 
-RUN mkdir -p server/data/courses_resources/resources  \
-    && chown readmeserveruser:readmeservergroup server/data/courses_resources/resources
-
 USER readmeserveruser
 
 COPY --chown=readmeserveruser:readmeservergroup requirements.txt .

@@ -12,6 +12,7 @@ from server.app.api.v1.users.users import (
 )
 from server.app.api.v1.users.users_manager import UsersManager
 from server.config.settings import settings
+from server.data.users_resources.users_resources_manager import UsersResourcesManager
 
 
 class AuthService:
@@ -26,10 +27,14 @@ class AuthService:
             users_manager: UsersManager = Depends(
                 UsersManager,
             ),
+            users_resources_manager: UsersResourcesManager = Depends(
+                UsersResourcesManager
+            )
     ) -> None:
         self.auth_manager = auth_manager
         self.auth_handler = auth_handler
         self.users_manager = users_manager
+        self.users_resources_manager = users_resources_manager
 
     async def register_user(
             self,
@@ -43,9 +48,12 @@ class AuthService:
             nickname=user.nickname,
             password=hashed_password,
         )
-        return await self.auth_manager.create_user(
+        user = await self.auth_manager.create_user(
             user=new_user,
         )
+        self.users_resources_manager.create_user(user)
+
+        return user
 
     async def login_user(
             self,

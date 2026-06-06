@@ -2,7 +2,7 @@ import re
 import uuid
 from uuid import UUID
 
-from fastapi import Depends
+from fastapi import Depends, UploadFile
 
 from server.app.api.v1.auth.auth_manager import AuthManager
 from server.app.api.v1.common_schemas import (
@@ -13,6 +13,7 @@ from server.app.api.v1.common_schemas import (
 )
 from server.app.api.v1.courses.courses import CourseResponse
 from server.app.api.v1.courses.courses_manager import CoursesManager
+from server.app.api.v1.exceptions import ContentTypeError
 from server.app.api.v1.notes.exceptions import CantChangeOwnRoleError, CantDeleteOwnProfileError
 from server.app.api.v1.users.exceptions import NotExistingLinkError, UpdatedLinkError
 from server.app.api.v1.users.secret_application_link_handler import SecretApplicationLinkHandler
@@ -33,6 +34,7 @@ from server.app.api.v1.users.users_manager import UsersManager
 from server.app.common_dependencies.secret_link_strategies import UpdatedLinkStrategy
 from server.config.constants import ALLOWED_LINK_CHARACTERS
 from server.config.settings import settings
+from server.data.users_resources.users_resources_manager import UsersResourcesManager
 from server.enums.access_permissions import AccessPermissions
 from server.enums.role import Role
 
@@ -49,6 +51,8 @@ class UsersService:
             courses_manager: CoursesManager = Depends(
                 CoursesManager,
             ),
+            users_resources_manager: UsersResourcesManager = Depends(
+                UsersResourcesManager),
             secret_link_handler: SecretApplicationLinkHandler = Depends(
                 SecretApplicationLinkHandler,
             ),
@@ -57,6 +61,7 @@ class UsersService:
         self.users_manager = users_manager
         self.courses_manager = courses_manager
         self.secret_link_handler = secret_link_handler
+        self.users_resources_manager = users_resources_manager
 
     async def get_info_for_user_profile(
             self,
@@ -162,6 +167,21 @@ class UsersService:
         offset = (page - 1) * size
         limit = size
         return await self.users_manager.get_user_applications(id=id, offset=offset, limit=limit)
+
+    def set_user_icon(
+            self,
+            user: UserVerification,
+            icon_upload_file: UploadFile,
+    ) -> None:
+        if "image" not in icon_upload_file.content_type:
+            raise ContentTypeError(
+                "Некорректный тип файла!",
+            )
+
+        self.users_resources_manager.set_user_icon(
+            user.id,
+            icon_upload_file,
+        )
 
     async def get_secret_application_link(self) -> SecretApplicationLink:
         if (link := await self.users_manager.get_secret_application_link()) is None:

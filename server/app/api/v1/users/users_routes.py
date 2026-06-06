@@ -1,15 +1,16 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Path, status
+from fastapi import APIRouter, Depends, File, HTTPException, Path, UploadFile, status
+from starlette.responses import FileResponse
 
+from server.app.api.openapi_docs import openapi_extra_authorization_cookie
 from server.app.api.v1.common_schemas import (
     APPLICATION_FIELDS_MISMATCH_ERROR_TEXT,
     APPLICATION_REFUSED_ERROR_TEXT,
     CANT_CHANGE_OWN_ROLE_ERROR_TEXT,
     CANT_DELETE_OWN_PROFILE_ERROR_TEXT,
     FORBIDDEN_ERROR_TEXT,
-    NOT_EXISTING_LINK_ERROR_TEXT,
     NOT_FOUND_ERROR_TEXT,
     NOT_UNIQUE_FIELDS_ERROR_TEXT,
     UNAUTHORIZED_ERROR_TEXT,
@@ -18,11 +19,11 @@ from server.app.api.v1.common_schemas import (
     WRONG_APPLICATION_LINK_ERROR_TEXT,
     PaginationParameters,
 )
+from server.app.api.v1.exceptions import ContentTypeError, ObjectMissingError
 from server.app.api.v1.notes.exceptions import CantChangeOwnRoleError, CantDeleteOwnProfileError
 from server.app.api.v1.users.exceptions import (
     ApplicationFieldsMismatchError,
     ApplicationRefusedError,
-    NotExistingLinkError,
     NotUniqueFieldsError,
     UpdatedLinkError,
     UserMustBeInProfessorsTableError,
@@ -44,6 +45,7 @@ from server.app.api.v1.users.users import (
 from server.app.api.v1.users.users_service import UsersService
 from server.app.common_dependencies.depends import check_role, get_auth_user, get_new_link
 from server.app.common_dependencies.secret_link_strategies import UpdatedLinkStrategy
+from server.data.users_resources.users_resources_manager import UsersResourcesManager
 from server.enums.role import Role
 
 users_router = APIRouter(
@@ -59,7 +61,7 @@ users_router = APIRouter(
     response_model=UserProfile,
     response_description="Возвращена информация о пользователе",
     responses={
-        status.HTTP_401_UNAUTHORIZED         : {
+        status.HTTP_401_UNAUTHORIZED: {
             "description": "Пользователь не произвёл вход",
         },
         status.HTTP_422_UNPROCESSABLE_CONTENT: {
@@ -81,13 +83,13 @@ async def user_profile(
 
 
 @users_router.put(
-"/profile",
+    "/profile",
     summary="Редактировать профиль пользователя",
     status_code=status.HTTP_200_OK,
     response_model=UserProfile,
     response_description="Профиль пользователя отредактирован",
     responses={
-        status.HTTP_401_UNAUTHORIZED         : {
+        status.HTTP_401_UNAUTHORIZED: {
             "description": "Пользователь не произвёл вход",
         },
         status.HTTP_422_UNPROCESSABLE_CONTENT: {
@@ -102,13 +104,13 @@ async def user_profile(
     },
 )
 async def update_profile(
-    user: Annotated[UserVerification | None, Depends(
-        get_auth_user,
-    )],
-    updated_info: UserUpdatedInfo,
-    users_service: UsersService = Depends(
-        UsersService,
-    ),
+        user: Annotated[UserVerification | None, Depends(
+            get_auth_user,
+        )],
+        updated_info: UserUpdatedInfo,
+        users_service: UsersService = Depends(
+            UsersService,
+        ),
 ) -> UserProfile:
     try:
         return await users_service.update_user_profile(
@@ -134,7 +136,7 @@ async def update_profile(
     response_model=UsersList,
     response_description="Возвращена информация обо всех пользователях",
     responses={
-        status.HTTP_403_FORBIDDEN         : {
+        status.HTTP_403_FORBIDDEN: {
             "description": FORBIDDEN_ERROR_TEXT,
         },
         status.HTTP_422_UNPROCESSABLE_CONTENT: {
@@ -143,18 +145,19 @@ async def update_profile(
     },
 )
 async def get_all_users(
-    user: Annotated[UserVerification, Depends(
+        user: Annotated[UserVerification, Depends(
             check_role([Role.ADMIN]),
-    )],
-    pagination_parameters: PaginationParameters = Depends(),
-    users_service: UsersService = Depends(
-        UsersService,
-    ),
+        )],
+        pagination_parameters: PaginationParameters = Depends(),
+        users_service: UsersService = Depends(
+            UsersService,
+        ),
 ) -> UsersList:
     return await users_service.get_all_users(
         page=pagination_parameters.page,
         size=pagination_parameters.records_per_page,
     )
+
 
 @users_router.put(
     path="/change-role",
@@ -162,7 +165,7 @@ async def get_all_users(
     status_code=status.HTTP_204_NO_CONTENT,
     response_description="Роль пользователя успешно изменена",
     responses={
-        status.HTTP_403_FORBIDDEN         : {
+        status.HTTP_403_FORBIDDEN: {
             "description": FORBIDDEN_ERROR_TEXT,
         },
         status.HTTP_404_NOT_FOUND: {
@@ -177,13 +180,13 @@ async def get_all_users(
     },
 )
 async def change_user_role(
-    current_user: Annotated[UserVerification, Depends(
+        current_user: Annotated[UserVerification, Depends(
             check_role([Role.ADMIN]),
-    )],
-    changing_user: UserWithRole,
-    users_service: UsersService = Depends(
-        UsersService,
-    ),
+        )],
+        changing_user: UserWithRole,
+        users_service: UsersService = Depends(
+            UsersService,
+        ),
 ):
     try:
         return await users_service.change_role(user=changing_user, current_user_id=current_user.id)
@@ -202,13 +205,14 @@ async def change_user_role(
             )
         )
 
+
 @users_router.delete(
     path="/delete-user/{id}",
     summary="Удаление пользователя",
     status_code=status.HTTP_204_NO_CONTENT,
     response_description="Пользователь удалён",
     responses={
-        status.HTTP_403_FORBIDDEN         : {
+        status.HTTP_403_FORBIDDEN: {
             "description": FORBIDDEN_ERROR_TEXT,
         },
         status.HTTP_404_NOT_FOUND: {
@@ -220,16 +224,16 @@ async def change_user_role(
     },
 )
 async def delete_user(
-    user: Annotated[UserVerification, Depends(
+        user: Annotated[UserVerification, Depends(
             check_role([Role.ADMIN]),
-    )],
-    id: uuid.UUID = Path(
-        ...,
-        description="Уникальный идентификатор пользователя",
-    ),
-    users_service: UsersService = Depends(
-        UsersService,
-    ),
+        )],
+        id: uuid.UUID = Path(
+            ...,
+            description="Уникальный идентификатор пользователя",
+        ),
+        users_service: UsersService = Depends(
+            UsersService,
+        ),
 ):
     try:
         return await users_service.delete_user(id=id, current_user_id=user.id)
@@ -248,38 +252,6 @@ async def delete_user(
             )
         )
 
-@users_router.get(
-    path="/get-application-link",
-    summary="Получить секретную ссылку для подачи заявки",
-    status_code=status.HTTP_200_OK,
-    response_model=SecretApplicationLink,
-    response_description="Ссылка получена",
-    responses={
-        status.HTTP_403_FORBIDDEN         : {
-            "description": FORBIDDEN_ERROR_TEXT,
-        },
-        status.HTTP_409_CONFLICT: {
-            "description": NOT_EXISTING_LINK_ERROR_TEXT,
-        },
-    },
-)
-async def get_secret_application_link(
-    user: Annotated[UserVerification, Depends(
-            check_role([Role.ADMIN]),
-    )],
-    users_service: UsersService = Depends(
-        UsersService,
-    ),
-) -> SecretApplicationLink:
-    try:
-        return await users_service.get_secret_application_link()
-    except NotExistingLinkError as error:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=str(
-                error,
-            )
-        )
 
 @users_router.post(
     path="/set-application-link",
@@ -288,7 +260,7 @@ async def get_secret_application_link(
     response_model=SecretApplicationLink,
     response_description="Ссылка установлена",
     responses={
-        status.HTTP_403_FORBIDDEN         : {
+        status.HTTP_403_FORBIDDEN: {
             "description": FORBIDDEN_ERROR_TEXT,
         },
         status.HTTP_422_UNPROCESSABLE_CONTENT: {
@@ -297,15 +269,15 @@ async def get_secret_application_link(
     },
 )
 async def set_secret_application_link(
-    user: Annotated[UserVerification, Depends(
+        user: Annotated[UserVerification, Depends(
             check_role([Role.ADMIN]),
-    )],
-    new_link_content: Annotated[UpdatedLinkStrategy, Depends(
-        get_new_link
-    )],
-    users_service: UsersService = Depends(
-        UsersService,
-    ),
+        )],
+        new_link_content: Annotated[UpdatedLinkStrategy, Depends(
+            get_new_link
+        )],
+        users_service: UsersService = Depends(
+            UsersService,
+        ),
 ) -> SecretApplicationLink:
     try:
         return await users_service.set_secret_application_link(new_link_content)
@@ -317,6 +289,7 @@ async def set_secret_application_link(
             )
         )
 
+
 @users_router.post(
     path="/submit-professor-application/{secret_link}",
     summary="Подать заявку на роль преподавателя",
@@ -324,7 +297,7 @@ async def set_secret_application_link(
     response_model=ApplicationById,
     response_description="Заявка успешно добавлена",
     responses={
-        status.HTTP_403_FORBIDDEN         : {
+        status.HTTP_403_FORBIDDEN: {
             "description": FORBIDDEN_ERROR_TEXT,
         },
         status.HTTP_409_CONFLICT: {
@@ -336,17 +309,17 @@ async def set_secret_application_link(
     },
 )
 async def submit_professor_application(
-    user: Annotated[UserVerification, Depends(
+        user: Annotated[UserVerification, Depends(
             check_role([Role.STUDENT, Role.ADMIN]),
-    )],
-    application: ProfessorApplication,
-    secret_link: str = Path(
-        ...,
-        description="Секретная ссылка для подачи заявки на роль преподавателя",
-    ),
-    users_service: UsersService = Depends(
-        UsersService,
-    ),
+        )],
+        application: ProfessorApplication,
+        secret_link: str = Path(
+            ...,
+            description="Секретная ссылка для подачи заявки на роль преподавателя",
+        ),
+        users_service: UsersService = Depends(
+            UsersService,
+        ),
 ) -> ApplicationById:
     if not await users_service.verify_secret_link(secret_link):
         raise HTTPException(
@@ -364,6 +337,7 @@ async def submit_professor_application(
             detail=str(error)
         )
 
+
 @users_router.get(
     path="/get-active-applications",
     summary="Получить список активных заявок на роль преподавателя",
@@ -371,24 +345,25 @@ async def submit_professor_application(
     response_model=ApplicationsList,
     response_description="Список заявок получен",
     responses={
-        status.HTTP_403_FORBIDDEN         : {
+        status.HTTP_403_FORBIDDEN: {
             "description": FORBIDDEN_ERROR_TEXT,
         },
     },
 )
 async def get_professor_applications(
-    user: Annotated[UserVerification, Depends(
+        user: Annotated[UserVerification, Depends(
             check_role([Role.ADMIN]),
-    )],
-    pagination_parameters: PaginationParameters = Depends(),
-    users_service: UsersService = Depends(
-        UsersService,
-    ),
+        )],
+        pagination_parameters: PaginationParameters = Depends(),
+        users_service: UsersService = Depends(
+            UsersService,
+        ),
 ) -> ApplicationsList:
     return await users_service.get_professor_applications(
         page=pagination_parameters.page,
         size=pagination_parameters.records_per_page,
     )
+
 
 @users_router.put(
     path="/change-application-status",
@@ -396,7 +371,7 @@ async def get_professor_applications(
     status_code=status.HTTP_204_NO_CONTENT,
     response_description="Статус заявки изменён",
     responses={
-        status.HTTP_403_FORBIDDEN         : {
+        status.HTTP_403_FORBIDDEN: {
             "description": FORBIDDEN_ERROR_TEXT,
         },
         status.HTTP_409_CONFLICT: {
@@ -405,13 +380,13 @@ async def get_professor_applications(
     },
 )
 async def change_application_status(
-    user: Annotated[UserVerification, Depends(
+        user: Annotated[UserVerification, Depends(
             check_role([Role.ADMIN]),
-    )],
-    application: ApplicationChangeStatus,
-    users_service: UsersService = Depends(
-        UsersService,
-    ),
+        )],
+        application: ApplicationChangeStatus,
+        users_service: UsersService = Depends(
+            UsersService,
+        ),
 ):
     try:
         return await users_service.change_application_status(application)
@@ -421,6 +396,7 @@ async def change_application_status(
             detail=str(error),
         )
 
+
 @users_router.get(
     path="/get-my-applications",
     summary="Получить список заявок пользователя на роль преподавателя",
@@ -428,25 +404,81 @@ async def change_application_status(
     response_model=ApplicationsUserList,
     response_description="Список заявок пользователя получен",
     responses={
-        status.HTTP_401_UNAUTHORIZED         : {
+        status.HTTP_401_UNAUTHORIZED: {
             "description": UNAUTHORIZED_ERROR_TEXT,
         },
     },
 )
 async def get_my_applications(
-    user: Annotated[UserVerification, Depends(
+        user: Annotated[UserVerification, Depends(
             get_auth_user,
-    )],
-    pagination_parameters: PaginationParameters = Depends(),
-    users_service: UsersService = Depends(
-        UsersService,
-    ),
+        )],
+        pagination_parameters: PaginationParameters = Depends(),
+        users_service: UsersService = Depends(
+            UsersService,
+        ),
 ) -> ApplicationsUserList:
     return await users_service.get_user_applications(
         id=user.id,
         page=pagination_parameters.page,
         size=pagination_parameters.records_per_page
     )
+
+
+@users_router.post(
+    "/icon",
+    description="Установить иконку текущему пользователю",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={
+        status.HTTP_415_UNSUPPORTED_MEDIA_TYPE: {
+            "description": "Отправлен некорректный тип файла"
+        }
+    },
+    openapi_extra=openapi_extra_authorization_cookie,
+)
+async def set_user_icon(
+        user: Annotated[UserVerification, Depends(
+            get_auth_user,
+        )],
+        icon_file: UploadFile = File(
+            ...,
+            description="Файл иконки курса",
+        ),
+        users_service: UsersService = Depends(UsersService)
+) -> None:
+    try:
+        users_service.set_user_icon(user, icon_file)
+    except ContentTypeError as error:
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            detail=str(error)
+        )
+
+
+@users_router.get(
+    path="/{user_id}/icon",
+    summary="Получить иконку пользователя по его идентификатору",
+    status_code=status.HTTP_200_OK,
+    response_description="Файл иконки пользователя",
+    responses={
+        status.HTTP_404_NOT_FOUND: {
+            "description": NOT_FOUND_ERROR_TEXT
+        }
+    }
+)
+async def get_user_icon(user_id: uuid.UUID = Path(..., description="Уникальный идентификатор пользователя"),
+                        users_resources_manager: UsersResourcesManager = Depends(
+                            UsersResourcesManager)) -> FileResponse:
+    try:
+        return FileResponse(
+            users_resources_manager.get_user_icon_path(user_id)
+        )
+    except ObjectMissingError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(error),
+        )
+
 
 @users_router.post(
     "/enroll",

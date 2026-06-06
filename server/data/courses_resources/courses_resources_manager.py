@@ -12,6 +12,7 @@ from server.app.api.v1.topics.topics import (
     TopicRenderedContent,
 )
 from server.app.api.v1.topics.topics_manager import TopicsManager
+from server.data.courses_resources import COURSES_RESOURCES_DIRECTORY_PATH
 from server.data.courses_resources.compilation_manager import CompilationManager
 
 
@@ -31,10 +32,6 @@ class CoursesResourcesManager:
                 CompilationManager,
             ),
     ):
-        self.courses_resources_directory_path = Path(
-            __file__,
-        ).parent / "resources"
-
         self.courses_manager = courses_manager
         self.sections_manager = sections_manager
         self.topics_manager = topics_manager
@@ -49,20 +46,20 @@ class CoursesResourcesManager:
             exist_ok=True,
         )
 
+    @staticmethod
     def delete_object_directory(
-            self,
             object_directory_path: Path,
     ) -> None:
-        result_path = self.courses_resources_directory_path / object_directory_path
+        result_path = COURSES_RESOURCES_DIRECTORY_PATH / object_directory_path
         rmtree(
             result_path,
         )
 
+    @staticmethod
     def get_course_directory_path(
-            self,
             course_id: UUID,
     ) -> Path:
-        return self.courses_resources_directory_path / str(
+        return COURSES_RESOURCES_DIRECTORY_PATH / str(
             course_id,
         )
 
@@ -83,11 +80,11 @@ class CoursesResourcesManager:
             section_id,
         )
 
+    @staticmethod
     def get_topic_directory_path(
-            self,
             topic_directory_path: str,
     ) -> Path:
-        return self.courses_resources_directory_path / topic_directory_path
+        return COURSES_RESOURCES_DIRECTORY_PATH / topic_directory_path
 
     def create_course_directory(
             self,
@@ -157,13 +154,15 @@ class CoursesResourcesManager:
             self,
             topic_directory_path: str,
             raw_content: TopicRawContent,
+            topic_files: list[UploadFile],
             old_topic_rendered_content: TopicRenderedContent | None = None,
     ) -> TopicRenderedContent:
-        full_topic_directory_path = self.courses_resources_directory_path / topic_directory_path
+        full_topic_directory_path = self.get_topic_directory_path(topic_directory_path)
 
         return await self.compilation_manager.compile_topic_content(
             full_topic_directory_path,
             raw_content,
+            topic_files,
             old_topic_rendered_content,
         )
 
@@ -172,9 +171,7 @@ class CoursesResourcesManager:
             topic_directory_path: str,
             resource_filename: str,
     ) -> Path:
-        resource_filepath = self.courses_resources_directory_path / Path(
-            topic_directory_path,
-        ) / resource_filename
+        resource_filepath = self.get_topic_directory_path(topic_directory_path) / resource_filename
 
         if not resource_filepath.exists():
             raise ObjectMissingError(

@@ -1,7 +1,7 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Path, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Path, UploadFile, status
 
 from server.app.api.openapi_docs import openapi_extra_authorization_cookie
 from server.app.api.v1.common_schemas import UNPROCESSABLE_ENTITY_ERROR_TEXT
@@ -33,17 +33,17 @@ topics_router = APIRouter(
     status_code=status.HTTP_201_CREATED,
     response_model=TopicIDMixin,
     responses={
-        status.HTTP_400_BAD_REQUEST          : {
+        status.HTTP_400_BAD_REQUEST: {
             "description": "Ошибка компиляции контента",
-            "model"      : ContentCompilationError,
+            "model": ContentCompilationError,
         },
-        status.HTTP_403_FORBIDDEN            : {
+        status.HTTP_403_FORBIDDEN: {
             "description": "У пользователя нет прав на создание темы в данном разделе",
         },
-        status.HTTP_404_NOT_FOUND            : {
+        status.HTTP_404_NOT_FOUND: {
             "description": "Раздела с таким идентификатором не существует",
         },
-        status.HTTP_409_CONFLICT             : {
+        status.HTTP_409_CONFLICT: {
             "description": "Тема с таким порядковым номером уже существует в этом разделе",
         },
         status.HTTP_422_UNPROCESSABLE_CONTENT: {
@@ -53,54 +53,62 @@ topics_router = APIRouter(
     openapi_extra=openapi_extra_authorization_cookie,
 )
 async def create_topic(
-        user: Annotated[UserVerification, Depends(
-            get_auth_user,
-        )],
-        topic_data: TopicCreation,
-        topics_service: TopicsService = Depends(
-            TopicsService,
-        ),
+    user: Annotated[UserVerification, Depends(get_auth_user)],
+    topic_files: list[UploadFile] = File(
+        None,
+        description="Список файлов, использующихся в теме, переданный в соответствии "
+                    "с порядком использования в теме"
+    ),
+    # ИЗМЕНЕНИЕ ЗДЕСЬ: принимаем как строку из Form
+    topic_data: str = Form(
+        ...,
+        description="JSON-строка с данными темы (TopicCreation)"
+    ),
+    topics_service: TopicsService = Depends(TopicsService),
 ) -> TopicIDMixin:
     """
     Создать новую тему в разделе.
     Порядковый номер определяет отображение тем в разделе.
     """
+    # 1. Парсим JSON-строку в Pydantic-модель
+    try:
+        parsed_topic_data = TopicCreation.model_validate_json(topic_data)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=f"Ошибка парсинга topic_data: {str(e)}"
+        )
+
+    # 2. Используем распарсенные данные
     try:
         return await topics_service.create_topic(
             user,
-            topic_data.section_id,
-            topic_data.name,
-            topic_data.order_number,
-            topic_data.tags,
-            topic_data.raw_content,
+            parsed_topic_data.section_id,
+            parsed_topic_data.name,
+            parsed_topic_data.order_number,
+            parsed_topic_data.tags,
+            parsed_topic_data.raw_content,
+            topic_files,
         )
     except CompilationError as error:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=[dict(
-                element,
-            ) for element in error.content_error.root],
+            detail=[dict(element) for element in error.content_error.root],
         )
     except OperationPermissionError as error:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail=str(
-                error,
-            ),
+            detail=str(error),
         )
     except ObjectMissingError as error:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(
-                error,
-            ),
+            detail=str(error),
         )
     except OrderNumberConflictError as error:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail=str(
-                error,
-            ),
+            detail=str(error),
         )
 
 
@@ -111,10 +119,10 @@ async def create_topic(
     status_code=status.HTTP_200_OK,
     response_model=TopicsFullListResponse,
     responses={
-        status.HTTP_403_FORBIDDEN            : {
+        status.HTTP_403_FORBIDDEN: {
             "description": "Пользователь не имеет прав на просмотр тем этого раздела",
         },
-        status.HTTP_404_NOT_FOUND            : {
+        status.HTTP_404_NOT_FOUND: {
             "description": "Раздела с таким идентификатором не существует",
         },
         status.HTTP_422_UNPROCESSABLE_CONTENT: {
@@ -166,10 +174,10 @@ async def get_topics_by_section(
     status_code=status.HTTP_200_OK,
     response_model=TopicsFullListResponse,
     responses={
-        status.HTTP_403_FORBIDDEN            : {
+        status.HTTP_403_FORBIDDEN: {
             "description": "Пользователь не имеет прав на просмотр тем этого курса",
         },
-        status.HTTP_404_NOT_FOUND            : {
+        status.HTTP_404_NOT_FOUND: {
             "description": "Курса с таким идентификатором не существует",
         },
         status.HTTP_422_UNPROCESSABLE_CONTENT: {
@@ -221,10 +229,10 @@ async def get_topics_by_course(
     status_code=status.HTTP_200_OK,
     response_model=TopicResponse,
     responses={
-        status.HTTP_403_FORBIDDEN            : {
+        status.HTTP_403_FORBIDDEN: {
             "description": "Пользователь не имеет прав на просмотр данной темы",
         },
-        status.HTTP_404_NOT_FOUND            : {
+        status.HTTP_404_NOT_FOUND: {
             "description": "Темы с таким идентификатором не существует",
         },
         status.HTTP_422_UNPROCESSABLE_CONTENT: {
@@ -273,17 +281,17 @@ async def get_topic_by_id(
     response_description="Тема успешно отредактирована",
     status_code=status.HTTP_204_NO_CONTENT,
     responses={
-        status.HTTP_400_BAD_REQUEST          : {
+        status.HTTP_400_BAD_REQUEST: {
             "description": "Ошибка компиляции контента",
-            "model"      : ContentCompilationError,
+            "model": ContentCompilationError,
         },
-        status.HTTP_403_FORBIDDEN            : {
+        status.HTTP_403_FORBIDDEN: {
             "description": "У пользователя нет прав на редактирование этой темы",
         },
-        status.HTTP_404_NOT_FOUND            : {
+        status.HTTP_404_NOT_FOUND: {
             "description": "Темы с таким ID не существует",
         },
-        status.HTTP_409_CONFLICT             : {
+        status.HTTP_409_CONFLICT: {
             "description": "Тема с таким order_number уже существует в этом разделе",
         },
         status.HTTP_422_UNPROCESSABLE_CONTENT: {
@@ -297,6 +305,11 @@ async def update_topic(
             get_auth_user,
         )],
         topic_update: TopicUpdate,
+        topic_files: Annotated[list[UploadFile], File(
+            ...,
+            description="Список файлов, использующихся в теме, переданный в соответствии "
+                        "с порядком использования в теме"
+        )],
         topic_id: UUID = Path(
             ...,
             description="Уникальный идентификатор темы",
@@ -313,6 +326,7 @@ async def update_topic(
             topic_update.name,
             topic_update.tags,
             topic_update.raw_content,
+            topic_files,
         )
     except CompilationError as error:
         raise HTTPException(
@@ -343,10 +357,10 @@ async def update_topic(
     response_description="Тема успешно удалена",
     status_code=status.HTTP_204_NO_CONTENT,
     responses={
-        status.HTTP_403_FORBIDDEN            : {
+        status.HTTP_403_FORBIDDEN: {
             "description": "У пользователя нет прав на удаление этой темы",
         },
-        status.HTTP_404_NOT_FOUND            : {
+        status.HTTP_404_NOT_FOUND: {
             "description": "Темы с таким ID не существует",
         },
         status.HTTP_422_UNPROCESSABLE_CONTENT: {
