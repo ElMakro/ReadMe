@@ -22,7 +22,7 @@ from server.app.api.v1.courses.courses_service import (
     UnsupportedSearchCriteriaError,
     UserEnrollmentError,
 )
-from server.app.api.v1.exceptions import ObjectMissingError, OperationPermissionError
+from server.app.api.v1.exceptions import ContentTypeError, ObjectMissingError, OperationPermissionError
 from server.app.api.v1.users.users import UserVerification
 from server.app.api.v1.users.users_manager import UserExistenceError
 from server.app.common_dependencies.depends import get_auth_user, get_current_user
@@ -40,10 +40,10 @@ courses_router = APIRouter(
     status_code=status.HTTP_201_CREATED,
     response_model=CourseIDMixin,
     responses={
-        status.HTTP_403_FORBIDDEN            : {
+        status.HTTP_403_FORBIDDEN: {
             "description": "Пользователь не имеет прав на создание курса",
         },
-        status.HTTP_409_CONFLICT             : {
+        status.HTTP_409_CONFLICT: {
             "description": "Конфликт уровней публичности курса (непубличный курс, но публичный контент курса)",
         },
         status.HTTP_422_UNPROCESSABLE_CONTENT: {
@@ -97,7 +97,7 @@ async def create_course(
     status_code=status.HTTP_200_OK,
     response_model=CoursesListSearchResponse,
     responses={
-        status.HTTP_400_BAD_REQUEST          : {
+        status.HTTP_400_BAD_REQUEST: {
             "description": "Неправильный критерий поиска",
         },
         status.HTTP_422_UNPROCESSABLE_CONTENT: {
@@ -152,7 +152,7 @@ async def search_courses(
     summary="Получить курсы, на которых обучается пользователь",
     response_description="Курсы пользователя получены",
     responses={
-        status.HTTP_401_UNAUTHORIZED         : {
+        status.HTTP_401_UNAUTHORIZED: {
             "description": "Пользователь не произвёл вход",
         },
         status.HTTP_422_UNPROCESSABLE_CONTENT: {
@@ -218,14 +218,14 @@ async def get_controlled_courses(
     response_description="Преподаватель курса успешно изменён",
     status_code=status.HTTP_204_NO_CONTENT,
     responses={
-        status.HTTP_403_FORBIDDEN            : {
+        status.HTTP_403_FORBIDDEN: {
             "description": "Пользователь не имеет прав на смену владельца курса или новый преподаватель "
                            "не имеет права вести курс.",
         },
-        status.HTTP_404_NOT_FOUND            : {
+        status.HTTP_404_NOT_FOUND: {
             "description": "Курс или новый преподаватель не найдены",
         },
-        status.HTTP_409_CONFLICT             : {
+        status.HTTP_409_CONFLICT: {
             "description": "Новый владелец уже является преподавателем этого курса",
         },
         status.HTTP_422_UNPROCESSABLE_CONTENT: {
@@ -293,13 +293,13 @@ async def change_course_professor(
     status_code=status.HTTP_204_NO_CONTENT,
     response_description="Текущий пользователь успешно записан на курс",
     responses={
-        status.HTTP_403_FORBIDDEN            : {
+        status.HTTP_403_FORBIDDEN: {
             "description": "Пользователь не имеет прав на запись на данный курс",
         },
-        status.HTTP_404_NOT_FOUND            : {
+        status.HTTP_404_NOT_FOUND: {
             "description": "Курса с таким идентификатором не существует",
         },
-        status.HTTP_409_CONFLICT             : {
+        status.HTTP_409_CONFLICT: {
             "description": "Пользователь уже записан на данный курс или является преподавателем данного курса",
         },
         status.HTTP_422_UNPROCESSABLE_CONTENT: {
@@ -355,7 +355,7 @@ async def self_enroll_on_course(
     status_code=status.HTTP_204_NO_CONTENT,
     response_description="Текущий пользователь успешно отписан от курса",
     responses={
-        status.HTTP_404_NOT_FOUND            : {
+        status.HTTP_404_NOT_FOUND: {
             "description": "Курса с таким идентификатором не существует",
         },
         status.HTTP_422_UNPROCESSABLE_CONTENT: {
@@ -396,15 +396,18 @@ async def self_unenroll_from_course(
     description="Установить иконку курса",
     status_code=status.HTTP_204_NO_CONTENT,
     responses={
-        status.HTTP_403_FORBIDDEN            : {
+        status.HTTP_403_FORBIDDEN: {
             "description": "У пользователя нет права устанавливать иконку на данный курс",
         },
-        status.HTTP_404_NOT_FOUND            : {
+        status.HTTP_404_NOT_FOUND: {
             "description": "Курс с таким идентификатором не найден",
         },
         status.HTTP_422_UNPROCESSABLE_CONTENT: {
             "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
         },
+        status.HTTP_415_UNSUPPORTED_MEDIA_TYPE: {
+            "description": "Отправлен некорректный тип файла"
+        }
     },
     openapi_extra=openapi_extra_authorization_cookie,
 )
@@ -445,6 +448,11 @@ async def set_course_icon(
                 error,
             ),
         )
+    except ContentTypeError as error:
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            detail=str(error)
+        )
 
 
 @courses_router.get(
@@ -452,10 +460,10 @@ async def set_course_icon(
     description="Получить иконку курса",
     status_code=status.HTTP_200_OK,
     responses={
-        status.HTTP_403_FORBIDDEN            : {
+        status.HTTP_403_FORBIDDEN: {
             "description": "У пользователя нет права доступа к этому файлу",
         },
-        status.HTTP_404_NOT_FOUND            : {
+        status.HTTP_404_NOT_FOUND: {
             "description": "Курс с таким идентификатором не найден или иконка курса не найдена",
         },
         status.HTTP_422_UNPROCESSABLE_CONTENT: {
@@ -507,10 +515,10 @@ async def get_course_icon(
     status_code=status.HTTP_200_OK,
     response_model=CourseResponse,
     responses={
-        status.HTTP_403_FORBIDDEN            : {
+        status.HTTP_403_FORBIDDEN: {
             "description": "Пользователь не имеет прав на просмотр данного курса",
         },
-        status.HTTP_404_NOT_FOUND            : {
+        status.HTTP_404_NOT_FOUND: {
             "description": "Курса с таким идентификатором не существует",
         },
         status.HTTP_422_UNPROCESSABLE_CONTENT: {
@@ -559,13 +567,13 @@ async def get_course_by_id(
     response_description="Данные курса успешно обновлены",
     status_code=status.HTTP_204_NO_CONTENT,
     responses={
-        status.HTTP_403_FORBIDDEN            : {
+        status.HTTP_403_FORBIDDEN: {
             "description": "Пользователь не имеет прав на редактирование курса",
         },
-        status.HTTP_404_NOT_FOUND            : {
+        status.HTTP_404_NOT_FOUND: {
             "description": "Курса с таким ID не существует",
         },
-        status.HTTP_409_CONFLICT             : {
+        status.HTTP_409_CONFLICT: {
             "description": "Конфликт уровней публичности курса (непубличный курс, но публичный контент курса)",
         },
         status.HTTP_422_UNPROCESSABLE_CONTENT: {
@@ -627,10 +635,10 @@ async def update_course(
     response_description="Курс успешно удалён",
     status_code=status.HTTP_204_NO_CONTENT,
     responses={
-        status.HTTP_403_FORBIDDEN            : {
+        status.HTTP_403_FORBIDDEN: {
             "description": "Пользователь не имеет прав на удаление курса",
         },
-        status.HTTP_404_NOT_FOUND            : {
+        status.HTTP_404_NOT_FOUND: {
             "description": "Курса с таким идентификатором не существует",
         },
         status.HTTP_422_UNPROCESSABLE_CONTENT: {

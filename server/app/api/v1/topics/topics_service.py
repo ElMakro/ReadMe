@@ -2,7 +2,7 @@ import uuid
 from pathlib import Path
 from uuid import UUID
 
-from fastapi import Depends
+from fastapi import Depends, UploadFile
 
 from server.app.api.v1.courses.courses_manager import CoursesManager
 from server.app.api.v1.exceptions import OperationPermissionError
@@ -75,6 +75,7 @@ class TopicsService:
             order_number: int,
             tags: list[str],
             raw_content: TopicRawContent,
+            upload_files: list[UploadFile],
     ) -> TopicIDMixin:
         section = await self.sections_manager.get_section_by_id(
             section_id,
@@ -117,7 +118,7 @@ class TopicsService:
                 topic_directory_path,
             ),
             raw_content,
-            None,
+            upload_files,
         )
 
         topic = await self.topics_manager.create_topic(
@@ -228,7 +229,8 @@ class TopicsService:
             topic_id: UUID,
             new_name: str | None,
             new_tags: list[str] | None,
-            new_raw_content: TopicRawContent | None,
+            new_raw_content: TopicRawContent,
+            topic_files: list[UploadFile]
     ) -> None:
         topic = await self.topics_manager.get_topic_by_id(
             topic_id,
@@ -242,19 +244,21 @@ class TopicsService:
                 "Пользователь не имеет права на изменение темы!",
             )
 
-        if new_name is None and new_tags is None and new_raw_content is None:
-            return
-
         result_name = new_name if new_name is not None else topic.name
         result_tags = new_tags if new_tags is not None else topic.tags
-        result_raw_content = new_raw_content if new_raw_content is not None else topic.raw_content
 
-        if topic.name == result_name and topic.tags == result_tags and result_raw_content == topic.raw_content:
+        new_raw_content_blocks_types = [block.type for block in new_raw_content.root]
+        mutable_block_types = ["files"]
+        mutable_content_flag = all(element in new_raw_content_blocks_types for element in mutable_block_types)
+
+        if (topic.name == result_name and topic.tags == result_tags and
+                not mutable_content_flag and topic.raw_content == new_raw_content):
             return
 
         rendered_content = await self.courses_resources_manager.compile_topic_rendered_content(
             topic.topic_directory_path,
-            result_raw_content,
+            new_raw_content,
+            topic_files,
             TopicRenderedContent.model_validate(
                 topic.rendered_content,
             ),
@@ -264,6 +268,6 @@ class TopicsService:
             topic_id,
             result_name,
             result_tags,
-            result_raw_content,
+            new_raw_content,
             rendered_content,
         )

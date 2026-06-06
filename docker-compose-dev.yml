@@ -125,23 +125,11 @@ services:
             dockerfile: database_manager/Dockerfile
         container_name: readme-database-manager
         environment:
-          - DB_NAME=${DB_NAME}
-          - DB_USER=${DB_USER}
-          - DB_PASSWORD=${DB_PASSWORD}
-          - DB_HOST=${DB_HOST}
-          - DB_PORT=${DB_PORT}
-          - DB_ECHO=${DB_ECHO}
-          - REDIS_HOST=${REDIS_HOST}
-          - REDIS_PORT=${REDIS_PORT}
-          - REDIS_DB=${REDIS_DB}
-          - REDIS_PASSWORD=${REDIS_PASSWORD}
-          - SERVER_PORT=${SERVER_PORT}
-          - CLIENT_PORT=${CLIENT_PORT}
-          - CLIENT_HOST=${CLIENT_HOST}
-          - TOKEN_EXPIRE=${TOKEN_EXPIRE}
-          - SECRET_KEY=${SECRET_KEY}
-          - SECRET_LINK_KEY=${SECRET_LINK_KEY}
-          - DEFAULT_SECRET_APPLICATION_LINK_PART=${DEFAULT_SECRET_APPLICATION_LINK_PART}
+            - DB_HOST=${DB_HOST}
+            - DB_PORT=${DB_PORT}
+            - DB_NAME=${DB_NAME}
+            - DB_USER=${DB_USER}
+            - DB_PASSWORD=${DB_PASSWORD}
         stdin_open: true
         tty: true
         volumes:
@@ -263,6 +251,7 @@ services:
         volumes:
             - ./server:/content/server
             - readme-courses-resources:/content/server/data/courses_resources/resources
+            - readme-users-resources:/content/server/data/users_resources/resources
         depends_on:
             postgres-database:
                 condition: service_healthy
@@ -294,3 +283,4 @@ volumes:
     readme-postgres-database-backups:
     readme-redis-database-data:
     readme-courses-resources:
+    readme-users-resources:

@@ -16,15 +16,15 @@ class TopicBlockRawContent(
         extra="ignore",
     )
 
-    type: Literal["markdown", "uml", "latex"] = Field(
+    type: Literal["markdown", "uml", "latex", "files"] = Field(
         ...,
         description="Тип контента в блоке",
         examples=["latex"],
     )
-    raw_content: str = Field(
+    raw_content: list[str] = Field(
         ...,
         description="Строковое представление контента в блоке",
-        examples=[r"E \equals mc^2"],
+        examples=[[r"E \equals mc^2"]],
     )
 
 
@@ -43,15 +43,15 @@ class TopicBlockRenderedContent(
         extra="ignore",
     )
 
-    type: Literal["markdown", "latex", "file", "image"] = Field(
+    type: Literal["markdown", "latex", "files", "image"] = Field(
         ...,
         description="Тип контента в блоке",
         examples=["latex"],
     )
-    rendered_content: str = Field(
+    rendered_content: list[str] = Field(
         ...,
         description="Представление контента в блоке",
-        examples=["..."],
+        examples=[["..."]],
     )
 
 
@@ -145,7 +145,7 @@ class TopicUpdate(
         examples=[["Тег1"]],
     )
     raw_content: TopicRawContent = Field(
-        None,
+        ...,
         description="Текстовое представление контента в теме",
     )
 
