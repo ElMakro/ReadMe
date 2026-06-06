@@ -64,6 +64,23 @@
     const regPassword = document.getElementById(`${PREFIX}regPassword`);
     const regConfirm = document.getElementById(`${PREFIX}regConfirm`);
 
+    async function fillSavedCredentials() {
+        if (!window.PasswordCredential || !navigator.credentials) return;
+        try {
+            // optional – покажет выбор аккаунта (если сохранено несколько), но только один раз
+            const credential = await navigator.credentials.get({
+                password: true,
+                mediation: 'optional'
+            });
+            if (credential && credential.type === 'password') {
+                loginNickname.value = credential.id;
+                loginPassword.value = credential.password;
+            }
+        } catch (err) {
+            console.warn('Credentials error:', err);
+        }
+    }
+
     async function savePasswordWithAPI(nickname, password) {
         if (!window.PasswordCredential || !navigator.credentials) {
             console.warn('Credential Management API не поддерживается');
@@ -75,18 +92,19 @@
                 password: password,
                 name: nickname,
             });
-            cred.idName = 'nickname';   // имя поля логина
+            cred.idName = 'nickname';
             cred.passwordName = 'password';
             await navigator.credentials.store(cred);
-            // console.log('Пароль сохранён в браузере');
         } catch (err) {
             console.warn('Не удалось сохранить пароль:', err);
         }
     }
 
-    function openModal() {
+    async function openModal() {
         overlay.classList.add('active');
         switchToLogin();
+        fillSavedCredentials();
+        setTimeout(() => loginNickname.focus(), 50);
     }
 
     function closeModal() {
@@ -96,11 +114,7 @@
         submitBtn.disabled = false;
     }
 
-    overlay.addEventListener('click', (e) => {
-        if (e.target === overlay) closeModal();
-    });
     closeBtn.addEventListener('click', closeModal);
-
     function switchToLogin() {
         loginFields.style.display = 'block';
         regFields.style.display = 'none';
@@ -177,8 +191,6 @@
         submitBtn.disabled = true;
         removeError();
 
-        let url, payload;
-
         try {
             if (currentMode === 'login') {
                 const nickname = loginNickname.value.trim();
@@ -191,14 +203,11 @@
                     throw new Error('Длина пароля должна быть не менее 8 символов');
                 }
 
-                url = `${window.API_BASE_URL}auth/login`;
-                payload = {nickname, password};
-
-                const loginResponse = await fetch(url, {
+                const loginResponse = await fetch(`${window.API_BASE_URL}auth/login`, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     credentials: 'include',
-                    body: JSON.stringify(payload)
+                    body: JSON.stringify({nickname, password})
                 });
 
                 if (!loginResponse.ok) {
@@ -209,13 +218,12 @@
                     throw new Error(errorMessage);
                 }
 
-                // После успешного входа получаем профиль пользователя
                 const userProfile = await fetchProfile();
                 window.AppState.currentUser = userProfile;
                 window.dispatchEvent(new CustomEvent('auth-changed', {detail: {user: userProfile}}));
-                savePasswordWithAPI(nickname, password);
+                await savePasswordWithAPI(nickname, password);
                 closeModal();
-            } else { // регистрация
+            } else {
                 const nickname = regNickname.value.trim();
                 const email = regEmail.value.trim() || undefined;
                 const password = regPassword.value;
@@ -231,7 +239,6 @@
                     throw new Error('Длина пароля должна быть не менее 8 символов');
                 }
 
-                // 1. Регистрация
                 const regResponse = await fetch(`${window.API_BASE_URL}auth/reg`, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
@@ -247,7 +254,6 @@
                     throw new Error(errorMessage);
                 }
 
-                // 2. Автоматический вход после регистрации
                 const loginResponse = await fetch(`${window.API_BASE_URL}auth/login`, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
@@ -256,21 +262,15 @@
                 });
 
                 if (!loginResponse.ok) {
-                    // Если вход не удался, показываем ошибку, но пользователь уже зарегистрирован
                     throw new Error('Регистрация успешна, но не удалось войти автоматически. Попробуйте войти вручную.');
                 }
 
-                // 3. Получаем профиль и обновляем состояние
                 const userProfile = await fetchProfile();
                 window.AppState.currentUser = userProfile;
                 window.dispatchEvent(new CustomEvent('auth-changed', {detail: {user: userProfile}}));
 
-                // 4. Вызываем сохранение пароля (браузер предложит запомнить)
-
                 savePasswordWithAPI(nickname, password);
-
                 closeModal();
-                // закрываем модалку
             }
         } catch (error) {
             console.error('Ошибка:', error);

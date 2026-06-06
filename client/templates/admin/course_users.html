@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Управление пользователями курса{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Пользователи курса: <span id="courseName">Загрузка...</span></h2>
+        <button class="btn btn-outline-secondary" id="backBtn">← Назад к курсам</button>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card bg-secondary border-0 shadow-sm">
+                <div class="card-header bg-transparent border-bottom border-secondary">
+                    <h5 class="mb-0">Не записаны на курс</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div id="notEnrolledList" class="list-group list-group-flush"></div>
+                </div>
+                <div class="card-footer bg-transparent">
+                    <button class="btn btn-accent w-100" id="enrollSelectedBtn">Записать выбранных</button>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card bg-secondary border-0 shadow-sm">
+                <div class="card-header bg-transparent border-bottom border-secondary">
+                    <h5 class="mb-0">Записаны на курс</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div id="enrolledList" class="list-group list-group-flush"></div>
+                </div>
+                <div class="card-footer bg-transparent">
+                    <button class="btn btn-outline-danger w-100" id="unenrollSelectedBtn">Отписать выбранных</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    window.COURSE_ID = "{{ course_id }}";
+    window.API_BASE_URL = "{{ api_base_url }}";
+</script>
+<script src="/static/admin/course_users.js"></script>
+{% endblock %}
