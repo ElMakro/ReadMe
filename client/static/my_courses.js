@@ -78,9 +78,13 @@
             const shortDesc = description.length > 100 ? description.substring(0, 100) + '…' : description;
 
             col.innerHTML = `
-                <div class="course-card position-relative">
+                <div class="course-card position-relative d-flex flex-column h-100">
+                    <img src="${window.API_BASE_URL}courses/${course.id}/icon"
+                         class="course-icon"
+                         onerror="this.style.display='none'"
+                         alt="Иконка курса">
                     <a href="/course/${course.id}" class="stretched-link text-decoration-none">
-                        <h5 class="course-title">${escapeHtml(title)}</h5>
+                        <h5 class="course-title mt-2">${escapeHtml(title)}</h5>
                         <div class="course-state mb-2">
                             <span class="badge bg-success">Записан</span>
                         </div>

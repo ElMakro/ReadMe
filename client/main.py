@@ -51,13 +51,6 @@ async def created_courses_page(request: Request):
         "api_base_url": BACKEND_URL
     })
 
-# @client_app.get("/create-course")
-# async def create_course_form(request: Request):
-#     return templates.TemplateResponse(request, "course_creation/course.html", {
-#         "request": request,
-#         "api_base_url": BACKEND_URL
-#     })
-
 @client_app.get("/course/{course_id}/sections")
 async def edit_sections(request: Request, course_id: str):
     return templates.TemplateResponse(request, "course_creation/sections.html", {
@@ -84,14 +77,6 @@ async def edit_blocks(request: Request, course_id: str, section_id: str, topic_i
         "topic_id": topic_id,
         "api_base_url": BACKEND_URL
     })
-
-# @client_app.get("/course/{course_id}/edit")
-# async def edit_course_page(request: Request, course_id: str):
-#     return templates.TemplateResponse(request, "course_creation/course.html", {
-#         "request": request,
-#         "course_id": course_id,
-#         "api_base_url": BACKEND_URL
-#     })
 
 @client_app.get("/my-notes")
 async def my_notes_page(request: Request):
@@ -145,3 +130,18 @@ async def admin_users_page(request: Request):
             "api_base_url": BACKEND_URL
         }
     )
+
+@client_app.get("/admin/courses")
+async def admin_courses_page(request: Request):
+    return templates.TemplateResponse(request, "admin/courses.html", {
+        "request": request,
+        "api_base_url": BACKEND_URL
+    })
+
+@client_app.get("/admin/course/{course_id}/users")
+async def admin_course_users_page(request: Request, course_id: str):
+    return templates.TemplateResponse(request, "admin/course_users.html", {
+        "request": request,
+        "course_id": course_id,
+        "api_base_url": BACKEND_URL
+    })

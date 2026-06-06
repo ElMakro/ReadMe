@@ -66,7 +66,10 @@
             const shortDescription = truncateWords(course.description, 15);
 
             card.innerHTML = `
-                <div class="d-flex justify-content-between align-items-start">
+                <div class="d-flex align-items-center gap-3">
+                    <img src="${window.API_BASE_URL}courses/${course.id}/icon"
+                         class="course-thumb"
+                         onerror="this.style.display='none'">
                     <div class="flex-grow-1">
                         <strong>${escapeHtml(course.name)}</strong>
                         ${shortDescription ? `<div class="text-secondary small mt-1">${escapeHtml(shortDescription)}</div>` : ''}
@@ -133,6 +136,18 @@
                     <label class="form-label">Теги</label>
                     <div id="tagsManagerPlaceholder-${course.id || 'new'}"></div>
                 </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">Иконка курса</label>
+                    <div class="d-flex align-items-center gap-3">
+                        <img src="${window.API_BASE_URL}courses/${course.id}/icon"
+                             class="current-course-icon rounded" width="64" height="64"
+                             style="object-fit: cover; border-radius: 16px;"
+                             onerror="this.style.display='none'">
+                        <input type="file" class="form-control course-icon-input" accept="image/*">
+                        <button class="btn btn-sm btn-outline-accent upload-icon-btn">Загрузить</button>
+                    </div>
+                </div>
 
                 <div class="d-flex justify-content-between align-items-center mt-3">
                     <button class="btn btn-danger delete-course">Удалить курс</button>
@@ -157,6 +172,30 @@
         const saveBtn = card.querySelector('.save-course-edit');
         const cancelBtn = card.querySelector('.cancel-edit');
         const delBtn = card.querySelector('.delete-course');
+        const uploadBtn = card.querySelector('.upload-icon-btn');
+        const iconInput = card.querySelector('.course-icon-input');
+
+        uploadBtn.addEventListener('click', async () => {
+            const file = iconInput.files[0];
+            if (!file) return;
+            const formData = new FormData();
+            formData.append('icon_file', file);
+            try {
+                const res = await fetch(`${window.API_BASE_URL}courses/${course.id}/icon`, {
+                    method: 'POST',
+                    credentials: 'include',
+                    body: formData
+                });
+                if (res.ok) {
+                    window.showToast('Иконка обновлена');
+                    renderCourses(); // перерисовка списка курсов
+                } else {
+                    throw new Error('Ошибка загрузки');
+                }
+            } catch (err) {
+                window.showToast(err.message, 'danger');
+            }
+        });
 
         if (descTextarea) {
             descTextarea.addEventListener('input', function() { autosize(this); });

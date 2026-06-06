@@ -120,10 +120,8 @@
     border-radius: 20px;
     padding: 1.25rem;
     cursor: pointer;
-    aspect-ratio: 1 / 1.25;
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
     transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s;
 }
 .course-card:hover {
@@ -156,6 +154,46 @@
     -webkit-box-orient: vertical;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+.course-icon {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    object-fit: cover;
+    border-radius: 16px;
+    margin-bottom: 12px;
+    background: var(--bg-primary);
+}
+
+/* Стилизация поля выбора файла */
+input[type="file"] {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 6px 12px;
+    color: var(--text-primary);
+    cursor: pointer;
+}
+
+input[type="file"]::file-selector-button {
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 6px 16px;
+    margin-right: 16px;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+input[type="file"]::file-selector-button:hover {
+    background: var(--accent-hover);
+}
+
+.course-thumb {
+    width: 96px;
+    height: 96px;
+    object-fit: cover;
+    border-radius: 12px;
 }
 
 /* ---------- Пагинация ---------- */
@@ -300,27 +338,36 @@
 
 /* ---------- Боковая панель курса, разделы, темы ---------- */
 .course-sidebar {
-    background: var(--bg-secondary);
+    position: sticky;
+    top: 0;
+    max-height: 100vh;      /* чтобы не вылезала за пределы экрана, если содержимого много */
+    background: var(--bg-primary);
     border-right: var(--border-width) solid var(--border-color);
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
 }
-.section-item {
+
+#sectionList .list-group-item {
     background: transparent !important;
     border: none !important;
-    padding: 0.25rem 0 !important;
+    padding: 0 !important;
+    margin-bottom: 0 !important;
 }
+
+.section-item {
+    margin-bottom: 0.25rem !important;
+}
+
 .section-toggle {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    padding: 0.6rem 0.75rem;
+    padding: 0.4rem 0.6rem;
     border-radius: 12px;
+    background: transparent !important;
     color: var(--text-primary);
     text-decoration: none;
     font-weight: 500;
     transition: background 0.2s, color 0.2s;
+    border: none !important;
 }
 .section-toggle:hover {
     background: var(--border-color);
@@ -330,33 +377,32 @@
     background: var(--accent);
     color: white;
 }
-.toggle-icon {
-    font-size: 0.75rem;
-    transition: transform 0.2s;
-}
 .section-topics {
-    margin-left: 1.25rem;
+    margin-left: 0.75rem;
+    padding-left: 0;
 }
 .topic-link {
     display: block;
-    padding: 0.4rem 0.75rem;
+    padding: 0.25rem 0.6rem;
     border-radius: 8px;
     color: var(--text-secondary);
     text-decoration: none;
     font-size: 0.9rem;
     transition: background 0.2s, color 0.2s;
+    border: none !important;
 }
 .topic-link:hover {
     background: var(--border-color);
     color: var(--text-primary);
 }
+
 .topic-link.active {
     background: var(--accent);
     color: white;
     font-weight: 500;
 }
 
-/* ---------- Плавающее окно конспекта (эффект стекла, повышенная прозрачность) ---------- */
+/* ---------- Плавающее окно конспекта (эффект стекла) ---------- */
 .floating-tab-button {
     position: fixed;
     right: -30px;
@@ -536,7 +582,7 @@
 /* ========== КАРТОЧКИ СПИСКА (РАЗДЕЛЫ, ТЕМЫ, КУРСЫ, БЛОКИ) ========== */
 .list-group-item {
     background: var(--bg-secondary);
-    border: 1px solid var(--border-color) !important;
+    border: var(--border-width) solid var(--border-color) !important;
     border-radius: 20px !important;
     margin-bottom: 12px !important;
     padding: 16px 20px !important;
@@ -591,7 +637,7 @@
 .list-group-item .badge.bg-secondary {
     background: rgba(var(--accent-rgb), 0.1) !important;
     color: var(--accent) !important;
-    border: 1px solid rgba(var(--accent-rgb), 0.3);
+    border: var(--border-width) solid rgba(var(--accent-rgb), 0.3);
     border-radius: 30px;
     font-weight: 500;
     padding: 4px 12px;
@@ -605,7 +651,7 @@
 .badge.tag {
     background: rgba(var(--accent-rgb), 0.1);
     color: var(--accent);
-    border: 1px solid rgba(var(--accent-rgb), 0.3);
+    border: var(--border-width) solid rgba(var(--accent-rgb), 0.3);
     border-radius: 30px;
     font-weight: 500;
 }

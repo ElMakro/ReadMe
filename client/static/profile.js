@@ -93,6 +93,7 @@
                                 <div class="d-flex flex-wrap gap-2">
                                     <a href="/admin/applications" class="btn btn-outline-accent">Управление заявками</a>
                                     <a href="/admin/users" class="btn btn-outline-accent">Управление пользователями</a>
+                                    <a href="/admin/courses" class="btn btn-outline-accent">Управление записью</a>
                                 </div>
                             ` : ''}
                         </div>

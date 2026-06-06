@@ -271,6 +271,13 @@
             try {
                 const url = `${window.API_BASE_URL}sections/by_course/${window.COURSE_ID}`;
                 const resp = await fetch(url, { credentials: 'include' });
+                if (!resp.ok) {
+                    if (resp.status === 401 || resp.status === 403) {
+                        sectionList.innerHTML = '<li class="list-group-item text-muted">Войдите, чтобы увидеть содержимое курса.</li>';
+                        return;
+                    }
+                    throw new Error(`HTTP ${resp.status}`);
+                }
                 const data = await resp.json();
                 const sections = Array.isArray(data) ? data : (data.sections || []);
                 if (!sections.length) {
