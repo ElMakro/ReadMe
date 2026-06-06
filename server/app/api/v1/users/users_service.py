@@ -1,26 +1,38 @@
+import re
 import uuid
 from uuid import UUID
 
 from fastapi import Depends
 
 from server.app.api.v1.auth.auth_manager import AuthManager
-from server.app.api.v1.common_schemas import CANT_CHANGE_OWN_ROLE_ERROR_TEXT, CANT_DELETE_OWN_PROFILE_ERROR_TEXT
+from server.app.api.v1.common_schemas import (
+    CANT_CHANGE_OWN_ROLE_ERROR_TEXT,
+    CANT_DELETE_OWN_PROFILE_ERROR_TEXT,
+    NOT_EXISTING_LINK_ERROR_TEXT,
+    UPDATED_LINK_ERROR_TEXT,
+)
 from server.app.api.v1.courses.courses import CourseResponse
 from server.app.api.v1.courses.courses_manager import CoursesManager
 from server.app.api.v1.notes.exceptions import CantChangeOwnRoleError, CantDeleteOwnProfileError
+from server.app.api.v1.users.exceptions import NotExistingLinkError, UpdatedLinkError
+from server.app.api.v1.users.secret_application_link_handler import SecretApplicationLinkHandler
 from server.app.api.v1.users.users import (
     ApplicationById,
     ApplicationChangeStatus,
     ApplicationsList,
     ApplicationsUserList,
     ProfessorApplication,
+    SecretApplicationLink,
     UserProfile,
     UsersList,
     UserUpdatedInfo,
     UserVerification,
-    UserWithRole, SecretApplicationLink,
+    UserWithRole,
 )
 from server.app.api.v1.users.users_manager import UsersManager
+from server.app.common_dependencies.secret_link_strategies import UpdatedLinkStrategy
+from server.config.constants import ALLOWED_LINK_CHARACTERS
+from server.config.settings import settings
 from server.enums.access_permissions import AccessPermissions
 from server.enums.role import Role
 
@@ -37,10 +49,14 @@ class UsersService:
             courses_manager: CoursesManager = Depends(
                 CoursesManager,
             ),
+            secret_link_handler: SecretApplicationLinkHandler = Depends(
+                SecretApplicationLinkHandler,
+            ),
     ) -> None:
         self.auth_manager = auth_manager
         self.users_manager = users_manager
         self.courses_manager = courses_manager
+        self.secret_link_handler = secret_link_handler
 
     async def get_info_for_user_profile(
             self,
@@ -148,4 +164,25 @@ class UsersService:
         return await self.users_manager.get_user_applications(id=id, offset=offset, limit=limit)
 
     async def get_secret_application_link(self) -> SecretApplicationLink:
-        return await self.users_manager.get_secret_application_link()
+        if (link := await self.users_manager.get_secret_application_link()) is None:
+            raise NotExistingLinkError(NOT_EXISTING_LINK_ERROR_TEXT)
+        return SecretApplicationLink(
+            secret_part=f""
+                        f"{settings.client_settings.professor_application_base_url}/"
+                        f"{self.secret_link_handler.get_decoded_link(link.secret_part)}"
+        )
+
+    async def set_secret_application_link(self, link_strategy: UpdatedLinkStrategy) -> SecretApplicationLink:
+        if not re.fullmatch(ALLOWED_LINK_CHARACTERS, link_strategy.new_link):
+            raise UpdatedLinkError(
+                UPDATED_LINK_ERROR_TEXT,
+            )
+        encoded_link = self.secret_link_handler.get_encoded_link(link_strategy.new_link)
+        result = await self.users_manager.set_secret_application_link(encoded_link)
+        decoded_link = self.secret_link_handler.get_decoded_link(result.secret_part)
+        return SecretApplicationLink(secret_part=decoded_link)
+
+    async def verify_secret_link(self, link: str) -> bool:
+        if (true_link := await self.users_manager.get_secret_application_link()) is None:
+            return False
+        return self.secret_link_handler.verify_link(entered_link=link, encoded_true_link=true_link.secret_part)

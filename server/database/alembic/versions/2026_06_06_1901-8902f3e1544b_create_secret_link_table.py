@@ -1,8 +1,8 @@
 """Create secret link table
 
-Revision ID: d563b8301c84
+Revision ID: 8902f3e1544b
 Revises: cd9c61321766
-Create Date: 2026-06-04 15:38:26.897215
+Create Date: 2026-06-06 19:01:29.718440
 
 """
 
@@ -13,7 +13,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = "d563b8301c84"
+revision: str = "8902f3e1544b"
 down_revision: Union[str, Sequence[str], None] = "cd9c61321766"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -25,12 +25,13 @@ def upgrade() -> None:
     op.create_table(
         "application_link",
         sa.Column("secret_part", sa.String(length=255), nullable=False),
+        sa.Column("single", sa.Boolean(), server_default=sa.text("true"), nullable=False),
         sa.Column("id", sa.UUID(), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
-        sa.CheckConstraint("secret_part ~ '^[a-zA-Z0-9_.-]+$'", name="link_characters_check"),
+        sa.CheckConstraint("single IS TRUE", name="single_must_be_true"),
         sa.PrimaryKeyConstraint("id"),
-        sa.UniqueConstraint("secret_part"),
+        sa.UniqueConstraint("single", name="uq_application_link_single"),
     )
     # ### end Alembic commands ###
 

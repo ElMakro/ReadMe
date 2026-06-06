@@ -5,10 +5,17 @@ from fastapi import Depends, HTTPException, status
 from server.app.api.v1.auth.auth_handler import AuthHandler
 from server.app.api.v1.auth.auth_manager import AuthManager
 from server.app.api.v1.common_schemas import FORBIDDEN_ERROR_TEXT
-from server.app.api.v1.users.users import UserVerification
+from server.app.api.v1.users.users import UpdatedLinkContent, UserVerification
 from server.app.api.v1.users.users_manager import UsersManager
+from server.app.common_dependencies.secret_link_strategies import (
+    CustomLinkStrategy,
+    DefaultLinkStrategy,
+    RandomLinkStrategy,
+    UpdatedLinkStrategy,
+)
 from server.app.common_dependencies.utils import get_token_from_cookies
 from server.enums.role import Role
+from server.enums.updated_link_type import LinkType
 
 
 async def get_current_user(
@@ -50,3 +57,20 @@ def check_role(
             )
         return user
     return verification
+
+
+def get_new_link(
+    new_link: UpdatedLinkContent,
+) -> UpdatedLinkStrategy:
+    if new_link.type == LinkType.CUSTOM and (new_link.content is None or not new_link.content.strip()):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="Ссылка не задана",
+        )
+    match new_link.type:
+        case LinkType.DEFAULT:
+            return DefaultLinkStrategy()
+        case LinkType.CUSTOM:
+            return CustomLinkStrategy(new_link.content)
+        case LinkType.RANDOM:
+            return RandomLinkStrategy()

@@ -2,6 +2,7 @@ import uuid
 
 from fastapi import Depends
 from sqlalchemy import and_, delete, desc, exists, insert, literal, or_, select, update
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError
 
 from server.app.api.v1.common_schemas import (
@@ -22,14 +23,15 @@ from server.app.api.v1.users.users import (
     ApplicationById,
     ApplicationsList,
     ApplicationsUserList,
+    SecretApplicationLink,
     UserInfo,
     UserProfile,
     UsersList,
     UserUpdatedInfo,
-    UserVerification, SecretApplicationLink,
+    UserVerification,
 )
 from server.config.db_dependency import DBDependency
-from server.database.models import ProfessorsApplications, ProfessorsDetails, Users, ApplicationLink
+from server.database.models import ApplicationLink, ProfessorsApplications, ProfessorsDetails, Users
 from server.enums.application_status import ApplicationStatus
 from server.enums.role import Role
 
@@ -309,11 +311,32 @@ class UsersManager:
                 applications,
             )
 
-    async def get_secret_application_link(self) -> SecretApplicationLink:
+    async def get_secret_application_link(self) -> SecretApplicationLink | None:
         async with self.db.db_session() as session:
             query = select(
                 self.application_link_model,
             )
             result = await session.execute(query)
-            link = result.mappings().one()
+            link = result.scalar_one_or_none()
+            print(link)
+            if link is None:
+                return None
+            return SecretApplicationLink.model_validate(link)
+
+    async def set_secret_application_link(self, new_link: str) -> SecretApplicationLink:
+        async with self.db.db_session() as session:
+            query = pg_insert(
+                self.application_link_model,
+            ).values(
+                secret_part=new_link,
+            )
+            updated_query = query.on_conflict_do_update(
+                index_elements=[self.application_link_model.single.key],
+                set_={"secret_part": query.excluded.secret_part}
+            ).returning(
+                self.application_link_model,
+            )
+            result = await session.execute(updated_query)
+            await session.commit()
+            link = result.scalar_one()
             return SecretApplicationLink.model_validate(link)

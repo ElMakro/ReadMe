@@ -43,3 +43,21 @@ class ApplicationRefusedError(
     рассмотрении.
     """
     pass
+
+
+class UpdatedLinkError(
+    ValueError,
+):
+    """
+    Исключение, связанное с использованием недопустимых символов для ссылки.
+    """
+    pass
+
+
+class NotExistingLinkError(
+    ValueError,
+):
+    """
+    Исключение, связанное с отсутствием в базе данных секретной ссылки для подачи заявления на роль преподавателя.
+    """
+    pass

@@ -9,17 +9,22 @@ from server.app.api.v1.common_schemas import (
     CANT_CHANGE_OWN_ROLE_ERROR_TEXT,
     CANT_DELETE_OWN_PROFILE_ERROR_TEXT,
     FORBIDDEN_ERROR_TEXT,
+    NOT_EXISTING_LINK_ERROR_TEXT,
     NOT_FOUND_ERROR_TEXT,
     NOT_UNIQUE_FIELDS_ERROR_TEXT,
     UNAUTHORIZED_ERROR_TEXT,
+    UPDATED_LINK_ERROR_TEXT,
     USER_MUST_BE_IN_PROFESSORS_TABLE_ERROR_TEXT,
+    WRONG_APPLICATION_LINK_ERROR_TEXT,
     PaginationParameters,
 )
 from server.app.api.v1.notes.exceptions import CantChangeOwnRoleError, CantDeleteOwnProfileError
 from server.app.api.v1.users.exceptions import (
     ApplicationFieldsMismatchError,
     ApplicationRefusedError,
+    NotExistingLinkError,
     NotUniqueFieldsError,
+    UpdatedLinkError,
     UserMustBeInProfessorsTableError,
     UserNotFoundError,
 )
@@ -29,14 +34,16 @@ from server.app.api.v1.users.users import (
     ApplicationsList,
     ApplicationsUserList,
     ProfessorApplication,
+    SecretApplicationLink,
     UserProfile,
     UsersList,
     UserUpdatedInfo,
     UserVerification,
-    UserWithRole, SecretApplicationLink,
+    UserWithRole,
 )
 from server.app.api.v1.users.users_service import UsersService
-from server.app.common_dependencies.depends import check_role, get_auth_user
+from server.app.common_dependencies.depends import check_role, get_auth_user, get_new_link
+from server.app.common_dependencies.secret_link_strategies import UpdatedLinkStrategy
 from server.enums.role import Role
 
 users_router = APIRouter(
@@ -251,6 +258,9 @@ async def delete_user(
         status.HTTP_403_FORBIDDEN         : {
             "description": FORBIDDEN_ERROR_TEXT,
         },
+        status.HTTP_409_CONFLICT: {
+            "description": NOT_EXISTING_LINK_ERROR_TEXT,
+        },
     },
 )
 async def get_secret_application_link(
@@ -261,10 +271,54 @@ async def get_secret_application_link(
         UsersService,
     ),
 ) -> SecretApplicationLink:
-    return await users_service.get_secret_application_link()
+    try:
+        return await users_service.get_secret_application_link()
+    except NotExistingLinkError as error:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(
+                error,
+            )
+        )
 
 @users_router.post(
-    path="/submit-professor-application",
+    path="/set-application-link",
+    summary="Установить новую секретную ссылку для подачи заявки",
+    status_code=status.HTTP_200_OK,
+    response_model=SecretApplicationLink,
+    response_description="Ссылка установлена",
+    responses={
+        status.HTTP_403_FORBIDDEN         : {
+            "description": FORBIDDEN_ERROR_TEXT,
+        },
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {
+            "description": UPDATED_LINK_ERROR_TEXT,
+        }
+    },
+)
+async def set_secret_application_link(
+    user: Annotated[UserVerification, Depends(
+            check_role([Role.ADMIN]),
+    )],
+    new_link_content: Annotated[UpdatedLinkStrategy, Depends(
+        get_new_link
+    )],
+    users_service: UsersService = Depends(
+        UsersService,
+    ),
+) -> SecretApplicationLink:
+    try:
+        return await users_service.set_secret_application_link(new_link_content)
+    except UpdatedLinkError as error:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=str(
+                error,
+            )
+        )
+
+@users_router.post(
+    path="/submit-professor-application/{secret_link}",
     summary="Подать заявку на роль преподавателя",
     status_code=status.HTTP_201_CREATED,
     response_model=ApplicationById,
@@ -275,7 +329,10 @@ async def get_secret_application_link(
         },
         status.HTTP_409_CONFLICT: {
             "description": APPLICATION_REFUSED_ERROR_TEXT
-        }
+        },
+        status.HTTP_404_NOT_FOUND: {
+            "description": WRONG_APPLICATION_LINK_ERROR_TEXT,
+        },
     },
 )
 async def submit_professor_application(
@@ -283,10 +340,19 @@ async def submit_professor_application(
             check_role([Role.STUDENT, Role.ADMIN]),
     )],
     application: ProfessorApplication,
+    secret_link: str = Path(
+        ...,
+        description="Секретная ссылка для подачи заявки на роль преподавателя",
+    ),
     users_service: UsersService = Depends(
         UsersService,
     ),
 ) -> ApplicationById:
+    if not await users_service.verify_secret_link(secret_link):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=WRONG_APPLICATION_LINK_ERROR_TEXT,
+        )
     try:
         return await users_service.reg_professor_application(
             id=user.id,
