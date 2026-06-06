@@ -1,163 +1,3 @@
-# # # server/tests/integration/conftest.py
-# # """
-# # Фикстуры с Testcontainers:
-# # • PostgreSQL поднимается в Docker автоматически
-# # • Миграции применяются
-# # • Контейнер удаляется после тестов
-# # """
-# # import os
-# # import sys
-# # import pytest
-# # from testcontainers.postgres import PostgresContainer
-# #
-# # # Добавляем корень проекта в путь
-# # project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
-# # if project_root not in sys.path:
-# #     sys.path.insert(0, project_root)
-# #
-# # from fastapi.testclient import TestClient
-# # from alembic.config import Config
-# # from alembic import command
-# #
-# #
-# # @pytest.fixture(scope="session")
-# # def postgres_container():
-# #     """
-# #     Поднимает PostgreSQL в Docker на время тестов.
-# #     Автоматически удаляется после завершения.
-# #     """
-# #     print("🐳 Запускаем PostgreSQL в Docker...")
-# #
-# #     # Создаём контейнер (образ postgres:15)
-# #     with PostgresContainer("postgres:18") as postgres:
-# #         # Получаем connection string
-# #         connection_url = postgres.get_connection_url()
-# #         print(f"✅ PostgreSQL запущен: {connection_url}")
-# #
-# #         # Применяем миграции
-# #         print("🔧 Применяем миграции...")
-# #         alembic_cfg = Config(os.path.join(project_root, "..", "alembic.ini"))
-# #         # 🔧 Указываем абсолютный путь к миграциям
-# #         alembic_cfg.set_main_option(
-# #             "script_location",
-# #             os.path.join(project_root, "database", "alembic")
-# #         )
-# #         alembic_cfg.set_main_option("sqlalchemy.url", connection_url)
-# #         command.upgrade(alembic_cfg, "head")
-# #         print("✅ Миграции применены")
-# #
-# #         # Извлекаем параметры для переменных окружения
-# #         # connection_url выглядит как: postgresql+psycopg2://user:pass@host:port/db
-# #         yield {
-# #             "url": connection_url,
-# #             "host": postgres.get_container_host_ip(),
-# #             "port": postgres.get_exposed_port(5432),
-# #             "user": postgres.username,
-# #             "password": postgres.password,
-# #             "dbname": postgres.dbname
-# #         }
-# #
-# #     print("🧹 PostgreSQL контейнер остановлен")
-# #
-# #
-# # @pytest.fixture(scope="session")
-# # def api_client(postgres_container):
-# #     """
-# #     Создаёт TestClient с подключением к тестовой БД из контейнера.
-# #     """
-# #     # Переопределяем переменные окружения для подключения к контейнеру
-# #     os.environ["DB_HOST"] = postgres_container["host"]
-# #     os.environ["DB_PORT"] = str(postgres_container["port"])
-# #     os.environ["DB_USER"] = postgres_container["user"]
-# #     os.environ["DB_PASSWORD"] = postgres_container["password"]
-# #     os.environ["DB_NAME"] = postgres_container["dbname"]
-# #
-# #     # Перезагружаем приложение, чтобы оно подхватило новые настройки
-# #     # (если нужно — можно использовать dependency_overrides)
-# #     from server.main import app
-# #
-# #     with TestClient(app) as client:
-# #         yield client
-#
-# """
-# Фикстуры с Testcontainers для FastAPI.
-# Минимальные изменения: подмена зависимости БД вместо os.environ.
-# """
-# import os
-# import sys
-# import pytest
-# import asyncio
-# from testcontainers.postgres import PostgresContainer
-# from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
-#
-# project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
-# if project_root not in sys.path:
-#     sys.path.insert(0, project_root)
-#
-# from fastapi.testclient import TestClient
-# from server.main import app
-#
-# # 🔧 Импортируйте вашу базовую модель (адаптируйте путь!)
-# from server.database.models.base import Base  # ← Проверьте этот путь!
-#
-#
-# @pytest.fixture(scope="session")
-# def postgres_container():
-#     """Поднимает PostgreSQL в Docker и создаёт схему"""
-#     print("🐳 Запускаем PostgreSQL в Docker...")
-#
-#     with PostgresContainer("postgres:18") as postgres:
-#         connection_url = postgres.get_connection_url().replace("+psycopg2", "+asyncpg")
-#         print(f"✅ PostgreSQL запущен: {connection_url}")
-#
-#         # 🔧 Создаём таблицы напрямую из моделей (проще и надёжнее, чем Alembic)
-#         print("🔧 Создаём схему из моделей...")
-#
-#         async def create_tables():
-#             engine = create_async_engine(connection_url)
-#             async with engine.begin() as conn:
-#                 await conn.run_sync(Base.metadata.create_all)
-#             await engine.dispose()
-#
-#         asyncio.run(create_tables())
-#         print("✅ Схема создана")
-#
-#         yield {"url": connection_url}
-#
-#     print("🧹 PostgreSQL контейнер остановлен")
-#
-#
-# @pytest.fixture(scope="session")
-# def api_client(postgres_container):
-#     """Создаёт TestClient с подменой БД на тестовую"""
-#
-#     # 🔧 Создаём тестовый движок из URL контейнера
-#     test_engine = create_async_engine(postgres_container["url"])
-#     test_sessionmaker = async_sessionmaker(test_engine, expire_on_commit=False)
-#
-#     # 🔧 Подменяем зависимость БД
-#     from server.config.db_dependency import DBDependency
-#
-#     # Сохраняем оригинал для восстановления
-#     original_db_session = DBDependency.db_session
-#
-#     # 🔧 КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ:
-#     # Возвращаем сам sessionmaker, а не генератор!
-#     # Потому что приложение делает: async with self.db.db_session() as session
-#     # А sessionmaker() уже возвращает async context manager
-#     DBDependency.db_session = lambda self: test_sessionmaker()
-#
-#     # Создаём клиент
-#     with TestClient(app) as client:
-#         yield client
-#
-#     # 🔧 Восстанавливаем оригинал
-#     DBDependency.db_session = original_db_session
-#
-#     # Закрываем движок
-#     import asyncio
-#     asyncio.run(test_engine.dispose())
-# server/tests/integration/conftest.py
 """
 Фикстуры для интеграционных тестов ReadMe.
 • PostgreSQL в Docker через Testcontainers
@@ -166,45 +6,66 @@
 """
 import os
 import sys
-import pytest
 import uuid
-from testcontainers.postgres import PostgresContainer
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
-from sqlalchemy import create_engine, text  # ← Синхронные импорты
 
-project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+import pytest
+from sqlalchemy import create_engine, text
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
+from testcontainers.postgres import PostgresContainer
+from alembic.config import Config
+from alembic import command
+
+# 🔧 ИСПРАВЛЕНИЕ 1: __file__ (с двойными подчеркиваниями) и ТРИ уровня вверх ('..', '..', '..')
+# conftest.py лежит в server/tests/integration/, а alembic.ini в корне ReadMe
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
 from fastapi.testclient import TestClient
 from server.main import app
-from server.database.models.base import Base
 from server.config.db_dependency import DBDependency
 
 
 @pytest.fixture(scope="session")
 def postgres_container():
-    """🐳 Поднимает PostgreSQL в Docker и создаёт схему"""
+    """🐳 Поднимает PostgreSQL в Docker и применяет миграции Alembic"""
     print("🐳 Запускаем PostgreSQL в Docker...")
     with PostgresContainer("postgres:18") as postgres:
-        # Заменяем синхронный драйвер на асинхронный asyncpg для основного приложения
-        connection_url = postgres.get_connection_url().replace("+psycopg2", "+asyncpg")
-        print(f"✅ PostgreSQL запущен: {connection_url}")
+        # 1. Получаем URL от testcontainers (по умолчанию он синхронный: postgresql+psycopg2://...)
+        sync_url = postgres.get_connection_url()
+        print(f"✅ PostgreSQL запущен: {sync_url}")
 
-        print("🔧 Создаём схему из моделей...")
+        # 🔧 КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ:
+        # Твой server/database/alembic/env.py использует async_engine_from_config,
+        # поэтому Alembic ожидает URL с драйвером asyncpg, а не psycopg2.
+        # Преобразуем URL в асинхронный ПЕРЕД передачей в Alembic.
+        async_url = sync_url.replace("+psycopg2", "+asyncpg")
 
-        async def create_tables():
-            engine = create_async_engine(connection_url)
-            async with engine.begin() as conn:
-                await conn.run_sync(Base.metadata.create_all)
-            await engine.dispose()
+        print("🔧 Применяем миграции Alembic...")
 
-        import asyncio
-        asyncio.run(create_tables())
-        print("✅ Схема создана")
-        yield {"url": connection_url}
+        # 2. Инициализируем конфигурацию Alembic, указывая путь к alembic.ini
+        alembic_ini_path = os.path.join(project_root, "alembic.ini")
+        alembic_cfg = Config(alembic_ini_path)
+
+        # 3. Явно задаем script_location, чтобы Alembic точно нашел папку с миграциями
+        script_location = os.path.join(project_root, "server", "database", "alembic")
+        alembic_cfg.set_main_option("script_location", script_location)
+
+        # 4. Переопределяем URL подключения на АСИНХРОННЫЙ URL из testcontainers
+        alembic_cfg.set_main_option("sqlalchemy.url", async_url)
+
+        # 5. Применяем все миграции до актуальной версии (head)
+        # Alembic сам запустит asyncio.run() внутри env.py и накатит миграции
+        command.upgrade(alembic_cfg, "head")
+        print("✅ Миграции успешно применены (включая триггеры)")
+
+        # 6. Возвращаем уже готовый async_url для использования в FastAPI
+        yield {"url": async_url}
+
     print("🧹 PostgreSQL контейнер остановлен")
 
+
+# ... далее идут твои остальные фикстуры (_test_engine, _test_sessionmaker, api_client и т.д.) БЕЗ ИЗМЕНЕНИЙ ...
 
 # 🔧 ФИКСТУРЫ ДЛЯ АСИНХРОННОГО ПРИЛОЖЕНИЯ
 @pytest.fixture(scope="session")
@@ -282,7 +143,7 @@ def professor_client(admin_client, student_client, _sync_sessionmaker):
     """
     # 1. Подаём заявку от студента
     submit_res = student_client.post("/api/v1/users/submit-professor-application", json={
-        "name": "Prof", "surname": "Test"
+        "name": "Prof", "surname": "Test", "patronymic": "NeStudent"
     })
     app_id = submit_res.json()["id"]
     student_profile = student_client.get("/api/v1/users/profile").json()
