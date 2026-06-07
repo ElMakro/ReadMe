@@ -2,12 +2,12 @@ from uuid import UUID
 
 from fastapi import Depends
 from sqlalchemy import and_, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from server.app.api.v1.exceptions import ObjectMissingError
 from server.app.api.v1.topics.topics import (
+    TopicContent,
     TopicIDMixin,
-    TopicRawContent,
-    TopicRenderedContent,
     TopicResponse,
     TopicsFullListResponse,
 )
@@ -32,8 +32,8 @@ class TopicsManager:
             order_number: int,
             course_id: UUID,
             tags: list[str],
-            raw_content: TopicRawContent,
-            rendered_content: TopicRenderedContent,
+            raw_content: TopicContent,
+            rendered_content: TopicContent,
             topic_directory_path: str,
     ) -> TopicIDMixin:
         async with self.db.db_session() as session:
@@ -165,8 +165,8 @@ class TopicsManager:
             topic_id: UUID,
             name: str,
             tags: list[str],
-            raw_content: TopicRawContent,
-            rendered_content: TopicRenderedContent,
+            raw_content: TopicContent,
+            rendered_content: TopicContent,
     ) -> None:
         async with self.db.db_session() as session:
             topic = await session.get(
@@ -181,3 +181,30 @@ class TopicsManager:
             topic.rendered_content = [block.model_dump() for block in rendered_content.root]
 
             await session.commit()
+
+    async def get_and_block_topic(self, topic_id: UUID) -> tuple[type[Topics], TopicResponse, AsyncSession]:
+        session = self.db.db_session()
+
+        topic = await session.get(
+            Topics,
+            topic_id,
+            with_for_update=True,
+        )
+
+        if topic is None:
+            raise ObjectMissingError(
+                "Темы с таким id не существует!",
+            )
+
+        return topic, TopicResponse.model_validate(topic), session
+
+    @staticmethod
+    async def change_topic_content_and_unblock(content: TopicContent, topic: type[Topics],
+                                               session: AsyncSession) -> None:
+        topic.raw_content = [block.model_dump() for block in content.root]
+        topic.rendered_content = [block.model_dump() for block in content.root]
+
+        await session.commit()
+        await session.close()
+
+

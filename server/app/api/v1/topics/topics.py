@@ -1,64 +1,74 @@
 import uuid
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, RootModel
+from pydantic import BaseModel, ConfigDict, Field, RootModel, model_validator
 
 from server.app.api.v1.common_schemas import TimestampsMixin
 from server.app.api.v1.sections.sections import SectionIDMixin
 
 
-class TopicBlockRawContent(
-    BaseModel,
-):
-    """Модель текстового представления блока контента в теме"""
+class FileItem(BaseModel):
     model_config = ConfigDict(
         from_attributes=True,
         extra="ignore",
     )
 
-    type: Literal["markdown", "uml", "latex", "files"] = Field(
-        ...,
-        description="Тип контента в блоке",
-        examples=["latex"],
-    )
-    raw_content: list[str] = Field(
-        ...,
-        description="Строковое представление контента в блоке",
-        examples=[[r"E \equals mc^2"]],
-    )
+    original_filename: str = Field(..., description="Изначальное название файла")
+    server_filename: str | None = Field(None, description="Имя файла на сервере")
 
 
-class TopicRawContent(
-    RootModel[list[TopicBlockRawContent]],
-):
-    """Модель текстового представления контента в теме"""
-
-
-class TopicBlockRenderedContent(
+class TopicContentBlock(
     BaseModel,
 ):
-    """Модель блока готового к отображению контента в теме"""
+    """Модель блока контента в темы"""
     model_config = ConfigDict(
         from_attributes=True,
         extra="ignore",
     )
 
-    type: Literal["markdown", "latex", "files", "image"] = Field(
+    type: Literal["markdown", "plantuml", "latex", "image", "files"] = Field(
         ...,
         description="Тип контента в блоке",
         examples=["latex"],
     )
-    rendered_content: list[str] = Field(
+    content: list[str] | list[FileItem] = Field(
         ...,
         description="Представление контента в блоке",
-        examples=[["..."]],
     )
 
+    @model_validator(mode="after")
+    def validate_content_to_type(self):
+        if self.type == "files":
+            if not all(isinstance(item, FileItem) for item in self.content):
+                if all(isinstance(item, dict) for item in self.content):
+                    converted_content = []
+                    for item in self.content:
+                        converted_content.append(FileItem(
+                            original_filename=item.get("original_name") or item.get("original_filename"),
+                            server_filename=item.get("server_name") or item.get("server_filename")
+                        ))
+                    self.content = converted_content
+                else:
+                    raise ValueError("Для блока files content должен содержать FileItem объекты")
 
-class TopicRenderedContent(
-    RootModel[list[TopicBlockRenderedContent]],
+            for item in self.content:
+                if not item.original_filename:
+                    raise ValueError("Каждый FileItem в блоке files должен иметь original_name")
+
+        elif self.type in ["markdown", "plantuml", "latex", "image"]:
+            if not all(isinstance(item, str) for item in self.content):
+                raise ValueError(f"Для блока {self.type} content должен содержать строки")
+
+            if len(self.content) != 1:
+                raise ValueError(f"Для блока {self.type} ожидается ровно один элемент в content")
+
+        return self
+
+
+class TopicContent(
+    RootModel[list[TopicContentBlock]],
 ):
-    """Модель готового к отображению контента в теме"""
+    """Модель контента темы"""
 
 
 class TopicIDMixin(
@@ -107,7 +117,7 @@ class TopicBase(
         description="Теги объекта",
         examples=[["Тег1"]],
     )
-    raw_content: TopicRawContent = Field(
+    raw_content: TopicContent = Field(
         default_factory=list,
         description="Текстовое представление контента в теме",
     )
@@ -144,7 +154,7 @@ class TopicUpdate(
         description="Теги объекта",
         examples=[["Тег1"]],
     )
-    raw_content: TopicRawContent = Field(
+    raw_content: TopicContent = Field(
         ...,
         description="Текстовое представление контента в теме",
     )
@@ -166,7 +176,7 @@ class TopicResponse(
         description="Уникальный идентификатор курса, к которому относится тема",
         examples=[uuid.uuid4()],
     )
-    rendered_content: TopicRenderedContent = Field(
+    rendered_content: TopicContent = Field(
         default_factory=list,
         description="Представление готового к отображению контента темы",
     )
