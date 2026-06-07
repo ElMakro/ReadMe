@@ -42,10 +42,18 @@ class UsersResourcesManager:
             "Иконка пользователя не найдена!",
         )
 
+    @staticmethod
+    def delete_user_icon(user_directory_path: Path) -> None:
+        for filename in user_directory_path.iterdir():
+            if filename.is_file() and "icon" in filename.name:
+                filename.unlink()
+
     def set_user_icon(self, user_id: UUID, icon_upload_file: UploadFile) -> None:
         user_directory_path = self.get_user_directory_path(user_id)
         if not user_directory_path.exists():
             raise ObjectMissingError("Пользователя с таким id не существует!")
+
+        self.delete_user_icon(user_directory_path)
 
         icon_upload_file_filename = icon_upload_file.filename
         assert icon_upload_file_filename is not None
