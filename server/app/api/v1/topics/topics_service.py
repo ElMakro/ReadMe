@@ -9,17 +9,27 @@ from server.app.api.v1.exceptions import OperationPermissionError
 from server.app.api.v1.sections.sections_manager import SectionsManager
 from server.app.api.v1.sections.sections_service import OrderNumberConflictError
 from server.app.api.v1.topics.topics import (
+    FileItem,
+    TopicContent,
+    TopicContentBlock,
     TopicIDMixin,
-    TopicRawContent,
-    TopicRenderedContent,
     TopicResponse,
     TopicsFullListResponse,
 )
 from server.app.api.v1.topics.topics_manager import TopicsManager
 from server.app.api.v1.users.users import UserVerification
 from server.app.api.v1.users.users_service import UsersService
+from server.data.courses_resources.compilation_manager import CompilationError
 from server.data.courses_resources.courses_resources_manager import CoursesResourcesManager
 from server.enums.access_permissions import AccessPermissions
+
+
+class ResourceUploadRequestError(ValueError):
+    """Ошибка, связанная с некорректным запросом на загрузку ресурса"""
+
+
+class ResourceUploadConflictError(ValueError):
+    """Ошибка, связанная с конфликтом ресурсов при загрузке"""
 
 
 class TopicsService:
@@ -67,6 +77,70 @@ class TopicsService:
             ),
         )
 
+    async def upload_resource(self, user: UserVerification, topic_id: UUID, block_number: int, file_number: int,
+                              resource: UploadFile) -> FileItem:
+        block_index, file_index = block_number - 1, file_number - 1
+
+        topic, topic_response, session = await self.topics_manager.get_and_block_topic(topic_id)
+        if (await self.users_service.check_course_access(user, course_id=topic_response.course_id)
+                < AccessPermissions.EDIT_ACCESS):
+            raise OperationPermissionError("У пользователя нет прав на загрузку ресурсов в данную тему!")
+
+        try:
+            block = topic_response.raw_content.root[block_index]
+        except IndexError as error:
+            raise IndexError("Блока с таким порядковым номером не существует!") from error
+
+        if block.type != "files":
+            raise ResourceUploadRequestError("Блок данного типа не позволяет хранить файлы!")
+
+        try:
+            file_item = block.content[file_index]
+        except IndexError as error:
+            raise IndexError("Файла с таким порядковым номером не существует в теме!") from error
+
+        if resource.filename != file_item.original_filename:
+            raise ResourceUploadConflictError("У объявленного и загруженного файлов должны быть одинаковые имена!")
+
+        assert resource.filename is not None
+        server_filename = f"{uuid.uuid4()}{Path(resource.filename).suffix}"
+
+        self.courses_resources_manager.upload_topic_resource(topic_response.topic_directory_path, server_filename,
+                                                             resource)
+
+        modified_file_item = FileItem.model_construct(original_filename=resource.filename,
+                                                      server_filename=server_filename)
+
+        modified_block_content = block.content
+        # noinspection PyTypeChecker
+        modified_block_content[file_index] = modified_file_item
+
+        modified_block = TopicContentBlock.model_construct(type="files", content=modified_block_content)
+
+        modified_content = topic_response.raw_content.root
+        modified_content[block_index] = modified_block
+        modified_content = TopicContent.model_validate(modified_content)
+
+        await self.topics_manager.change_topic_content_and_unblock(modified_content, topic, session)
+
+        return modified_file_item
+
+    async def get_resource(self, user: UserVerification | None, topic_id: UUID, resource_filename: str, ) -> Path:
+        topic = await self.topics_manager.get_topic_by_id(topic_id)
+
+        if await self.users_service.check_course_access(
+                user,
+                course_id=topic.course_id,
+        ) < AccessPermissions.HEADER_ACCESS:
+            raise OperationPermissionError(
+                "У пользователя нет прав на доступ к данному файлу",
+            )
+
+        return await self.courses_resources_manager.get_topic_resource(
+            topic.topic_directory_path,
+            resource_filename,
+        )
+
     async def create_topic(
             self,
             user: UserVerification,
@@ -74,8 +148,7 @@ class TopicsService:
             name: str,
             order_number: int,
             tags: list[str],
-            raw_content: TopicRawContent,
-            upload_files: list[UploadFile],
+            raw_content: TopicContent,
     ) -> TopicIDMixin:
         section = await self.sections_manager.get_section_by_id(
             section_id,
@@ -113,13 +186,16 @@ class TopicsService:
             ),
         )
 
-        rendered_content = await self.courses_resources_manager.compile_topic_rendered_content(
-            str(
-                topic_directory_path,
-            ),
-            raw_content,
-            upload_files,
-        )
+        try:
+            rendered_content = await self.courses_resources_manager.render_topic(
+                str(
+                    topic_directory_path,
+                ),
+                raw_content,
+            )
+        except CompilationError:
+            self.courses_resources_manager.delete_topic_directory(topic_directory_path)
+            raise
 
         topic = await self.topics_manager.create_topic(
             topic_id,
@@ -229,8 +305,7 @@ class TopicsService:
             topic_id: UUID,
             new_name: str | None,
             new_tags: list[str] | None,
-            new_raw_content: TopicRawContent,
-            topic_files: list[UploadFile]
+            new_raw_content: TopicContent
     ) -> None:
         topic = await self.topics_manager.get_topic_by_id(
             topic_id,
@@ -247,21 +322,9 @@ class TopicsService:
         result_name = new_name if new_name is not None else topic.name
         result_tags = new_tags if new_tags is not None else topic.tags
 
-        new_raw_content_blocks_types = [block.type for block in new_raw_content.root]
-        mutable_block_types = ["files"]
-        mutable_content_flag = all(element in new_raw_content_blocks_types for element in mutable_block_types)
-
-        if (topic.name == result_name and topic.tags == result_tags and
-                not mutable_content_flag and topic.raw_content == new_raw_content):
-            return
-
-        rendered_content = await self.courses_resources_manager.compile_topic_rendered_content(
+        rendered_content = await self.courses_resources_manager.render_topic(
             topic.topic_directory_path,
             new_raw_content,
-            topic_files,
-            TopicRenderedContent.model_validate(
-                topic.rendered_content,
-            ),
         )
 
         await self.topics_manager.update_topic(

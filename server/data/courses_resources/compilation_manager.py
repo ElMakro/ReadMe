@@ -6,15 +6,12 @@ from pathlib import Path
 from shutil import copy2, rmtree
 from tempfile import mkdtemp
 
-from fastapi import UploadFile
-
 from server.app.api.v1.topics.topics import (
     BlockCompilationError,
     ContentCompilationError,
-    TopicBlockRawContent,
-    TopicBlockRenderedContent,
-    TopicRawContent,
-    TopicRenderedContent,
+    FileItem,
+    TopicContent,
+    TopicContentBlock,
 )
 
 
@@ -33,34 +30,26 @@ class CompilationError(
 class CompilationManager:
     @staticmethod
     def make_backup(full_topic_directory_path: Path,
-                    old_topic_rendered_content: TopicRenderedContent | None) -> Path | None:
-        old_rendered_files = []
-        backup_directory = None
+                    new_raw_content: TopicContent) -> Path | None:
+        remaining_files = []
 
-        if old_topic_rendered_content is not None:
-            for block in old_topic_rendered_content.root:
-                if block.type in ["files", "image"]:
-                    old_rendered_files.extend(
-                        block.rendered_content,
-                    )
+        for block in new_raw_content.root:
+            if block.type in ["files"]:
+                for file_item in block.content:
+                    if file_item.server_filename:
+                        remaining_files.append(file_item.server_filename)
 
-        if old_rendered_files:
-            backup_directory = Path(
-                mkdtemp(),
-            )
-            for old_file in old_rendered_files:
-                old_file_path = full_topic_directory_path / Path(
-                    old_file,
-                )
+        backup_directory = Path(
+            mkdtemp(),
+        )
+
+        for filename in full_topic_directory_path.iterdir():
+            if filename.name not in remaining_files:
                 copy2(
-                    old_file_path,
-                    backup_directory / old_file_path.name,
+                    filename,
+                    backup_directory / filename.name,
                 )
-
-            for file_path in old_rendered_files:
-                full_file_path = full_topic_directory_path / file_path
-                if full_file_path.exists():
-                    full_file_path.unlink()
+                filename.unlink()
 
         return backup_directory
 
@@ -78,29 +67,20 @@ class CompilationManager:
                 ignore_errors=True,
             )
 
-    async def compile_topic_content(
+    async def compile_topic(
             self,
             full_topic_directory_path: Path,
-            topic_raw_content: TopicRawContent,
-            topic_files: list[UploadFile],
-            old_topic_rendered_content: TopicRenderedContent | None = None,
-    ) -> TopicRenderedContent:
-        backup_directory = self.make_backup(full_topic_directory_path, old_topic_rendered_content)
-
+            topic_raw_content: TopicContent
+    ) -> TopicContent:
         topic_raw_content_root = topic_raw_content.root
+        backup_directory = self.make_backup(full_topic_directory_path, topic_raw_content)
+
         compilation_errors = []
 
         tasks = []
-        files_slice_start_index = 0
         for index, block in enumerate(topic_raw_content_root):
-            if block.type in ["files"]:
-                files_slice_end_index = files_slice_start_index + len(block.raw_content)
-                block_files = topic_files[files_slice_start_index:files_slice_end_index]
-            else:
-                block_files = []
-
             tasks.append(
-                self.process_block(index, block, block_files, full_topic_directory_path)
+                self.process_block(index, block, full_topic_directory_path)
             )
 
         results = await asyncio.gather(*tasks)
@@ -130,55 +110,47 @@ class CompilationManager:
                 ignore_errors=True,
             )
 
-        return TopicRenderedContent.model_validate(
+        return TopicContent.model_validate(
             topic_rendered_content,
         )
 
     async def process_block(
             self,
             index: int,
-            block: TopicBlockRawContent,
-            block_files: list[UploadFile],
+            block: TopicContentBlock,
             content_path: Path,
-    ) -> tuple[int, TopicBlockRenderedContent | None, str | None]:
+    ) -> tuple[int, TopicContentBlock | None, str | None]:
         try:
-            if block.type not in ["files"] and len(block.raw_content) > 1:
+            if block.type not in ["files"] and len(block.content) > 1:
                 return index, None, (f"Для типа блока {block.type} ожидается один элемент в списке "
-                                     f"raw_content! Получено - {len(block.raw_content)}")
+                                     f"raw_content! Получено - {len(block.content)}")
 
             if block.type == "markdown":
-                return index, TopicBlockRenderedContent.model_construct(
+                return index, TopicContentBlock.model_construct(
                     type="markdown",
-                    rendered_content=block.raw_content,
+                    content=block.content,
                 ), None
 
-            elif block.type == "uml":
-                block_rendered_content_filename = f"{uuid.uuid4()}.png"
-                block_rendered_content_path = content_path / block_rendered_content_filename
-
-                loop = asyncio.get_event_loop()
-                # noinspection PyTypeChecker,PyUnresolvedReferences
-                await loop.run_in_executor(
-                    None,
-                    self.convert_plantuml_to_png,
-                    block.raw_content[0],
-                    block_rendered_content_path,
-                )
-
-                return index, TopicBlockRenderedContent.model_construct(
+            elif block.type == "plantuml":
+                return index, TopicContentBlock.model_construct(
                     type="image",
-                    rendered_content=block_rendered_content_filename,
+                    content=[(await self.compile_plantuml(block.content[0], content_path)).name],
                 ), None
 
             elif block.type == "latex":
-                return index, TopicBlockRenderedContent.model_construct(
+                return index, TopicContentBlock.model_construct(
                     type="latex",
-                    rendered_content=block.raw_content,
+                    content=block.content,
                 ), None
 
             elif block.type == "files":
-                rendered_block = self.save_files_block(content_path, block.raw_content, block_files)
-                return index, rendered_block[0], rendered_block[1]
+                return index, TopicContentBlock.model_construct(
+                    type="files",
+                    content=[FileItem.model_construct(
+                        original_filename=element.original_filename,
+                        server_filename=element.server_filename,
+                    ) for element in block.content],
+                ), None
 
             else:
                 return index, None, f"Неизвестный тип блока: {block.type}"
@@ -188,26 +160,19 @@ class CompilationManager:
                 e,
             )
 
-    def save_files_block(self, content_path: Path, filenames: list[str], block_files: list[UploadFile]) -> tuple[
-        TopicBlockRenderedContent | None, str | None]:
-        result_filenames = []
+    async def compile_plantuml(self, plantuml_code: str, content_path: Path) -> Path:
+        image_filename = f"{uuid.uuid4()}.png"
+        image_path = content_path / image_filename
 
-        for index, filename in enumerate(filenames):
-            if block_files[index].filename != filename:
-                return None, (f"Названия переданных файлов должны совпадать с названиями файлов в блоке! "
-                              f"Ожидалось {block_files[index].filename}, получено - {filename}")
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(
+            None,
+            self.convert_plantuml_to_png,
+            plantuml_code,
+            image_path,
+        )
 
-            result_filenames.append(self.save_file(content_path, block_files[index]))
-
-        return TopicBlockRenderedContent.model_construct(type="files", rendered_content=result_filenames), None
-
-    def save_file(self, content_path: Path, upload_file: UploadFile) -> str:
-        assert upload_file.filename is not None
-        safe_filepath = self.resolve_safe_filepath(content_path, upload_file.filename)
-        with open(safe_filepath, 'wb') as result_file:
-            result_file.write(upload_file.file.read())
-
-        return safe_filepath.name
+        return image_path
 
     @staticmethod
     def resolve_safe_filepath(content_path: Path, filename: str) -> Path:

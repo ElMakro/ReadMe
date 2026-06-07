@@ -7,10 +7,7 @@ from fastapi import Depends, UploadFile
 from server.app.api.v1.courses.courses_manager import CoursesManager
 from server.app.api.v1.exceptions import ObjectMissingError
 from server.app.api.v1.sections.sections_manager import SectionsManager
-from server.app.api.v1.topics.topics import (
-    TopicRawContent,
-    TopicRenderedContent,
-)
+from server.app.api.v1.topics.topics import TopicContent
 from server.app.api.v1.topics.topics_manager import TopicsManager
 from server.data.courses_resources import COURSES_RESOURCES_DIRECTORY_PATH
 from server.data.courses_resources.compilation_manager import CompilationManager
@@ -81,8 +78,8 @@ class CoursesResourcesManager:
         )
 
     @staticmethod
-    def get_topic_directory_path(
-            topic_directory_path: str,
+    def get_full_topic_directory_path(
+            topic_directory_path: str | Path,
     ) -> Path:
         return COURSES_RESOURCES_DIRECTORY_PATH / topic_directory_path
 
@@ -135,35 +132,40 @@ class CoursesResourcesManager:
             topic_directory_path: str,
     ) -> None:
         self.create_object_directory(
-            self.get_topic_directory_path(
+            self.get_full_topic_directory_path(
                 topic_directory_path,
             ),
         )
 
     def delete_topic_directory(
             self,
-            topic_directory_path: str,
+            topic_directory_path: str | Path,
     ) -> None:
         self.delete_object_directory(
-            self.get_topic_directory_path(
+            self.get_full_topic_directory_path(
                 topic_directory_path,
             ),
         )
 
-    async def compile_topic_rendered_content(
+    def upload_topic_resource(self, topic_directory_path: str, server_filename: str, resource: UploadFile) -> None:
+        filepath = self.get_full_topic_directory_path(topic_directory_path) / server_filename
+        with open(filepath, "wb") as resource_file:
+            resource_file.write(resource.file.read())
+
+    def delete_topic_resource(self, topic_directory_path: str, server_filename: str) -> None:
+        filepath = self.get_full_topic_directory_path(topic_directory_path) / server_filename
+        filepath.unlink(missing_ok=True)
+
+    async def render_topic(
             self,
             topic_directory_path: str,
-            raw_content: TopicRawContent,
-            topic_files: list[UploadFile],
-            old_topic_rendered_content: TopicRenderedContent | None = None,
-    ) -> TopicRenderedContent:
-        full_topic_directory_path = self.get_topic_directory_path(topic_directory_path)
+            raw_content: TopicContent
+    ) -> TopicContent:
+        full_topic_directory_path = self.get_full_topic_directory_path(topic_directory_path)
 
-        return await self.compilation_manager.compile_topic_content(
+        return await self.compilation_manager.compile_topic(
             full_topic_directory_path,
             raw_content,
-            topic_files,
-            old_topic_rendered_content,
         )
 
     async def get_topic_resource(
@@ -171,7 +173,7 @@ class CoursesResourcesManager:
             topic_directory_path: str,
             resource_filename: str,
     ) -> Path:
-        resource_filepath = self.get_topic_directory_path(topic_directory_path) / resource_filename
+        resource_filepath = self.get_full_topic_directory_path(topic_directory_path) / resource_filename
 
         if not resource_filepath.exists():
             raise ObjectMissingError(

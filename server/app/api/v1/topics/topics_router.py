@@ -1,7 +1,8 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Path, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Path, UploadFile, status
+from fastapi.responses import FileResponse
 
 from server.app.api.openapi_docs import openapi_extra_authorization_cookie
 from server.app.api.v1.common_schemas import UNPROCESSABLE_ENTITY_ERROR_TEXT
@@ -9,13 +10,18 @@ from server.app.api.v1.exceptions import ObjectMissingError, OperationPermission
 from server.app.api.v1.sections.sections_service import OrderNumberConflictError
 from server.app.api.v1.topics.topics import (
     ContentCompilationError,
+    FileItem,
     TopicCreation,
     TopicIDMixin,
     TopicResponse,
     TopicsFullListResponse,
     TopicUpdate,
 )
-from server.app.api.v1.topics.topics_service import TopicsService
+from server.app.api.v1.topics.topics_service import (
+    ResourceUploadConflictError,
+    ResourceUploadRequestError,
+    TopicsService,
+)
 from server.app.api.v1.users.users import UserVerification
 from server.app.common_dependencies.depends import get_auth_user, get_current_user
 from server.data.courses_resources.compilation_manager import CompilationError
@@ -53,42 +59,22 @@ topics_router = APIRouter(
     openapi_extra=openapi_extra_authorization_cookie,
 )
 async def create_topic(
-    user: Annotated[UserVerification, Depends(get_auth_user)],
-    topic_files: list[UploadFile] = File(
-        None,
-        description="Список файлов, использующихся в теме, переданный в соответствии "
-                    "с порядком использования в теме"
-    ),
-    # ИЗМЕНЕНИЕ ЗДЕСЬ: принимаем как строку из Form
-    topic_data: str = Form(
-        ...,
-        description="JSON-строка с данными темы (TopicCreation)"
-    ),
-    topics_service: TopicsService = Depends(TopicsService),
+        user: Annotated[UserVerification, Depends(get_auth_user)],
+        topic_creation: TopicCreation,
+        topics_service: TopicsService = Depends(TopicsService),
 ) -> TopicIDMixin:
     """
     Создать новую тему в разделе.
     Порядковый номер определяет отображение тем в разделе.
     """
-    # 1. Парсим JSON-строку в Pydantic-модель
-    try:
-        parsed_topic_data = TopicCreation.model_validate_json(topic_data)
-    except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail=f"Ошибка парсинга topic_data: {str(e)}"
-        )
-
-    # 2. Используем распарсенные данные
     try:
         return await topics_service.create_topic(
             user,
-            parsed_topic_data.section_id,
-            parsed_topic_data.name,
-            parsed_topic_data.order_number,
-            parsed_topic_data.tags,
-            parsed_topic_data.raw_content,
-            topic_files,
+            topic_creation.section_id,
+            topic_creation.name,
+            topic_creation.order_number,
+            topic_creation.tags,
+            topic_creation.raw_content,
         )
     except CompilationError as error:
         raise HTTPException(
@@ -109,6 +95,108 @@ async def create_topic(
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=str(error),
+        )
+
+
+@topics_router.post(
+    path="/upload-resource/{topic_id}/{block_number}/{file_number}",
+    summary="Загрузить ресурс темы",
+    response_description="Ресурс темы успешно загружен",
+    response_model=FileItem,
+    responses={
+        status.HTTP_400_BAD_REQUEST: {
+            "description": "Тип блока не позволяет содержать файлы",
+        },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "У пользователя нет прав на создание темы в данном разделе",
+        },
+        status.HTTP_404_NOT_FOUND: {
+            "description": "Раздела с таким идентификатором не существует, блока с таким номером не "
+                           "существует или файла с таким номером не существует",
+        },
+        status.HTTP_409_CONFLICT: {
+            "description": "Название файла не совпадает с заявленным в теме",
+        },
+    },
+    openapi_extra=openapi_extra_authorization_cookie,
+)
+async def upload_resource(
+        user: Annotated[UserVerification, Depends(get_auth_user)],
+        topic_id: UUID = Path(..., description="Уникальный идентификатор темы"),
+        block_number: int = Path(..., description="Порядковый номер блока в теме"),
+        file_number: int = Path(..., description="Порядковый номер файла в блоке"),
+        resource: UploadFile = File(..., description="Ресурс темы"),
+        topics_service: TopicsService = Depends(TopicsService)
+) -> FileItem:
+    try:
+        return await topics_service.upload_resource(user, topic_id, block_number, file_number, resource)
+    except ResourceUploadRequestError as error:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error))
+    except OperationPermissionError as error:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(error))
+    except IndexError as error:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error))
+    except ObjectMissingError as error:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error))
+    except ResourceUploadConflictError as error:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(error))
+
+
+@topics_router.get(
+    "/get-resource/{topic_id}/{resource_filename}",
+    description="Получить ресурс курса",
+    status_code=status.HTTP_200_OK,
+    responses={
+        status.HTTP_403_FORBIDDEN: {
+            "description": "У пользователя нет права доступа к этому файлу",
+        },
+        status.HTTP_404_NOT_FOUND: {
+            "description": "Файл не найден!",
+        },
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {
+            "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
+        },
+    },
+    openapi_extra=openapi_extra_authorization_cookie,
+)
+async def get_topic_resource(
+        user: Annotated[UserVerification | None, Depends(
+            get_current_user,
+        )],
+        topic_id: UUID = Path(
+            ...,
+            description="Уникальный идентификатор темы"
+        ),
+        resource_filename: str = Path(
+            ...,
+            description="Имя запрашиваемого файла",
+            examples=["example.png"],
+        ),
+        topics_service: TopicsService = Depends(
+            TopicsService,
+        ),
+) -> FileResponse:
+    try:
+        return FileResponse(
+            await topics_service.get_resource(
+                user,
+                topic_id,
+                resource_filename,
+            ),
+        )
+    except OperationPermissionError as error:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=str(
+                error,
+            ),
+        )
+    except ObjectMissingError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(
+                error,
+            ),
         )
 
 
@@ -305,11 +393,6 @@ async def update_topic(
             get_auth_user,
         )],
         topic_update: TopicUpdate,
-        topic_files: Annotated[list[UploadFile], File(
-            ...,
-            description="Список файлов, использующихся в теме, переданный в соответствии "
-                        "с порядком использования в теме"
-        )],
         topic_id: UUID = Path(
             ...,
             description="Уникальный идентификатор темы",
@@ -326,7 +409,6 @@ async def update_topic(
             topic_update.name,
             topic_update.tags,
             topic_update.raw_content,
-            topic_files,
         )
     except CompilationError as error:
         raise HTTPException(
