@@ -1,4 +1,4 @@
-// static/admin_applications.js
+// static/admin/admin_applications.js
 (function() {
     const PAGE_SIZE = 9;
     let currentPage = 1;
@@ -11,7 +11,7 @@
     const refreshBtn = document.getElementById('refreshBtn');
     const pageInfoSpan = document.getElementById('pageInfo');
 
-    // Модальное окно
+    // Модальное окно изменения статуса
     const modalElement = document.getElementById('statusModal');
     let statusModal;
     const confirmStatusBtn = document.getElementById('confirmStatusBtn');
@@ -21,8 +21,24 @@
     const currentApplicationIdInput = document.getElementById('currentApplicationId');
     const currentUserIdInput = document.getElementById('currentUserId');
     const currentNewStatusInput = document.getElementById('currentNewStatus');
-    const toastEl = document.getElementById('liveToast');
-    let toast;
+
+    // --- Функция перевода статуса на русский ---
+    function getStatusText(status) {
+        const map = {
+            'pending': 'На рассмотрении',
+            'approved': 'Одобрена',
+            'rejected': 'Отклонена'
+        };
+        return map[status] || status;
+    }
+
+    // --- Функция для получения класса бэйджа (цвета) ---
+    function getStatusBadgeClass(status) {
+        if (status === 'pending') return 'bg-warning text-dark';
+        if (status === 'approved') return 'bg-success';
+        if (status === 'rejected') return 'bg-danger';
+        return 'bg-secondary';
+    }
 
     function formatDate(dateStr) {
         if (!dateStr) return '—';
@@ -109,13 +125,15 @@
         applications.forEach(app => {
             const col = document.createElement('div');
             col.className = 'col-md-6 col-lg-4 mb-4';
+            const statusText = getStatusText(app.status);
+            const statusClass = getStatusBadgeClass(app.status);
             col.innerHTML = `
                 <div class="card h-100" style="background: var(--bg-secondary); border-color: var(--border-color);">
                     <div class="card-body">
                         <h5 class="card-title">${escapeHtml(app.surname)} ${escapeHtml(app.name)} ${escapeHtml(app.patronymic || '')}</h5>
                         <p class="card-text text-secondary small">
                             <strong>Дата подачи:</strong> ${formatDate(app.created_at)}<br>
-                            <strong>Статус:</strong> <span class="badge bg-warning text-dark">${app.status}</span>
+                            <strong>Статус:</strong> <span class="badge ${statusClass}">${statusText}</span>
                         </p>
                         <div class="d-flex gap-2 mt-3">
                             <button class="btn btn-sm btn-success approve-btn" data-id="${app.application_id}" data-user-id="${app.user_id}" data-name="${escapeHtml(app.surname)} ${escapeHtml(app.name)} ${escapeHtml(app.patronymic || '')}">Одобрить</button>
@@ -141,7 +159,7 @@
         if (currentPage < totalPages && !isLoading) loadPage(currentPage + 1);
     }
 
-    // --- Модальное окно ---
+    // --- Модальное окно изменения статуса ---
     let currentAppId, currentUserId, currentNewStatus, currentUserName;
     function openStatusModal(appId, userId, userName, newStatus) {
         currentAppId = appId;
@@ -169,7 +187,7 @@
         confirmStatusBtn.disabled = true;
         confirmStatusBtn.innerHTML = 'Отправка...';
         try {
-            const response = await fetch(`${API_BASE}/users/change-application-status`, {
+            const response = await fetch(`${window.API_BASE_URL}users/change-application-status`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
@@ -196,11 +214,149 @@
         }
     }
 
+    // --- Управление секретной ссылкой с кнопкой копирования ---
+    function addSecretLinkControls() {
+        const manageBtn = document.getElementById('manageSecretLinkBtn');
+        if (!manageBtn) return;
+        manageBtn.addEventListener('click', openSecretLinkModal);
+    }
+
+    function openSecretLinkModal() {
+        let modal = document.getElementById('secretLinkModal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'secretLinkModal';
+            modal.className = 'modal fade';
+            modal.tabIndex = -1;
+            modal.innerHTML = `
+                <div class="modal-dialog">
+                    <div class="modal-content" style="background: var(--bg-secondary);">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Управление ссылкой для подачи заявок</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="mb-3">
+                                <label class="form-label">Выберите действие:</label>
+                                <div class="d-flex flex-column gap-2">
+                                    <button id="genRandomBtn" class="btn btn-accent">Сгенерировать случайную ссылку</button>
+                                    <button id="setDefaultBtn" class="btn btn-outline-accent">Использовать ссылку по умолчанию</button>
+                                    <hr>
+                                    <div class="input-group">
+                                        <input type="text" id="customLinkInput" class="form-control" placeholder="Введите свою ссылку (латиница, цифры, _, -, .)">
+                                        <button id="setCustomBtn" class="btn btn-primary">Установить свою</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div id="secretLinkResult" class="alert" style="display: none;"></div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        const modalObj = new bootstrap.Modal(modal);
+        const resultDiv = modal.querySelector('#secretLinkResult');
+        const clearResult = () => {
+            resultDiv.style.display = 'none';
+            resultDiv.innerHTML = '';
+        };
+
+        const setLink = async (type, content = null) => {
+            const payload = { type };
+            if (content !== null) payload.content = content;
+            try {
+                const response = await fetch(`${window.API_BASE_URL}users/set-application-link`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify(payload)
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    const fullLink = `${window.location.origin}/submit_professor_application/${data.secret_part}`;
+
+                    // Формируем блок с полем ввода и кнопкой копирования
+                    resultDiv.className = 'alert alert-success mt-3';
+                    resultDiv.innerHTML = `
+                        <strong>Ссылка установлена:</strong><br>
+                        <div class="input-group mt-2">
+                            <input type="text" id="copiedLinkInput" class="form-control" value="${escapeHtml(fullLink)}" readonly>
+                            <button class="btn btn-outline-secondary" id="copyLinkBtn" type="button">Копировать</button>
+                        </div>
+                        <small class="text-muted mt-2 d-block">Секретная часть: ${escapeHtml(data.secret_part)}</small>
+                    `;
+                    resultDiv.style.display = 'block';
+
+                    // Обработчик копирования
+                    const copyBtn = document.getElementById('copyLinkBtn');
+                    if (copyBtn) {
+                        copyBtn.addEventListener('click', async () => {
+                            const input = document.getElementById('copiedLinkInput');
+                            if (input) {
+                                await navigator.clipboard.writeText(input.value);
+                                window.showToast('Ссылка скопирована в буфер обмена');
+                            }
+                        });
+                    }
+
+                    window.showToast('Ссылка для подачи заявок успешно обновлена');
+                } else if (response.status === 422) {
+                    const err = await response.json().catch(() => ({}));
+                    resultDiv.className = 'alert alert-danger mt-3';
+                    resultDiv.innerHTML = `Ошибка: ${err.detail?.[0]?.msg || 'некорректный формат ссылки'}`;
+                    resultDiv.style.display = 'block';
+                } else {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+            } catch (err) {
+                resultDiv.className = 'alert alert-danger mt-3';
+                resultDiv.innerHTML = `Ошибка: ${err.message}`;
+                resultDiv.style.display = 'block';
+            }
+        };
+
+        const randomBtn = modal.querySelector('#genRandomBtn');
+        const defaultBtn = modal.querySelector('#setDefaultBtn');
+        const customBtn = modal.querySelector('#setCustomBtn');
+        const customInput = modal.querySelector('#customLinkInput');
+
+        // Генерация случайной строки (аналог Fernet.generate_key().decode())
+        const generateRandomSecret = () => {
+            const randomBytes = new Uint8Array(32);
+            crypto.getRandomValues(randomBytes);
+            return btoa(String.fromCharCode(...randomBytes)).replace(/[+/=]/g, '').slice(0, 43);
+        };
+
+        randomBtn.onclick = () => {
+            const randomSecret = generateRandomSecret();
+            setLink('random', randomSecret);
+        };
+        defaultBtn.onclick = () => setLink('default');
+        customBtn.onclick = () => {
+            const customValue = customInput.value.trim();
+            if (!customValue) {
+                window.showToast('Введите непустую ссылку', 'danger');
+                return;
+            }
+            setLink('custom', customValue);
+        };
+
+        modalObj.show();
+    }
+
     // --- Обработчики событий ---
     if (prevPageBtn) prevPageBtn.addEventListener('click', (e) => { e.preventDefault(); goPrevPage(); });
     if (nextPageBtn) nextPageBtn.addEventListener('click', (e) => { e.preventDefault(); goNextPage(); });
     if (refreshBtn) refreshBtn.addEventListener('click', () => loadPage(currentPage));
     if (confirmStatusBtn) confirmStatusBtn.addEventListener('click', confirmStatusChange);
+
+    // Добавляем управление ссылкой после загрузки DOM
+    document.addEventListener('DOMContentLoaded', addSecretLinkControls);
 
     loadPage(1);
 })();

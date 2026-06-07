@@ -1,6 +1,5 @@
 // static/admin_users.js
 (function() {
-    const API_BASE = (window.API_BASE_URL || 'http://localhost:8080/api/v1').replace(/\/$/, '');
     const PAGE_SIZE = 9;
     let currentPage = 1;
     let isLoading = false;
@@ -49,7 +48,7 @@
         isLoading = true;
         container.innerHTML = `<div class="col-12 text-center py-5"><div class="spinner-border text-accent" role="status"></div></div>`;
         try {
-            const url = `${API_BASE}/users/all?page=${page}&size=${PAGE_SIZE}`;
+            const url = `${window.API_BASE_URL}users/all?page=${page}&size=${PAGE_SIZE}`;
             const response = await fetch(url, { credentials: 'include' });
             if (response.status === 401 || response.status === 403) {
                 container.innerHTML = `
@@ -167,7 +166,7 @@
         confirmRoleBtn.innerHTML = 'Сохранение...';
         try {
             const payload = { id: selectedUserId, role: newRole };
-            const response = await fetch(`${API_BASE}/users/change-role`, {
+            const response = await fetch(`${window.API_BASE_URL}users/change-role`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
@@ -216,7 +215,7 @@
         confirmDeleteBtn.disabled = true;
         confirmDeleteBtn.innerHTML = 'Удаление...';
         try {
-            const response = await fetch(`${API_BASE}/users/delete-user/${userId}`, {
+            const response = await fetch(`${window.API_BASE_URL}users/delete-user/${userId}`, {
                 method: 'DELETE',
                 credentials: 'include'
             });

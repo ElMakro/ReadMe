@@ -73,6 +73,9 @@
 {% endblock %}
 
 {% block scripts %}
-<script>window.API_BASE_URL = "{{ api_base_url }}";</script>
+<script>
+    window.API_BASE_URL = "{{ api_base_url }}";
+    window.SECRET_LINK = "{{ secret_link }}";
+</script>
 <script src="/static/admin/submit_application.js"></script>
 {% endblock %}

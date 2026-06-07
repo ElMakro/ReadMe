@@ -1,4 +1,4 @@
-// static/submit_application.js
+// static/admin/submit_application.js
 (function() {
     const form = document.getElementById('applicationForm');
     const submitBtn = document.getElementById('submitBtn');
@@ -7,15 +7,13 @@
     const successBlock = document.getElementById('successBlock');
 
     const API_BASE = window.API_BASE_URL ? window.API_BASE_URL.replace(/\/$/, '') : 'http://localhost:8080/api/v1';
+    const SECRET_LINK = window.SECRET_LINK;
 
-    function showAlert(message, type = 'danger') {
-        alertContainer.innerHTML = `
-            <div class="alert alert-${type} alert-dismissible fade show" role="alert">
-                ${message}
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Закрыть"></button>
-            </div>
-        `;
-        alertContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    if (!SECRET_LINK) {
+        console.error('SECRET_LINK не передан');
+        if (alertContainer) {
+            alertContainer.innerHTML = '<div class="alert alert-danger">Ошибка: ссылка для подачи заявки некорректна. Обратитесь к администратору.</div>';
+        }
     }
 
     function clearAlertsAndValidation() {
@@ -25,7 +23,6 @@
 
     async function submitApplication(event) {
         event.preventDefault();
-
         clearAlertsAndValidation();
 
         const nameInput = document.getElementById('name');
@@ -50,6 +47,11 @@
             return;
         }
 
+        if (!SECRET_LINK) {
+            window.showToast('Ссылка для подачи заявки недоступна. Обратитесь к администратору.', 'danger');
+            return;
+        }
+
         const payload = {
             name: nameInput.value.trim(),
             surname: surnameInput.value.trim(),
@@ -60,7 +62,8 @@
         submitBtn.innerHTML = 'Отправка...';
 
         try {
-            const url = `${API_BASE}/users/submit-professor-application`;
+            // Используем secret_link в пути
+            const url = `${API_BASE}/users/submit-professor-application/${SECRET_LINK}`;
             const response = await fetch(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -82,8 +85,11 @@
                 errorMessage = errorData.detail || 'Вы уже подали заявку на роль преподавателя. Ожидайте рассмотрения.';
             } else if (response.status === 401) {
                 errorMessage = 'Вы не авторизованы. Пожалуйста, войдите в аккаунт.';
-                const loginBtn = document.getElementById('loginBtn');
-                if (loginBtn) loginBtn.click();
+                if (window.AuthModal && typeof window.AuthModal.open === 'function') {
+                    window.AuthModal.open();
+                }
+            } else if (response.status === 404) {
+                errorMessage = 'Неверная ссылка для подачи заявки. Обратитесь к администратору.';
             } else {
                 const errorData = await response.json().catch(() => ({}));
                 errorMessage = errorData.detail || errorMessage;

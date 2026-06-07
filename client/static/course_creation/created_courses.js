@@ -6,6 +6,10 @@
     let courses = [];
     let originalCourses = [];
 
+    // Временное хранилище выбранного файла иконки для редактируемого курса
+    let selectedIconFile = null;
+    let currentEditingCourseId = null;
+
     function autosize(textarea) {
         textarea.style.height = 'auto';
         const maxHeight = 200;
@@ -102,6 +106,8 @@
     }
 
     function openEditMode(course) {
+        selectedIconFile = null;
+        currentEditingCourseId = course.id;
         const card = container.querySelector(`.list-group-item[data-course-id="${course.id}"]`);
         if (!card) return;
 
@@ -137,15 +143,20 @@
                     <div id="tagsManagerPlaceholder-${course.id || 'new'}"></div>
                 </div>
                 
+                <!-- Блок выбора иконки курса (одна кнопка, загрузка при сохранении) -->
                 <div class="mb-3">
                     <label class="form-label">Иконка курса</label>
                     <div class="d-flex align-items-center gap-3">
                         <img src="${window.API_BASE_URL}courses/${course.id}/icon"
-                             class="current-course-icon rounded" width="64" height="64"
+                             class="current-course-icon rounded"
+                             width="64" height="64"
                              style="object-fit: cover; border-radius: 16px;"
                              onerror="this.style.display='none'">
-                        <input type="file" class="form-control course-icon-input" accept="image/*">
-                        <button class="btn btn-sm btn-outline-accent upload-icon-btn">Загрузить</button>
+                        <div>
+                            <button type="button" class="btn btn-outline-accent select-icon-btn">Выбрать файл</button>
+                            <span class="ms-2 text-muted icon-filename"></span>
+                        </div>
+                        <input type="file" class="d-none" id="iconFileInput-${course.id}" accept="image/*">
                     </div>
                 </div>
 
@@ -172,28 +183,30 @@
         const saveBtn = card.querySelector('.save-course-edit');
         const cancelBtn = card.querySelector('.cancel-edit');
         const delBtn = card.querySelector('.delete-course');
-        const uploadBtn = card.querySelector('.upload-icon-btn');
-        const iconInput = card.querySelector('.course-icon-input');
 
-        uploadBtn.addEventListener('click', async () => {
-            const file = iconInput.files[0];
-            if (!file) return;
-            const formData = new FormData();
-            formData.append('icon_file', file);
-            try {
-                const res = await fetch(`${window.API_BASE_URL}courses/${course.id}/icon`, {
-                    method: 'POST',
-                    credentials: 'include',
-                    body: formData
-                });
-                if (res.ok) {
-                    window.showToast('Иконка обновлена');
-                    renderCourses(); // перерисовка списка курсов
-                } else {
-                    throw new Error('Ошибка загрузки');
-                }
-            } catch (err) {
-                window.showToast(err.message, 'danger');
+        // Элементы для иконки
+        const selectIconBtn = card.querySelector('.select-icon-btn');
+        const fileInput = card.querySelector(`#iconFileInput-${course.id}`);
+        const filenameSpan = card.querySelector('.icon-filename');
+        const previewImg = card.querySelector('.current-course-icon');
+
+        selectIconBtn.addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        fileInput.addEventListener('change', () => {
+            if (fileInput.files.length > 0) {
+                selectedIconFile = fileInput.files[0];
+                filenameSpan.textContent = selectedIconFile.name;
+                // Показать превью
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    if (previewImg) previewImg.src = e.target.result;
+                };
+                reader.readAsDataURL(selectedIconFile);
+            } else {
+                selectedIconFile = null;
+                filenameSpan.textContent = '';
             }
         });
 
@@ -214,8 +227,9 @@
             const newIsContentPublic = isContentPublicSelect.value === 'true';
             const newTags = [...course.tags];
 
-            if (course.id) {
-                try {
+            try {
+                // 1. Обновляем основные данные курса
+                if (course.id) {
                     const res = await fetch(`${window.API_BASE_URL}courses/${course.id}`, {
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json' },
@@ -228,7 +242,8 @@
                             is_content_public: newIsContentPublic
                         })
                     });
-                    if (!res.ok) throw new Error('Ошибка обновления');
+                    if (!res.ok) throw new Error('Ошибка обновления курса');
+                    // Обновляем локальный объект
                     course.name = newName;
                     course.description = newDesc;
                     course.tags = newTags;
@@ -236,13 +251,8 @@
                     course.is_content_public = newIsContentPublic;
                     const orig = originalCourses.find(c => c.id === course.id);
                     if (orig) Object.assign(orig, course);
-                    renderCourses();
-                    window.showToast('Курс обновлён');
-                } catch (err) {
-                    window.showToast(err.message, 'danger');
-                }
-            } else {
-                try {
+                } else {
+                    // Создание нового курса
                     const res = await fetch(`${window.API_BASE_URL}courses/create-course`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -255,7 +265,7 @@
                             is_content_public: newIsContentPublic
                         })
                     });
-                    if (!res.ok) throw new Error('Ошибка создания');
+                    if (!res.ok) throw new Error('Ошибка создания курса');
                     const data = await res.json();
                     course.id = data.id;
                     course.name = newName;
@@ -264,11 +274,26 @@
                     course.is_public = newIsPublic;
                     course.is_content_public = newIsContentPublic;
                     originalCourses.push({ ...course });
-                    renderCourses();
-                    window.showToast('Курс создан');
-                } catch (err) {
-                    window.showToast(err.message, 'danger');
                 }
+
+                // 2. Если выбран файл иконки, загружаем его
+                if (selectedIconFile) {
+                    const formData = new FormData();
+                    formData.append('icon_file', selectedIconFile);
+                    const iconRes = await fetch(`${window.API_BASE_URL}courses/${course.id}/icon`, {
+                        method: 'POST',
+                        credentials: 'include',
+                        body: formData
+                    });
+                    if (!iconRes.ok) {
+                        throw new Error('Не удалось загрузить иконку курса');
+                    }
+                }
+
+                renderCourses();
+                window.showToast(course.id ? 'Курс обновлён' : 'Курс создан');
+            } catch (err) {
+                window.showToast(err.message, 'danger');
             }
         });
 

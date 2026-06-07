@@ -289,7 +289,7 @@
             if (dynamicBtn) {
                 dynamicBtn.addEventListener('click', () => {
                     if (currentTopicId) {
-                        window.showToast(`Функция «Проверить себя» для темы "${currentTopicName}" в разработке.`);
+                        window.showToast(`Функция «Проверить себя» для темы "${currentTopicName}" в разработке.`, 'warning');
                     } else {
                         window.showToast('Сначала выберите тему.', 'warning');
                     }
