@@ -183,30 +183,6 @@
         const saveBtn = card.querySelector('.save-course-edit');
         const cancelBtn = card.querySelector('.cancel-edit');
         const delBtn = card.querySelector('.delete-course');
-        const uploadBtn = card.querySelector('.upload-icon-btn');
-        const iconInput = card.querySelector('.course-icon-input');
-
-        uploadBtn.addEventListener('click', async () => {
-            const file = iconInput.files[0];
-            if (!file) return;
-            const formData = new FormData();
-            formData.append('icon_file', file);
-            try {
-                const res = await fetch(`${window.API_BASE_URL}courses/${course.id}/icon`, {
-                    method: 'POST',
-                    credentials: 'include',
-                    body: formData
-                });
-                if (res.ok) {
-                    window.showToast('Иконка обновлена');
-                    renderCourses(); // перерисовка списка курсов
-                } else {
-                    throw new Error('Ошибка загрузки');
-                }
-            } catch (err) {
-                window.showToast(err.message, 'danger');
-            }
-        });
 
         // Элементы для иконки
         const selectIconBtn = card.querySelector('.select-icon-btn');
