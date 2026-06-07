@@ -136,84 +136,94 @@ def student_client(api_client):
     return _register_and_login(api_client, nick)
 
 
+TEST_SECRET_LINK = "test_custom_link_123"
+
+def _set_application_link(client, secret_part):
+    """Установить кастомную ссылку (клиент должен быть админом)"""
+    res = client.post("/api/v1/users/set-application-link", json={"type": "custom", "content": secret_part})
+    assert res.status_code == 200, f"Failed to set application link: {res.text}"
+    return secret_part
+
 @pytest.fixture
-def professor_client(admin_client, student_client, _sync_sessionmaker):
-    """
-    Создаём реального преподавателя через заявку и одобрение.
-    """
-    # 1. Подаём заявку от студента
-    submit_res = student_client.post("/api/v1/users/submit-professor-application", json={
-        "name": "Prof", "surname": "Test", "patronymic": "NeStudent"
+def professor_client(api_client, _sync_sessionmaker):
+    """Создаёт преподавателя через полный цикл с кастомной ссылкой."""
+    # 1. Создаём админа
+    admin_nick = f"admin_{uuid.uuid4().hex[:6]}"
+    admin_password = "StrongPassword123!"
+    api_client.post("/api/v1/auth/reg", json={
+        "email": f"{admin_nick}@test.com",
+        "nickname": admin_nick,
+        "password": admin_password
     })
-    app_id = submit_res.json()["id"]
-    student_profile = student_client.get("/api/v1/users/profile").json()
+    api_client.post("/api/v1/auth/login", json={
+        "nickname": admin_nick,
+        "password": admin_password
+    })
+    admin_profile = api_client.get("/api/v1/users/profile").json()
+    admin_id = admin_profile["id"]
+    with _sync_sessionmaker() as session:
+        session.execute(text("UPDATE users SET role = 'ADMIN' WHERE id = :uid"), {"uid": admin_id})
+        session.commit()
+
+    # Устанавливаем кастомную ссылку
+    secret_link = _set_application_link(api_client, TEST_SECRET_LINK)
+
+    # Выходим из админа
+    api_client.get("/api/v1/auth/logout")
+    api_client.cookies.clear()
+
+    # 2. Создаём студента
+    student_nick = f"student_{uuid.uuid4().hex[:6]}"
+    student_password = "StrongPassword123!"
+    api_client.post("/api/v1/auth/reg", json={
+        "email": f"{student_nick}@test.com",
+        "nickname": student_nick,
+        "password": student_password
+    })
+    api_client.post("/api/v1/auth/login", json={
+        "nickname": student_nick,
+        "password": student_password
+    })
+    student_profile = api_client.get("/api/v1/users/profile").json()
     student_id = student_profile["id"]
 
-    # 2. Админ одобряет
-    admin_client.put("/api/v1/users/change-application-status", json={
+    # 3. Подаём заявку по кастомной ссылке
+    submit_res = api_client.post(f"/api/v1/users/submit-professor-application/{secret_link}", json={
+        "name": "Prof", "surname": "Test", "patronymic": "NeStudent"
+    })
+    assert submit_res.status_code == 201, f"Failed to submit application: {submit_res.text}"
+    app_id = submit_res.json()["id"]
+
+    # Выходим из студента
+    api_client.get("/api/v1/auth/logout")
+    api_client.cookies.clear()
+
+    # 4. Админ заходит снова и одобряет заявку
+    api_client.post("/api/v1/auth/login", json={
+        "nickname": admin_nick,
+        "password": admin_password
+    })
+    approve_res = api_client.put("/api/v1/users/change-application-status", json={
         "application_id": app_id,
         "user_id": student_id,
         "status": "approved"
     })
+    assert approve_res.status_code in [200, 204], f"Approval failed: {approve_res.text}"
 
-    # 3. Явно обновляем роль в БД до 'PROFESSOR' (на случай, если эндпоинт не меняет роль)
+    # Обновляем роль в БД на всякий случай
     with _sync_sessionmaker() as session:
-        session.execute(
-            text("UPDATE users SET role = 'PROFESSOR' WHERE id = :uid"),
-            {"uid": student_id}
-        )
+        session.execute(text("UPDATE users SET role = 'PROFESSOR' WHERE id = :uid"), {"uid": student_id})
         session.commit()
 
-    # 4. Очищаем cookies и перелогиниваемся (используем тот же student_client!)
-    student_client.cookies.clear()
-    student_client.post("/api/v1/auth/login", json={
-        "nickname": student_profile["nickname"],
-        "password": "StrongPassword123!"
+    # Выходим из админа
+    api_client.get("/api/v1/auth/logout")
+    api_client.cookies.clear()
+
+    # 5. Студент (теперь профессор) заходит
+    login_res = api_client.post("/api/v1/auth/login", json={
+        "nickname": student_nick,
+        "password": student_password
     })
+    assert login_res.status_code == 200, f"Student login failed: {login_res.text}"
 
-    return student_client
-
-
-@pytest.fixture
-def admin_client(api_client, _sync_sessionmaker):
-    """🛡️ Клиент с ролью admin"""
-    nick = f"admin_{uuid.uuid4().hex[:6]}"
-    password = "StrongPassword123!"
-
-    # 1. Регистрация и логин
-    client = _register_and_login(api_client, nick, password)
-
-    # 2. Получаем ID пользователя
-    profile = client.get("/api/v1/users/profile").json()
-    user_id = profile["id"]
-    print(f"🔧 Создаём админа: {nick}, ID: {user_id}")
-
-    # 3. Обновляем роль в БД
-    with _sync_sessionmaker() as session:
-        result = session.execute(
-            text("UPDATE users SET role = 'ADMIN' WHERE id = :uid"),
-            {"uid": user_id}
-        )
-        session.commit()
-        print(f"🔧 Обновлено строк: {result.rowcount}")
-
-        # Проверяем, что роль действительно изменилась
-        check = session.execute(
-            text("SELECT role FROM users WHERE id = :uid"),
-            {"uid": user_id}
-        ).scalar()
-        print(f"🔧 Роль в БД после UPDATE: {check}")
-
-    # 4. Перелогиниваемся для обновления токена
-    client.cookies.clear()
-    login_res = client.post("/api/v1/auth/login", json={
-        "nickname": nick,
-        "password": password
-    })
-    print(f"🔧 Логин статус: {login_res.status_code}")
-
-    # Проверяем профиль после логина
-    new_profile = client.get("/api/v1/users/profile").json()
-    print(f"🔧 Роль в профиле после логина: {new_profile.get('role')}")
-
-    return client
+    return api_client
