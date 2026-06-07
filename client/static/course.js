@@ -244,15 +244,37 @@
             for (const block of blocks) {
                 let blockHtml = '';
                 try {
-                    if (block.type === 'markdown') {
-                        blockHtml = await renderMarkdown(block.raw_content || '');
-                    } else if (block.type === 'latex') {
-                        const latexSource = prepareLatexBlock(block.raw_content || '');
-                        blockHtml = `<div class="latex-block">${escapeHtml(latexSource)}</div>`;
-                    } else if (block.type === 'uml') {
-                        blockHtml = renderPlantUml(block.raw_content || '');
+                    // Для всех типов, кроме files, контент находится в content[0]
+                    let rawContent = '';
+                    if (block.type === 'files') {
+                        rawContent = null; // не используется
                     } else {
-                        blockHtml = `<pre>${escapeHtml(block.raw_content || '')}</pre>`;
+                        if (Array.isArray(block.content)) rawContent = block.content[0] || '';
+                        else rawContent = block.content || '';
+                    }
+
+                    if (block.type === 'markdown') {
+                        blockHtml = await renderMarkdown(rawContent);
+                    } else if (block.type === 'latex') {
+                        const latexSource = prepareLatexBlock(rawContent);
+                        blockHtml = `<div class="latex-block">${escapeHtml(latexSource)}</div>`;
+                    } else if (block.type === 'plantuml') {
+                        blockHtml = renderPlantUml(rawContent);
+                    } else if (block.type === 'files') {
+                        const files = block.content || [];
+                        if (!files.length) {
+                            blockHtml = '<div class="alert alert-secondary">Нет файлов</div>';
+                        } else {
+                            let items = '';
+                            for (const file of files) {
+                                const filename = escapeHtml(file.original_filename);
+                                const downloadUrl = `${window.API_BASE_URL}topics/get-resource/${currentTopicId}/${encodeURIComponent(file.server_filename)}`;
+                                items += `<li><a href="${downloadUrl}" download>${filename}</a></li>`;
+                            }
+                            blockHtml = `<ul class="file-list mb-0">${items}</ul>`;
+                        }
+                    } else {
+                        blockHtml = `<pre>${escapeHtml(rawContent)}</pre>`;
                     }
                 } catch (err) {
                     blockHtml = `<div class="alert alert-danger">Ошибка рендеринга: ${escapeHtml(err.message)}</div>`;
