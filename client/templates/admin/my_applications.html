@@ -24,5 +24,6 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', path='my_applications.js') }}"></script>
+<script>window.API_BASE_URL = "{{ api_base_url }}";</script>
+<script src="/static/admin/my_applications.js"></script>
 {% endblock %}

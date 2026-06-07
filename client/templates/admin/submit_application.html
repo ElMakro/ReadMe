@@ -73,5 +73,6 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', path='submit_application.js') }}"></script>
+<script>window.API_BASE_URL = "{{ api_base_url }}";</script>
+<script src="/static/admin/submit_application.js"></script>
 {% endblock %}
