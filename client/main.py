@@ -89,7 +89,7 @@ async def my_notes_page(request: Request):
 async def submit_professor_application_form(request: Request):
     return templates.TemplateResponse(
         request,
-        "submit_application.html",
+        "admin/submit_application.html",
         {
             "request": request,
             "api_base_url": BACKEND_URL
@@ -100,7 +100,7 @@ async def submit_professor_application_form(request: Request):
 async def admin_applications_page(request: Request):
     return templates.TemplateResponse(
         request,
-        "admin_applications.html",
+        "admin/admin_applications.html",
         {
             "request": request,
             "api_base_url": BACKEND_URL
@@ -112,7 +112,7 @@ async def admin_applications_page(request: Request):
 async def my_applications_page(request: Request):
     return templates.TemplateResponse(
         request,
-        "my_applications.html",
+        "admin/my_applications.html",
         {
             "request": request,
             "api_base_url": BACKEND_URL
@@ -124,7 +124,7 @@ async def my_applications_page(request: Request):
 async def admin_users_page(request: Request):
     return templates.TemplateResponse(
         request,
-        "admin_users.html",
+        "admin/admin_users.html",
         {
             "request": request,
             "api_base_url": BACKEND_URL

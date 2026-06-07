@@ -259,8 +259,20 @@
                 }
                 html += `<div class="topic-block topic-block-type-${block.type}">${blockHtml}</div>`;
             }
+            html += '<button class="btn btn-accent mt-3" id="checkYourselfBtn">Проверить Себя</button>';
             html += '</div>';
             topicContent.innerHTML = html;
+
+            const dynamicBtn = document.getElementById('checkYourselfBtn');
+            if (dynamicBtn) {
+                dynamicBtn.addEventListener('click', () => {
+                    if (currentTopicId) {
+                        window.showToast(`Функция «Проверить себя» для темы "${currentTopicName}" в разработке.`);
+                    } else {
+                        window.showToast('Сначала выберите тему.', 'warning');
+                    }
+                });
+            }
 
             if (window.MathJax) await MathJax.typesetPromise();
         }
@@ -386,15 +398,6 @@
             }
         }
 
-        function setupCheckYourself() {
-            if (checkYourselfBtn) {
-                checkYourselfBtn.addEventListener('click', () => {
-                    if (currentTopicId) window.showToast(`Функция «Проверить себя» для темы "${currentTopicName}" в разработке.`);
-                    else window.showToast('Сначала выберите тему.', 'warning');
-                });
-            }
-        }
-
         function setupCourseTitleClick() {
             if (courseTitleHeader) {
                 courseTitleHeader.style.cursor = 'pointer';
@@ -410,7 +413,6 @@
                 return;
             }
             await loadCourseInfo();
-            setupCheckYourself();
             setupCourseTitleClick();
             if (toggleSidebarBtn) {
                 toggleSidebarBtn.addEventListener('click', toggleSidebar);

@@ -88,5 +88,6 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', path='admin_users.js') }}"></script>
+<script>window.API_BASE_URL = "{{ api_base_url }}";</script>
+<script src="/static/admin/admin_users.js"></script>
 {% endblock %}

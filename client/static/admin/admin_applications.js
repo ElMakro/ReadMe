@@ -1,6 +1,5 @@
 // static/admin_applications.js
 (function() {
-    const API_BASE = (window.API_BASE_URL || 'http://localhost:8080/api/v1').replace(/\/$/, '');
     const PAGE_SIZE = 9;
     let currentPage = 1;
     let isLoading = false;
@@ -73,7 +72,7 @@
         isLoading = true;
         container.innerHTML = `<div class="col-12 text-center py-5"><div class="spinner-border text-accent" role="status"></div></div>`;
         try {
-            const url = `${API_BASE}/users/get-active-applications?page=${page}&size=${PAGE_SIZE}`;
+            const url = `${window.API_BASE_URL}users/get-active-applications?page=${page}&size=${PAGE_SIZE}`;
             const response = await fetch(url, { credentials: 'include' });
             if (response.status === 401 || response.status === 403) {
                 showAccessDenied('Вы не авторизованы или недостаточно прав.');
