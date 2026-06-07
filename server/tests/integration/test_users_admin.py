@@ -3,83 +3,44 @@
 """
 import pytest
 import uuid
+import os
+from sqlalchemy import text
 
+DEFAULT_SECRET_LINK = os.getenv("DEFAULT_SECRET_APPLICATION_LINK_PART", "submit_professor_application")
 
 class TestProfessorApplication:
     @staticmethod
-    def test_submit_application_success(student_client):
-        """
-        🎯 ОЖИДАЕМЫЙ РЕЗУЛЬТАТ: Заявка создана (201).
-        """
-        res = student_client.post("/api/v1/users/submit-professor-application", json={
-            "name": "Иван",
-            "surname": "Иванов"
-        })
-        assert res.status_code == 201
-        assert "id" in res.json()
-
-    @staticmethod
-    def test_get_my_applications(student_client):
-        """
-        ✅ ЧТО ТЕСТ ДЕЛАЕТ: Студент подает заявку и проверяет список своих заявок.
-        🎯 ОЖИДАЕМЫЙ РЕЗУЛЬТАТ: Список содержит хотя бы одну заявку (200).
-        """
-        student_client.post("/api/v1/users/submit-professor-application", json={
-            "name": "Пётр", "surname": "Петров"
-        })
-        res = student_client.get("/api/v1/users/get-my-applications")
-        assert res.status_code == 200
-        assert len(res.json()) > 0
-
-    @staticmethod
-    def test_approve_application_changes_role(api_client, _sync_sessionmaker):
-        """
-        ✅ ЧТО ТЕСТ ДЕЛАЕТ (полный сценарий через API):
-        1. Создаём админа с известными данными (через БД).
-        2. Создаём студента, входим, подаём заявку, выходим.
-        3. Входим как админ (зная логин/пароль).
-        4. Одобряем заявку.
-        5. Студент заходит заново и проверяет, что стал профессором.
-
-        🎯 ОЖИДАЕМЫЙ РЕЗУЛЬТАТ: Роль студента стала 'professor'.
-        """
-        import uuid
-        from sqlalchemy import text
-
-        # ========== ШАГ 0: Создаём админа с известными данными ==========
+    def test_submit_application_success(api_client, _sync_sessionmaker):
+        """Подача заявки студентом по кастомной ссылке, установленной админом"""
+        # 1. Создаём админа
         admin_nick = f"admin_{uuid.uuid4().hex[:6]}"
         admin_password = "StrongPassword123!"
-
-        # Регистрируем админа через API
         api_client.post("/api/v1/auth/reg", json={
             "email": f"{admin_nick}@test.com",
             "nickname": admin_nick,
             "password": admin_password
         })
-
-        # Получаем ID админа
         api_client.post("/api/v1/auth/login", json={
             "nickname": admin_nick,
             "password": admin_password
         })
         admin_profile = api_client.get("/api/v1/users/profile").json()
         admin_id = admin_profile["id"]
-
-        # Меняем роль на ADMIN через БД
         with _sync_sessionmaker() as session:
-            session.execute(
-                text("UPDATE users SET role = 'ADMIN' WHERE id = :uid"),
-                {"uid": admin_id}
-            )
+            session.execute(text("UPDATE users SET role = 'ADMIN' WHERE id = :uid"), {"uid": admin_id})
             session.commit()
+
+        secret_link = f"test_link_{uuid.uuid4().hex[:6]}"
+        set_res = api_client.post("/api/v1/users/set-application-link", json={"type": "custom", "content": secret_link})
+        assert set_res.status_code == 200
 
         # Выходим из админа
         api_client.get("/api/v1/auth/logout")
         api_client.cookies.clear()
-        # ========== ШАГ 1: Создаём студента и подаём заявку ==========
+
+        # 2. Создаём студента
         student_nick = f"student_{uuid.uuid4().hex[:6]}"
         student_password = "StrongPassword123!"
-
         api_client.post("/api/v1/auth/reg", json={
             "email": f"{student_nick}@test.com",
             "nickname": student_nick,
@@ -90,56 +51,142 @@ class TestProfessorApplication:
             "password": student_password
         })
 
-        submit_res = api_client.post("/api/v1/users/submit-professor-application", json={
-            "name": "Сергей",
-            "surname": "Сергеев"
+        # 3. Подаём заявку
+        res = api_client.post(f"/api/v1/users/submit-professor-application/{secret_link}", json={
+            "name": "Иван",
+            "surname": "Иванов"
         })
-        assert submit_res.status_code == 201, f"Ошибка подачи заявки: {submit_res.text}"
-        application_id = submit_res.json()["id"]
+        assert res.status_code == 201
+        assert "id" in res.json()
 
-        student_profile = api_client.get("/api/v1/users/profile").json()
-        student_id = student_profile["id"]
-
-        # Студент выходит
-        api_client.get("/api/v1/auth/logout")
-        api_client.cookies.clear()
-        # ========== ШАГ 2: Входим как админ (зная логин/пароль!) ==========
-        login_res = api_client.post("/api/v1/auth/login", json={
+    @staticmethod
+    def test_get_my_applications(api_client, _sync_sessionmaker):
+        """Проверка получения списка заявок студентом"""
+        # 1. Админ устанавливает ссылку
+        admin_nick = f"admin_{uuid.uuid4().hex[:6]}"
+        admin_password = "StrongPassword123!"
+        api_client.post("/api/v1/auth/reg", json={
+            "email": f"{admin_nick}@test.com",
             "nickname": admin_nick,
             "password": admin_password
         })
-        assert login_res.status_code == 200, f"Ошибка входа админа: {login_res.text}"
-
-        # Проверяем, что вошли как админ
-        current_profile = api_client.get("/api/v1/users/profile").json()
-        assert current_profile["role"] == "admin", f"Не админ! Роль: {current_profile['role']}"
-
-        # ========== ШАГ 3: Админ одобряет заявку ==========
-        approve_res = api_client.put("/api/v1/users/change-application-status", json={
-            "application_id": application_id,
-            "user_id": student_id,
-            "status": "approved",
-            "admin_comment": "Approved by QA test"
+        api_client.post("/api/v1/auth/login", json={
+            "nickname": admin_nick,
+            "password": admin_password
         })
-        assert approve_res.status_code in [200, 204], \
-            f"Ошибка одобрения заявки: {approve_res.status_code} {approve_res.text}"
+        admin_profile = api_client.get("/api/v1/users/profile").json()
+        admin_id = admin_profile["id"]
+        with _sync_sessionmaker() as session:
+            session.execute(text("UPDATE users SET role = 'ADMIN' WHERE id = :uid"), {"uid": admin_id})
+            session.commit()
 
-        # Админ выходит
+        secret_link = f"test_link_{uuid.uuid4().hex[:6]}"
+        set_res = api_client.post("/api/v1/users/set-application-link", json={"type": "custom", "content": secret_link})
+        assert set_res.status_code == 200
+
         api_client.get("/api/v1/auth/logout")
         api_client.cookies.clear()
 
-        # ========== ШАГ 4: Студент заходит заново и проверяет роль ==========
+        # 2. Студент подаёт заявку
+        student_nick = f"student_{uuid.uuid4().hex[:6]}"
+        student_password = "StrongPassword123!"
+        api_client.post("/api/v1/auth/reg", json={
+            "email": f"{student_nick}@test.com",
+            "nickname": student_nick,
+            "password": student_password
+        })
+        api_client.post("/api/v1/auth/login", json={
+            "nickname": student_nick,
+            "password": student_password
+        })
+
+        submit_res = api_client.post(f"/api/v1/users/submit-professor-application/{secret_link}", json={
+            "name": "Пётр", "surname": "Петров"
+        })
+        assert submit_res.status_code == 201
+
+        # 3. Проверяем список заявок
+        res = api_client.get("/api/v1/users/get-my-applications")
+        assert res.status_code == 200
+        applications = res.json()
+        assert len(applications) > 0
+        # Можно дополнительно проверить, что созданная заявка есть в списке
+        found = any(app["application_id"] == submit_res.json()["id"] for app in applications)
+        assert found, "Созданная заявка не найдена в списке"
+
+    @staticmethod
+    def test_approve_application_changes_role(api_client, _sync_sessionmaker):
+        """Полный цикл: админ устанавливает кастомную ссылку, студент подаёт заявку, админ одобряет, роль меняется"""
+        # 1. Админ
+        admin_nick = f"admin_{uuid.uuid4().hex[:6]}"
+        admin_password = "StrongPassword123!"
+        api_client.post("/api/v1/auth/reg", json={
+            "email": f"{admin_nick}@test.com",
+            "nickname": admin_nick,
+            "password": admin_password
+        })
+        api_client.post("/api/v1/auth/login", json={
+            "nickname": admin_nick,
+            "password": admin_password
+        })
+        admin_profile = api_client.get("/api/v1/users/profile").json()
+        admin_id = admin_profile["id"]
+        with _sync_sessionmaker() as session:
+            session.execute(text("UPDATE users SET role = 'ADMIN' WHERE id = :uid"), {"uid": admin_id})
+            session.commit()
+
+        secret_link = "test_approve_link"
+        set_res = api_client.post("/api/v1/users/set-application-link", json={"type": "custom", "content": secret_link})
+        assert set_res.status_code == 200
+
+        api_client.get("/api/v1/auth/logout")
+        api_client.cookies.clear()
+
+        # 2. Студент
+        student_nick = f"student_{uuid.uuid4().hex[:6]}"
+        student_password = "StrongPassword123!"
+        api_client.post("/api/v1/auth/reg", json={
+            "email": f"{student_nick}@test.com",
+            "nickname": student_nick,
+            "password": student_password
+        })
+        api_client.post("/api/v1/auth/login", json={
+            "nickname": student_nick,
+            "password": student_password
+        })
+        student_profile = api_client.get("/api/v1/users/profile").json()
+        student_id = student_profile["id"]
+
+        submit_res = api_client.post(f"/api/v1/users/submit-professor-application/{secret_link}", json={
+            "name": "Сергей",
+            "surname": "Сергеев"
+        })
+        assert submit_res.status_code == 201
+        app_id = submit_res.json()["id"]
+
+        api_client.get("/api/v1/auth/logout")
+        api_client.cookies.clear()
+
+        # 3. Админ одобряет
+        api_client.post("/api/v1/auth/login", json={
+            "nickname": admin_nick,
+            "password": admin_password
+        })
+        approve_res = api_client.put("/api/v1/users/change-application-status", json={
+            "application_id": app_id,
+            "user_id": student_id,
+            "status": "approved"
+        })
+        assert approve_res.status_code in [200, 204]
+
+        api_client.get("/api/v1/auth/logout")
+        api_client.cookies.clear()
+
+        # 4. Студент заходит и проверяет роль
         login_res = api_client.post("/api/v1/auth/login", json={
             "nickname": student_nick,
             "password": student_password
         })
-        assert login_res.status_code == 200, f"Ошибка входа студента: {login_res.text}"
-
-        current_profile = api_client.get("/api/v1/users/profile").json()
-        assert current_profile["nickname"] == student_nick, f"Не тот профиль! Никнейм: {current_profile['nickname']}"
-
+        assert login_res.status_code == 200
         new_profile = api_client.get("/api/v1/users/profile").json()
-        assert current_profile["role"] == "professor", \
-            f"Роль не изменилась! Текущая: {current_profile['role']}"
-
-        print("🎉 Тест пройден: студент стал преподавателем через полный API-сценарий!")
+        assert new_profile["role"] == "professor"
