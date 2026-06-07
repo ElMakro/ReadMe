@@ -442,7 +442,7 @@ async def set_user_icon(
         )],
         icon_file: UploadFile = File(
             ...,
-            description="Файл иконки курса",
+            description="Файл иконки пользователя",
         ),
         users_service: UsersService = Depends(UsersService)
 ) -> None:
