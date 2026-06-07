@@ -182,6 +182,12 @@ class CoursesResourcesManager:
 
         return resource_filepath
 
+    @staticmethod
+    def delete_course_icon(course_directory_path: Path) -> None:
+        for filepath in course_directory_path.iterdir():
+            if filepath.is_file() and "icon" in filepath.name:
+                filepath.unlink()
+
     def set_course_icon(
             self,
             course_id: UUID,
@@ -190,6 +196,8 @@ class CoursesResourcesManager:
         course_path = self.get_course_directory_path(
             course_id,
         )
+        self.delete_course_icon(course_path)
+
         icon_upload_file_filename = icon_upload_file.filename
         assert icon_upload_file_filename is not None
         icon_path = course_path / f"icon{Path(icon_upload_file_filename).suffix}"
