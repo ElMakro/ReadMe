@@ -85,14 +85,15 @@ async def my_notes_page(request: Request):
         "api_base_url": BACKEND_URL
     })
 
-@client_app.get("/submit_professor_application")
-async def submit_professor_application_form(request: Request):
+@client_app.get("/submit_professor_application/{secret_link}")
+async def submit_professor_application_form(request: Request, secret_link: str):
     return templates.TemplateResponse(
         request,
         "admin/submit_application.html",
         {
             "request": request,
-            "api_base_url": BACKEND_URL
+            "api_base_url": BACKEND_URL,
+            "secret_link": secret_link
         }
     )
 

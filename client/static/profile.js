@@ -3,6 +3,8 @@
     const profileContainer = document.getElementById('profileContainer');
     if (!profileContainer) return;
 
+    let selectedAvatarFile = null; // временное хранилище выбранного файла
+
     function escapeHtml(str) {
         if (!str) return '';
         const div = document.createElement('div');
@@ -49,15 +51,20 @@
 
     function renderProfile(user) {
         const initials = getInitials(user.nickname);
+        const iconUrl = `${window.API_BASE_URL}users/${user.id}/icon?t=${Date.now()}`;
         profileContainer.innerHTML = `
             <div class="row justify-content-center">
                 <div class="col-lg-8">
                     <div class="card border-0 shadow-sm" style="background: var(--bg-secondary);">
                         <div class="card-body p-4">
                             <div class="d-flex flex-column flex-md-row align-items-center gap-4 mb-4">
-                                <div class="rounded-circle d-flex align-items-center justify-content-center" 
+                                <div class="rounded-circle d-flex align-items-center justify-content-center overflow-hidden" 
                                      style="width: 90px; height: 90px; background: var(--accent);">
-                                    <span style="font-size: 2.2rem; font-weight: bold; color: var(--bg-primary);">
+                                    <img src="${escapeHtml(iconUrl)}"
+                                         alt="Avatar"
+                                         style="width: 100%; height: 100%; object-fit: cover;"
+                                         onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                    <span class="initials-fallback" style="font-size: 2.2rem; font-weight: bold; color: var(--bg-primary); display: none;">
                                         ${escapeHtml(initials)}
                                     </span>
                                 </div>
@@ -116,6 +123,8 @@
     }
 
     function enterEditMode(user) {
+        selectedAvatarFile = null; // сброс временного файла
+        const iconUrl = `${window.API_BASE_URL}users/${user.id}/icon?t=${Date.now()}`;
         profileContainer.innerHTML = `
             <div class="row justify-content-center">
                 <div class="col-lg-8">
@@ -135,6 +144,24 @@
                                                value="${escapeHtml(user.email || '')}" placeholder="example@domain.com">
                                     </div>
                                 </div>
+
+                                <!-- Блок выбора фото профиля (одна кнопка, загрузка при сохранении) -->
+                                <div class="mb-3 mt-3">
+                                    <label class="form-label fw-bold">Фото профиля</label>
+                                    <div class="d-flex align-items-center gap-3">
+                                        <img src="${escapeHtml(iconUrl)}"
+                                             class="current-user-icon rounded-circle"
+                                             width="64" height="64"
+                                             style="object-fit: cover;"
+                                             onerror="this.style.display='none'">
+                                        <div>
+                                            <button type="button" class="btn btn-outline-accent select-avatar-btn">Выбрать файл</button>
+                                            <span class="ms-2 text-muted avatar-filename"></span>
+                                        </div>
+                                        <input type="file" class="d-none" id="avatarFileInput" accept="image/*">
+                                    </div>
+                                </div>
+
                                 <div class="d-flex gap-2 mt-4">
                                     <button type="submit" class="btn btn-accent">Сохранить</button>
                                     <button type="button" class="btn btn-outline-secondary" id="cancelEditBtn">Отмена</button>
@@ -148,7 +175,34 @@
 
         const form = document.getElementById('editProfileForm');
         const cancelBtn = document.getElementById('cancelEditBtn');
+        const selectBtn = form.querySelector('.select-avatar-btn');
+        const fileInput = document.getElementById('avatarFileInput');
+        const filenameSpan = form.querySelector('.avatar-filename');
 
+        // Обработчик выбора файла
+        selectBtn.addEventListener('click', () => {
+            fileInput.click();
+        });
+        fileInput.addEventListener('change', () => {
+            if (fileInput.files.length > 0) {
+                selectedAvatarFile = fileInput.files[0];
+                filenameSpan.textContent = selectedAvatarFile.name;
+                // Показать превью выбранного файла (опционально)
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const previewImg = form.querySelector('.current-user-icon');
+                    if (previewImg) {
+                        previewImg.src = e.target.result;
+                    }
+                };
+                reader.readAsDataURL(selectedAvatarFile);
+            } else {
+                selectedAvatarFile = null;
+                filenameSpan.textContent = '';
+            }
+        });
+
+        // Сохранение формы
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             const newNickname = document.getElementById('editNickname').value.trim();
@@ -159,6 +213,7 @@
                 return;
             }
 
+            // 1. Обновляем текстовые данные профиля
             const payload = { nickname: newNickname };
             if (newEmail !== null) payload.email = newEmail;
 
@@ -170,19 +225,33 @@
                     body: JSON.stringify(payload)
                 });
 
-                if (response.ok) {
-                    const updatedUser = await response.json();
-                    window.showToast('Профиль успешно обновлён');
-                    renderProfile(updatedUser);
-                } else if (response.status === 409) {
-                    const error = await response.json().catch(() => ({}));
-                    window.showToast(error.detail || 'Никнейм или email уже заняты', 'danger');
-                } else {
-                    throw new Error('Ошибка обновления');
+                if (!response.ok) {
+                    if (response.status === 409) {
+                        const error = await response.json().catch(() => ({}));
+                        throw new Error(error.detail || 'Никнейм или email уже заняты');
+                    }
+                    throw new Error('Ошибка обновления профиля');
                 }
+
+                // 2. Если выбран файл аватара, загружаем его
+                if (selectedAvatarFile) {
+                    const formData = new FormData();
+                    formData.append('icon_file', selectedAvatarFile);
+                    const iconRes = await fetch(`${window.API_BASE_URL}users/icon`, {
+                        method: 'POST',
+                        credentials: 'include',
+                        body: formData
+                    });
+                    if (!iconRes.ok) {
+                        throw new Error('Не удалось загрузить фото профиля');
+                    }
+                }
+
+                window.showToast('Профиль успешно обновлён');
+                loadProfile(); // перезагружаем страницу профиля
             } catch (err) {
                 console.error(err);
-                window.showToast('Не удалось обновить профиль', 'danger');
+                window.showToast(err.message, 'danger');
             }
         });
 
