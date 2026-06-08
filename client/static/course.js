@@ -1,6 +1,6 @@
 // static/course.js
-(function() {
-    document.addEventListener('DOMContentLoaded', function() {
+(function () {
+    document.addEventListener('DOMContentLoaded', function () {
         const courseTitleHeader = document.getElementById('courseTitleHeader');
         const sectionList = document.getElementById('sectionList');
         const topicContent = document.getElementById('topicContent');
@@ -36,20 +36,6 @@
                 return content;
             }
             return `\\[ ${content} \\]`;
-        }
-
-        function renderPlantUml(umlCode) {
-            if (!umlCode || umlCode.trim() === '') {
-                return '<div class="alert alert-warning">Пустая UML диаграмма</div>';
-            }
-            try {
-                const encoded = plantumlEncoder.encode(umlCode);
-                const url = `https://www.plantuml.com/plantuml/svg/${encoded}`;
-                return `<img src="${url}" alt="UML диаграмма" class="plantuml-img"
-                               onerror="this.onerror=null; this.parentElement.innerHTML += '<div class=\'alert alert-danger\'>Ошибка рендеринга UML. Проверьте синтаксис диаграммы.</div>';">`;
-            } catch (err) {
-                return `<div class="alert alert-danger">Ошибка кодирования UML: ${escapeHtml(err.message)}</div>`;
-            }
         }
 
         async function fetchCourseState() {
@@ -159,6 +145,7 @@
         }
 
         let sidebarVisible = true;
+
         function applySidebarState() {
             const courseSidebar = document.getElementById('courseSidebar');
             const mainContent = document.getElementById('mainContent');
@@ -176,32 +163,195 @@
             }
             if (toggleBtn) toggleBtn.innerHTML = sidebarVisible ? '◀' : '☰';
         }
+
         function toggleSidebar() {
             sidebarVisible = !sidebarVisible;
             applySidebarState();
         }
+
         function initSidebar() {
             sidebarVisible = true;
             applySidebarState();
         }
 
-        function showCourseDescription() {
+        // Загружает список разделов курса, для каждого – список тем
+        // === НОВАЯ ФУНКЦИЯ: загружает разделы с их темами ===
+        async function fetchSectionsWithTopics() {
+            try {
+                const url = `${window.API_BASE_URL}sections/by_course/${window.COURSE_ID}`;
+                const resp = await fetch(url, {credentials: 'include'});
+                if (!resp.ok) return [];
+                const data = await resp.json();
+                const sections = Array.isArray(data) ? data : (data.sections || []);
+                sections.sort((a, b) => a.order_number - b.order_number);
+
+                for (const section of sections) {
+                    const topicsUrl = `${window.API_BASE_URL}topics/by-section/${section.id}`;
+                    const topicsResp = await fetch(topicsUrl, {credentials: 'include'});
+                    if (topicsResp.ok) {
+                        const topicsData = await topicsResp.json();
+                        let topics = Array.isArray(topicsData) ? topicsData : (topicsData.topics || []);
+                        topics.sort((a, b) => a.order_number - b.order_number);
+                        section.topics = topics;
+                    } else {
+                        section.topics = [];
+                    }
+                }
+                return sections;
+            } catch (err) {
+                console.error('Ошибка загрузки разделов:', err);
+                return [];
+            }
+        }
+
+        async function showCourseDescription() {
             if (!currentCourse) {
                 topicContent.innerHTML = '<p class="text-muted">Информация о курсе загружается...</p>';
                 return;
             }
-            topicContent.innerHTML = `
-                <div class="course-description-block">
-                    <p>${escapeHtml(currentCourse.description || 'Описание отсутствует')}</p>
+            const sections = await fetchSectionsWithTopics();
+
+            let html = `
+        <div class="course-description-card mb-4">
+            <p>${escapeHtml(currentCourse.description || 'Описание отсутствует')}</p>
+        </div>
+    `;
+
+            if (!sections.length) {
+                html += '<div class="alert alert-secondary bg-transparent border-0 text-secondary">В курсе пока нет разделов.</div>';
+            } else {
+                for (const section of sections) {
+                    const sectionId = section.id;
+                    const sectionName = escapeHtml(section.name);
+                    const sectionDesc = escapeHtml(section.description || '');
+                    let topicsHtml = '';
+                    if (section.topics && section.topics.length) {
+                        topicsHtml = '<ul class="topics-list-simple list-unstyled mt-2 mb-0">';
+                        for (const topic of section.topics) {
+                            topicsHtml += `
+                        <li>
+                            <a href="#" class="topic-link-main" data-topic-id="${topic.id}">
+                                ${escapeHtml(topic.name)}
+                            </a>
+                        </li>
+                    `;
+                        }
+                        topicsHtml += '</ul>';
+                    } else {
+                        topicsHtml = '<p class="text-muted small mt-2 mb-0">Нет тем</p>';
+                    }
+
+                    html += `
+                <div class="section-card" data-section-id="${sectionId}">
+                    <div class="d-flex align-items-center p-3 section-header-clickable" style="cursor: pointer;">
+                        <span class="toggle-icon me-2" style="font-size: 1rem;">▼</span>
+                        <h3 class="section-title mb-0">${sectionName}</h3>
+                    </div>
+                    <div class="section-body">
+                        <div class="section-description">${sectionDesc || '<em class="text-secondary">Описание отсутствует</em>'}</div>
+                        <div class="section-topics-wrapper">
+                            ${topicsHtml}
+                        </div>
+                    </div>
                 </div>
             `;
+                }
+            }
+
+            topicContent.innerHTML = html;
+
+            // Обработчики клика по заголовку раздела (весь блок)
+            document.querySelectorAll('.section-header-clickable').forEach(header => {
+                const sectionCard = header.closest('.section-card');
+                const body = sectionCard.querySelector('.section-body');
+                const icon = header.querySelector('.toggle-icon');
+
+                header.addEventListener('click', () => {
+                    if (body.style.display === 'none') {
+                        body.style.display = 'block';
+                        icon.textContent = '▼';
+                    } else {
+                        body.style.display = 'none';
+                        icon.textContent = '▶';
+                    }
+                });
+            });
+
+            // Обработчики тем (без изменений)
+            document.querySelectorAll('.topic-link-main').forEach(link => {
+                link.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const topicId = link.dataset.topicId;
+                    const topicName = link.textContent.trim();
+                    displayTopic(topicId, topicName);
+                });
+            });
+
             currentTopicId = null;
             window.activeTopicId = null;
-            document.querySelectorAll('.topic-link').forEach(link => link.classList.remove('active'));
-            if (window.Notes && window.Notes.onTopicChanged) {
-                window.Notes.onTopicChanged(null);
-            }
+            if (window.Notes && window.Notes.onTopicChanged) window.Notes.onTopicChanged(null);
         }
+
+        async function showSectionDescription(sectionId, sectionName, sectionDescription) {
+            topicContent.innerHTML = '<div class="text-muted">Загрузка...</div>';
+            try {
+                const topicsUrl = `${window.API_BASE_URL}topics/by-section/${sectionId}`;
+                const resp = await fetch(topicsUrl, {credentials: 'include'});
+                let topics = [];
+                if (resp.ok) {
+                    const data = await resp.json();
+                    topics = Array.isArray(data) ? data : (data.topics || []);
+                    topics.sort((a, b) => a.order_number - b.order_number);
+                }
+
+                let topicsHtml = '';
+                if (topics.length) {
+                    topicsHtml = '<ul class="list-unstyled mt-3">';
+                    for (const topic of topics) {
+                        topicsHtml += `
+                    <li class="mb-2">
+                        <a href="#" class="topic-link-section text-decoration-none" data-topic-id="${topic.id}">
+                            ${escapeHtml(topic.name)}
+                        </a>
+                    </li>
+                `;
+                    }
+                    topicsHtml += '</ul>';
+                } else {
+                    topicsHtml = '<p class="text-muted">В этом разделе нет тем.</p>';
+                }
+
+                const html = `
+            <div class="section-detail-card p-4 rounded-4 border">
+                <h2 class="h3 fw-semibold mb-3">${escapeHtml(sectionName)}</h2>
+                <p class="text-secondary mb-4">${escapeHtml(sectionDescription || 'Описание отсутствует')}</p>
+                <hr class="my-4 opacity-25">
+                <h4 class="h6 fw-semibold mb-3">Темы раздела</h4>
+                ${topicsHtml}
+            </div>
+        `;
+                topicContent.innerHTML = html;
+
+                document.querySelectorAll('.topic-link-section').forEach(link => {
+                    link.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        const topicId = link.dataset.topicId;
+                        const topicName = link.textContent.trim();
+                        displayTopic(topicId, topicName);
+                    });
+                });
+            } catch (err) {
+                console.error('Ошибка загрузки тем раздела:', err);
+                topicContent.innerHTML = '<p class="text-muted">Не удалось загрузить содержимое раздела.</p>';
+            }
+
+            currentTopicId = null;
+            window.activeTopicId = null;
+            if (window.Notes && window.Notes.onTopicChanged) window.Notes.onTopicChanged(null);
+        }
+
+        // Заменяем displayTopic (используем rendered_content)
+        // static/course.js (только заменяемые функции, остальное не трогаем)
 
         async function displayTopic(topicId, topicName) {
             if (!topicId) return;
@@ -221,7 +371,7 @@
 
             try {
                 const url = `${window.API_BASE_URL}topics/${topicId}`;
-                const resp = await fetch(url, { credentials: 'include' });
+                const resp = await fetch(url, {credentials: 'include'});
                 if (!resp.ok) {
                     if (resp.status === 401 || resp.status === 403) {
                         topicContent.innerHTML = '<p class="text-danger">Для просмотра этой темы необходимо <a href="/">войти</a>.</p>';
@@ -230,9 +380,10 @@
                     throw new Error(`HTTP ${resp.status}`);
                 }
                 const topicData = await resp.json();
-                const rawContent = topicData.raw_content || [];
-                renderedCache.set(topicId, rawContent);
-                await renderTopicContent(rawContent);
+                // Используем rendered_content, а не raw_content
+                const renderedContent = topicData.rendered_content || [];
+                renderedCache.set(topicId, renderedContent);
+                await renderTopicContent(renderedContent);
             } catch (err) {
                 console.error('Ошибка загрузки темы:', err);
                 topicContent.innerHTML = '<p class="text-muted">Содержимое темы недоступно.</p>';
@@ -244,23 +395,33 @@
             for (const block of blocks) {
                 let blockHtml = '';
                 try {
-                    // Для всех типов, кроме files, контент находится в content[0]
+                    // Нормализуем тип (бекенд может отдавать 'uml' или 'image' вместо 'plantuml')
+                    let blockType = block.type;
+                    if (blockType === 'uml') blockType = 'plantuml';
+
+                    // Для всех типов, кроме files, контент может быть строкой или массивом
                     let rawContent = '';
-                    if (block.type === 'files') {
-                        rawContent = null; // не используется
+                    if (blockType === 'files') {
+                        rawContent = null;
                     } else {
                         if (Array.isArray(block.content)) rawContent = block.content[0] || '';
                         else rawContent = block.content || '';
                     }
 
-                    if (block.type === 'markdown') {
+                    if (blockType === 'markdown') {
                         blockHtml = await renderMarkdown(rawContent);
-                    } else if (block.type === 'latex') {
+                    } else if (blockType === 'latex') {
                         const latexSource = prepareLatexBlock(rawContent);
                         blockHtml = `<div class="latex-block">${escapeHtml(latexSource)}</div>`;
-                    } else if (block.type === 'plantuml') {
-                        blockHtml = renderPlantUml(rawContent);
-                    } else if (block.type === 'files') {
+                    } else if (blockType === 'plantuml' || blockType === 'image') {
+                        // rawContent — имя файла (например, "730a574d-2d94-4ec0-8b80-d84ec231d40f.png")
+                        if (rawContent && typeof rawContent === 'string' && rawContent.length > 0) {
+                            const imgUrl = `${window.API_BASE_URL}topics/get-resource/${currentTopicId}/${encodeURIComponent(rawContent)}`;
+                            blockHtml = `<div class="text-center"><img src="${imgUrl}" class="img-fluid" alt="Изображение" style="max-width: 100%;"></div>`;
+                        } else {
+                            blockHtml = '<div class="alert alert-warning">Изображение не найдено</div>';
+                        }
+                    } else if (blockType === 'files') {
                         const files = block.content || [];
                         if (!files.length) {
                             blockHtml = '<div class="alert alert-secondary">Нет файлов</div>';
@@ -304,7 +465,7 @@
             sectionList.innerHTML = '<li class="list-group-item text-muted">Загрузка...</li>';
             try {
                 const url = `${window.API_BASE_URL}sections/by_course/${window.COURSE_ID}`;
-                const resp = await fetch(url, { credentials: 'include' });
+                const resp = await fetch(url, {credentials: 'include'});
                 if (!resp.ok) {
                     if (resp.status === 401 || resp.status === 403) {
                         sectionList.innerHTML = '<li class="list-group-item text-muted">Войдите, чтобы увидеть содержимое курса.</li>';
@@ -334,7 +495,7 @@
 
                     try {
                         const topicsUrl = `${window.API_BASE_URL}topics/by-section/${section.id}`;
-                        const topicsResp = await fetch(topicsUrl, { credentials: 'include' });
+                        const topicsResp = await fetch(topicsUrl, {credentials: 'include'});
                         if (!topicsResp.ok) throw new Error();
                         const data = await topicsResp.json();
                         const topics = Array.isArray(data) ? data : (data.topics || []);
@@ -368,7 +529,6 @@
                     }
 
                     const sectionToggleHandler = () => {
-                        showSectionDescription(section.id, section.name, section.description);
                         expanded = !expanded;
                         topicsContainer.style.display = expanded ? 'block' : 'none';
                         const icon = toggle.querySelector('.toggle-icon');
@@ -385,27 +545,12 @@
             }
         }
 
-        function showSectionDescription(sectionId, sectionName, sectionDescription) {
-            topicContent.innerHTML = `
-                <div class="section-description-block">
-                    <h2>${escapeHtml(sectionName)}</h2>
-                    <p>${escapeHtml(sectionDescription || 'Описание отсутствует')}</p>
-                </div>
-            `;
-            currentTopicId = null;
-            window.activeTopicId = null;
-            document.querySelectorAll('.topic-link').forEach(link => link.classList.remove('active'));
-            if (window.Notes && window.Notes.onTopicChanged) {
-                window.Notes.onTopicChanged(null);
-            }
-        }
-
         async function loadCourseInfo() {
             if (!courseTitleHeader) return;
             courseTitleHeader.textContent = 'Загрузка...';
             try {
                 const url = `${window.API_BASE_URL}courses/${window.COURSE_ID}`;
-                const resp = await fetch(url, { credentials: 'include' });
+                const resp = await fetch(url, {credentials: 'include'});
                 if (!resp.ok) throw new Error(`Course HTTP ${resp.status}`);
                 currentCourse = await resp.json();
                 courseTitleHeader.textContent = escapeHtml(currentCourse.name);
@@ -466,8 +611,8 @@
 })();
 
 // Плавающее окно конспекта (без изменений, но тоже использует Notes.showMessage – заменим на window.showToast)
-(function() {
-    document.addEventListener('DOMContentLoaded', function() {
+(function () {
+    document.addEventListener('DOMContentLoaded', function () {
         const win = document.getElementById('floatingWindow');
         const tabBtn = document.getElementById('floatingTabButton');
         const closeBtn = document.getElementById('closeWindowBtn');
@@ -483,9 +628,14 @@
 
         function getContainerBounds() {
             const mainContent = document.querySelector('.main-content');
-            if (!mainContent) return { left: 20, top: 20, right: window.innerWidth - 20, bottom: window.innerHeight - 20 };
+            if (!mainContent) return {
+                left: 20,
+                top: 20,
+                right: window.innerWidth - 20,
+                bottom: window.innerHeight - 20
+            };
             const rect = mainContent.getBoundingClientRect();
-            return { left: rect.left + 10, top: rect.top + 10, right: rect.right - 10, bottom: rect.bottom - 10 };
+            return {left: rect.left + 10, top: rect.top + 10, right: rect.right - 10, bottom: rect.bottom - 10};
         }
 
         function clampPosition(left, top, width, height) {
@@ -499,7 +649,7 @@
         function loadWinState() {
             const saved = localStorage.getItem('conspect_window');
             if (saved) {
-                const { left, top, width, height } = JSON.parse(saved);
+                const {left, top, width, height} = JSON.parse(saved);
                 if (left) win.style.left = left + 'px';
                 if (top) win.style.top = top + 'px';
                 if (width && width >= 200) win.style.width = width + 'px';
@@ -528,6 +678,7 @@
 
         let dragging = false;
         let dragStartX = 0, dragStartY = 0, dragStartLeft = 0, dragStartTop = 0;
+
         function onMouseMove(e) {
             if (!dragging) return;
             let newLeft = dragStartLeft + (e.clientX - dragStartX);
@@ -538,6 +689,7 @@
             win.style.left = clamped.left + 'px';
             win.style.top = clamped.top + 'px';
         }
+
         function onMouseUp() {
             if (dragging) {
                 localStorage.setItem('conspect_window', JSON.stringify({
@@ -552,6 +704,7 @@
             document.removeEventListener('mouseup', onMouseUp);
             document.body.style.userSelect = '';
         }
+
         if (header) {
             header.addEventListener('mousedown', (e) => {
                 if (e.target.closest('.btn-close-window') || e.target.closest('.btn-save-conspect')) return;
@@ -601,7 +754,8 @@
                 const result = await window.Notes.saveNote(topicId, content, currentNoteId);
                 currentNoteId = result.noteId;
                 window.showToast('Конспект сохранён');
-            } catch (err) {}
+            } catch (err) {
+            }
         }
 
         async function deleteCurrentNote() {
@@ -614,7 +768,8 @@
                 await window.Notes.deleteNote(currentNoteId);
                 textarea.value = '';
                 currentNoteId = null;
-            } catch (err) {}
+            } catch (err) {
+            }
         }
 
         function openWin() {
@@ -624,11 +779,18 @@
             applyClampedPosition();
             loadNoteForCurrentTopic();
         }
-        function closeWin() { win.style.display = 'none'; isOpen = false; }
-        function toggleWin() { isOpen ? closeWin() : openWin(); }
+
+        function closeWin() {
+            win.style.display = 'none';
+            isOpen = false;
+        }
+
+        function toggleWin() {
+            isOpen ? closeWin() : openWin();
+        }
 
         window.Notes = window.Notes || {};
-        window.Notes.onTopicChanged = function(topicId) {
+        window.Notes.onTopicChanged = function (topicId) {
             if (isOpen) loadNoteForCurrentTopic();
         };
         window.loadNoteForCurrentTopic = loadNoteForCurrentTopic;

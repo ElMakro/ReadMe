@@ -246,3 +246,158 @@ a:hover {
     background: var(--accent-hover);
     transform: translateY(-2px);
 }
+
+.section-card {
+    background: var(--bg-secondary);
+    border: var(--border-width) solid var(--border-color);
+    border-radius: 20px;
+    margin-bottom: 1.5rem;
+    overflow: hidden;
+    transition: border-color 0.2s;
+}
+.section-card:hover {
+    border-color: var(--accent);
+}
+.btn-section-toggle {
+    background: transparent;
+    border: none;
+    font-size: 1rem;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--text-secondary);
+    transition: background 0.2s;
+}
+.btn-section-toggle:hover {
+    background: rgba(var(--accent-rgb), 0.1);
+    color: var(--accent);
+}
+.section-card .section-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin: 0;
+    flex: 1;
+    padding-left: 0.5rem;
+    color: var(--text-primary);
+}
+.section-body {
+    padding: 0 1rem 1rem 1rem;
+}
+.section-description {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    margin: 0.5rem 0 1rem 0;
+    padding-left: 2rem;
+}
+.topics-list-simple {
+    margin: 0;
+    padding-left: 1rem;  /* уменьшен для мобильных */
+}
+@media (min-width: 576px) {
+    .topics-list-simple {
+        padding-left: 2rem;
+    }
+}
+.topics-list-simple li {
+    margin-bottom: 0.5rem;
+    list-style: none;
+}
+.topic-link-main {
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-size: 0.95rem;
+    display: inline-block;
+    padding: 0.2rem 0.5rem;
+    border-radius: 12px;
+    transition: all 0.2s;
+}
+.topic-link-main:hover {
+    background: rgba(var(--accent-rgb), 0.1);
+    color: var(--accent);
+    transform: translateX(4px);
+}
+.topic-link-main.active {
+    background: var(--accent);
+    color: white;
+}
+
+/* ========== БОКОВОЕ МЕНЮ КУРСА ========== */
+.course-sidebar {
+    position: sticky;
+    top: 1rem;        /* отступ сверху вместо обрезания */
+    max-height: calc(100vh - 2rem);
+    overflow-y: auto;
+    background: var(--bg-primary);
+    border-right: var(--border-width) solid var(--border-color);
+    padding-right: 0.5rem;
+}
+/* Кастомный скролл для бокового меню */
+.course-sidebar::-webkit-scrollbar {
+    width: 6px;
+}
+.course-sidebar::-webkit-scrollbar-track {
+    background: var(--bg-secondary);
+    border-radius: 3px;
+}
+.course-sidebar::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 3px;
+}
+#sectionList .list-group-item {
+    background: transparent;
+    border: none;
+    padding: 0;
+    margin-bottom: 0;
+}
+.section-item {
+    margin-bottom: 0.25rem;
+}
+.section-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 0.6rem;
+    border-radius: 12px;
+    background: transparent;
+    color: var(--text-primary);
+    text-decoration: none;
+    font-weight: 500;
+    transition: background 0.2s, color 0.2s;
+    border: none;
+    cursor: pointer;
+}
+.section-toggle:hover {
+    background: var(--border-color);
+    color: var(--accent);
+}
+.section-toggle.active {
+    background: var(--accent);
+    color: white;
+}
+.section-topics {
+    margin-left: 0.75rem;
+    padding-left: 0;
+}
+.topic-link {
+    display: block;
+    padding: 0.25rem 0.6rem;
+    border-radius: 8px;
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-size: 0.9rem;
+    transition: background 0.2s, color 0.2s;
+    border: none;
+}
+.topic-link:hover {
+    background: var(--border-color);
+    color: var(--text-primary);
+}
+.topic-link.active {
+    background: var(--accent);
+    color: white;
+    font-weight: 500;
+}
