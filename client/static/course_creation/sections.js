@@ -112,7 +112,7 @@
                     <button class="btn btn-danger delete-section">Удалить раздел</button>
                     <div>
                         <button class="btn btn-outline-secondary cancel-edit me-2">Отмена</button>
-                        <button class="btn btn-accent save-section-edit">Сохранить изменения</button>
+                        <button class="btn btn-accent save-section-edit">Сохранить раздел</button>
                     </div>
                 </div>
             </div>

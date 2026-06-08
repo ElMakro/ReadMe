@@ -164,7 +164,7 @@
                     <button class="btn btn-danger delete-course">Удалить курс</button>
                     <div>
                         <button class="btn btn-outline-secondary cancel-edit me-2">Отмена</button>
-                        <button class="btn btn-accent save-course-edit">Сохранить</button>
+                        <button class="btn btn-accent save-course-edit">Сохранить курс</button>
                     </div>
                 </div>
             </div>
