@@ -1,4 +1,4 @@
-<!--{# templates/base.html #}-->
+<!-- templates/base.html -->
 <!DOCTYPE html>
 <html lang="ru" data-theme="light">
 <head>
@@ -34,15 +34,32 @@
 
     <footer class="footer">
         <div class="container-xl">
-            <div class="row text-center text-md-start">
-                <div class="col-md-6 mb-4 mb-md-0">
+            <div class="row text-center text-md-start gy-4">
+                <div class="col-md-4">
                     <h4>ReadMe</h4>
-                    <a href="#">Иконки</a>
+                    <p class="small text-secondary mb-0">Образовательная платформа для публикации и изучения курсов.</p>
+                    <div class="mt-3">
+                        <span class="badge bg-warning text-dark">Сервис находится в разработке</span>
+                    </div>
                 </div>
-                <div class="col-md-6">
-                    <h4>О Нас</h4>
-                    <a href="#">Контактная Инфо</a>
+                <div class="col-md-4">
+                    <h4>Контакты</h4>
+                    <ul class="list-unstyled">
+                        <li><a href="mailto:readme.ivt.yarsu@mail.ru">readme.ivt.yarsu@mail.ru</a></li>
+                    </ul>
                 </div>
+                <div class="col-md-4">
+                    <h4>О проекте</h4>
+                    <ul class="list-unstyled">
+                        <li><a href="/about">О платформе</a></li>
+                        <li><a href="/terms">Пользовательское соглашение</a></li>
+                        <li><a href="/privacy">Политика конфиденциальности</a></li>
+                    </ul>
+                </div>
+            </div>
+            <hr class="my-3 border-secondary">
+            <div class="text-center text-secondary small">
+                &copy; 2026 ReadMe.
             </div>
         </div>
     </footer>
