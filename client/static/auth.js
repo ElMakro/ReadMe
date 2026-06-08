@@ -60,6 +60,21 @@
         getUser: getUser
     };
 
+    // Глобальный перехватчик fetch для обработки 401
+    const originalFetch = window.fetch;
+    window.fetch = function(...args) {
+        return originalFetch.apply(this, args).then(async response => {
+            if (response.status === 401) {
+                const url = typeof args[0] === 'string' ? args[0] : args[0].url;
+                // Не перехватываем запросы к login/reg/profile, чтобы избежать цикла
+                if (!url.includes('/auth/login') && !url.includes('/auth/reg') && !url.includes('/users/profile')) {
+                    window.handleUnauthorized('Сессия истекла. Пожалуйста, войдите снова.');
+                }
+            }
+            return response;
+        });
+    };
+
     // Автоматическая проверка при загрузке
     document.addEventListener('DOMContentLoaded', () => {
         window.Auth.check().then(user => {
@@ -71,17 +86,16 @@
     });
 
     window.handleUnauthorized = function(message = 'Сессия истекла. Пожалуйста, войдите снова.') {
-    window.AppState.currentUser = null;
-    window.dispatchEvent(new CustomEvent('auth-changed', { detail: { user: null } }));
-    if (window.AuthModal && typeof window.AuthModal.open === 'function') {
-        window.AuthModal.open();
-        // Покажем сообщение в модалке
-        setTimeout(() => {
-            const errorDiv = document.querySelector('#auth-modal-error');
-            if (errorDiv) errorDiv.textContent = message;
-        }, 100);
-    } else {
-        alert(message);
-    }
-};
+        window.AppState.currentUser = null;
+        window.dispatchEvent(new CustomEvent('auth-changed', { detail: { user: null } }));
+        if (window.AuthModal && typeof window.AuthModal.open === 'function') {
+            window.AuthModal.open();
+            setTimeout(() => {
+                const errorDiv = document.querySelector('#auth-modal-error');
+                if (errorDiv) errorDiv.textContent = message;
+            }, 100);
+        } else {
+            alert(message);
+        }
+    };
 })();
