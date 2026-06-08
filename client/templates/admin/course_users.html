@@ -4,34 +4,50 @@
 {% block content %}
 <div class="container-fluid py-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2>Пользователи курса: <span id="courseName">Загрузка...</span></h2>
+        <div>
+            <h2>Пользователи курса: <span id="courseName">Загрузка...</span></h2>
+            <p class="text-muted mb-0" id="professorInfo"></p>
+        </div>
         <button class="btn btn-outline-secondary" id="backBtn">← Назад к курсам</button>
     </div>
 
     <div class="row">
+        <!-- Левая колонка: не записаны -->
         <div class="col-md-6">
-            <div class="card bg-secondary border-0 shadow-sm">
+            <div class="card bg-secondary border-0 shadow-sm h-100">
                 <div class="card-header bg-transparent border-bottom border-secondary">
                     <h5 class="mb-0">Не записаны на курс</h5>
                 </div>
-                <div class="card-body p-0">
+                <div class="card-body p-0" style="min-height: 400px;">
                     <div id="notEnrolledList" class="list-group list-group-flush"></div>
                 </div>
                 <div class="card-footer bg-transparent">
-                    <button class="btn btn-accent w-100" id="enrollSelectedBtn">Записать выбранных</button>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <button class="btn btn-sm btn-outline-secondary" id="notEnrolledPrevBtn" disabled>← Пред.</button>
+                        <span id="notEnrolledPageInfo" class="text-muted small"></span>
+                        <button class="btn btn-sm btn-outline-secondary" id="notEnrolledNextBtn" disabled>След. →</button>
+                    </div>
+                    <button class="btn btn-success w-100 mt-2" id="enrollSelectedBtn">Записать выбранных</button>
                 </div>
             </div>
         </div>
+
+        <!-- Правая колонка: записаны -->
         <div class="col-md-6">
-            <div class="card bg-secondary border-0 shadow-sm">
+            <div class="card bg-secondary border-0 shadow-sm h-100">
                 <div class="card-header bg-transparent border-bottom border-secondary">
                     <h5 class="mb-0">Записаны на курс</h5>
                 </div>
-                <div class="card-body p-0">
+                <div class="card-body p-0" style="min-height: 400px;">
                     <div id="enrolledList" class="list-group list-group-flush"></div>
                 </div>
                 <div class="card-footer bg-transparent">
-                    <button class="btn btn-outline-danger w-100" id="unenrollSelectedBtn">Отписать выбранных</button>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <button class="btn btn-sm btn-outline-secondary" id="enrolledPrevBtn" disabled>← Пред.</button>
+                        <span id="enrolledPageInfo" class="text-muted small"></span>
+                        <button class="btn btn-sm btn-outline-secondary" id="enrolledNextBtn" disabled>След. →</button>
+                    </div>
+                    <button class="btn btn-danger w-100 mt-2" id="unenrollSelectedBtn">Отписать выбранных</button>
                 </div>
             </div>
         </div>
