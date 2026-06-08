@@ -13,7 +13,7 @@ from server.app.api.v1.common_schemas import (
 )
 from server.app.api.v1.courses.courses import CourseResponse
 from server.app.api.v1.courses.courses_manager import CoursesManager
-from server.app.api.v1.exceptions import ContentTypeError
+from server.app.api.v1.exceptions import ContentTypeError, ObjectMissingError, OperationPermissionError
 from server.app.api.v1.notes.exceptions import CantChangeOwnRoleError, CantDeleteOwnProfileError
 from server.app.api.v1.users.exceptions import NotExistingLinkError, UpdatedLinkError
 from server.app.api.v1.users.secret_application_link_handler import SecretApplicationLinkHandler
@@ -37,6 +37,12 @@ from server.config.settings import settings
 from server.data.users_resources.users_resources_manager import UsersResourcesManager
 from server.enums.access_permissions import AccessPermissions
 from server.enums.role import Role
+
+
+class UserEnrollmentError(
+    ValueError,
+):
+    """Исключение, связанное с записью пользователя на курс"""
 
 
 class UsersService:
@@ -206,3 +212,95 @@ class UsersService:
         if (true_link := await self.users_manager.get_secret_application_link()) is None:
             return False
         return self.secret_link_handler.verify_link(entered_link=link, encoded_true_link=true_link.secret_part)
+
+    async def self_enroll_on_course(
+            self,
+            user: UserVerification,
+            target_user_id: UUID | None,
+            course_id: UUID,
+    ) -> None:
+        course = await self.courses_manager.get_course_by_id(
+            course_id,
+        )
+
+        target_user_id = target_user_id if target_user_id else user.id
+        is_user_wants_to_enroll_himself = target_user_id == user.id
+
+        if not is_user_wants_to_enroll_himself:
+            requested_user = await self.users_manager.get_user_by_id(target_user_id)
+            if requested_user is None:
+                raise ObjectMissingError("Пользователя с таким идентификатором не существует!")
+
+        if is_user_wants_to_enroll_himself:
+            if user.role == Role.STUDENT:
+                if await self.check_course_access(user, course_id) < AccessPermissions.HEADER_ACCESS:
+                    raise OperationPermissionError("Пользователь не может записать себя на этот курс!")
+        else:
+            if user.role == Role.STUDENT:
+                raise OperationPermissionError("Пользователь не может записать другого пользователя на курс!")
+            if user.role == Role.PROFESSOR and course.professor_id != user.id:
+                raise OperationPermissionError("Преподаватель может записать другого студента только на свой курс!")
+
+        if target_user_id == course.professor_id:
+            raise UserEnrollmentError("Преподаватель курса не может быть записан на него же")
+
+        if await self.courses_manager.check_is_user_enrolled_on_course(
+                user.id,
+                course_id,
+        ):
+            raise UserEnrollmentError("Пользователь уже записан на данный курс!")
+
+        await self.users_manager.self_enroll_on_course(
+            target_user_id,
+            course_id,
+        )
+
+    async def self_unenroll_from_course(
+            self,
+            user: UserVerification,
+            target_user_id: UUID | None,
+            course_id: UUID,
+    ) -> None:
+        course = await self.courses_manager.get_course_by_id(
+            course_id,
+        )
+
+        target_user_id = target_user_id if target_user_id else user.id
+        is_user_wants_to_unenroll_himself = target_user_id == user.id
+
+        if not is_user_wants_to_unenroll_himself:
+            requested_user = await self.users_manager.get_user_by_id(target_user_id)
+            if requested_user is None:
+                raise ObjectMissingError("Пользователя с таким идентификатором не существует!")
+
+        if not is_user_wants_to_unenroll_himself:
+            if user.role == Role.STUDENT:
+                raise OperationPermissionError("Пользователь не может отписать другого пользователя с курс!")
+            if user.role == Role.PROFESSOR and course.professor_id != user.id:
+                raise OperationPermissionError("Преподаватель может отписать другого студента только со своего курса!")
+
+        if target_user_id == course.professor_id:
+            raise UserEnrollmentError("Преподаватель курса не может быть отписан со своего же курса!")
+
+        if not await self.courses_manager.check_is_user_enrolled_on_course(
+                target_user_id,
+                course_id,
+        ):
+            raise UserEnrollmentError("Пользователь не записан на данный курс!")
+
+        await self.users_manager.self_unenroll_from_course(
+            target_user_id,
+            course_id,
+        )
+
+    async def get_enrolled_users(
+            self,
+            user: UserVerification | None,
+            course_id: UUID,
+    ) -> UsersList:
+        course = await self.courses_manager.get_course_by_id(course_id)
+
+        if await self.check_course_access(user, course=course) < AccessPermissions.HEADER_ACCESS:
+            raise OperationPermissionError("Пользователь не имеет прав доступа к данному курсу!")
+
+        return await self.users_manager.get_enrolled_users(course_id)

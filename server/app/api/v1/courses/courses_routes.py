@@ -20,7 +20,6 @@ from server.app.api.v1.courses.courses_service import (
     CoursePrivacyLevelsError,
     CoursesService,
     UnsupportedSearchCriteriaError,
-    UserEnrollmentError,
 )
 from server.app.api.v1.exceptions import ContentTypeError, ObjectMissingError, OperationPermissionError
 from server.app.api.v1.users.users import UserVerification
@@ -281,110 +280,6 @@ async def change_course_professor(
     except CourseOwnerConflictError as error:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail=str(
-                error,
-            ),
-        )
-
-
-@courses_router.post(
-    "/{course_id}/enroll",
-    summary="Записаться на курс",
-    status_code=status.HTTP_204_NO_CONTENT,
-    response_description="Текущий пользователь успешно записан на курс",
-    responses={
-        status.HTTP_403_FORBIDDEN: {
-            "description": "Пользователь не имеет прав на запись на данный курс",
-        },
-        status.HTTP_404_NOT_FOUND: {
-            "description": "Курса с таким идентификатором не существует",
-        },
-        status.HTTP_409_CONFLICT: {
-            "description": "Пользователь уже записан на данный курс или является преподавателем данного курса",
-        },
-        status.HTTP_422_UNPROCESSABLE_CONTENT: {
-            "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
-        },
-    },
-    openapi_extra=openapi_extra_authorization_cookie,
-)
-async def self_enroll_on_course(
-        user: Annotated[UserVerification, Depends(
-            get_auth_user,
-        )],
-        course_id: UUID = Path(
-            ...,
-            description="Уникальный идентификатор курса",
-        ),
-        courses_service: CoursesService = Depends(
-            CoursesService,
-        ),
-) -> None:
-    """Записать текущего пользователя на курс"""
-    try:
-        await courses_service.self_enroll_on_course(
-            user,
-            course_id,
-        )
-    except OperationPermissionError as error:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=str(
-                error,
-            ),
-        )
-    except ObjectMissingError as error:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(
-                error,
-            ),
-        )
-    except UserEnrollmentError as error:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=str(
-                error,
-            ),
-        )
-
-
-@courses_router.post(
-    "/{course_id}/unenroll",
-    summary="Отписаться от курса",
-    status_code=status.HTTP_204_NO_CONTENT,
-    response_description="Текущий пользователь успешно отписан от курса",
-    responses={
-        status.HTTP_404_NOT_FOUND: {
-            "description": "Курса с таким идентификатором не существует",
-        },
-        status.HTTP_422_UNPROCESSABLE_CONTENT: {
-            "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
-        },
-    },
-    openapi_extra=openapi_extra_authorization_cookie,
-)
-async def self_unenroll_from_course(
-        user: Annotated[UserVerification, Depends(
-            get_auth_user,
-        )],
-        course_id: UUID = Path(
-            ...,
-            description="Уникальный идентификатор курса",
-        ),
-        courses_service: CoursesService = Depends(
-            CoursesService,
-        ),
-):
-    """Отписать текущего пользователя от курса"""
-    try:
-        await courses_service.self_unenroll_from_course(
-            user,
-            course_id,
-        )
-    except ObjectMissingError as error:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
             detail=str(
                 error,
             ),
