@@ -126,6 +126,15 @@ class UsersService:
             limit,
         )
 
+    async def search_users(self, pattern: str, page: int, size: int) -> UsersList:
+        offset = (page - 1) * size
+        limit = size
+        return await self.users_manager.search_users(
+            pattern,
+            offset,
+            limit,
+        )
+
     async def change_role(self, user: UserWithRole, current_user_id: uuid.UUID) -> None:
         if current_user_id == user.id:
             raise CantChangeOwnRoleError(CANT_CHANGE_OWN_ROLE_ERROR_TEXT)

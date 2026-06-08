@@ -136,6 +136,32 @@ class UsersManager:
                 users,
             )
 
+    async def search_users(self, pattern: str, offset: int, limit: int) -> UsersList:
+        async with self.db.db_session() as session:
+            query = select(
+                self.users_model.id,
+                self.users_model.nickname,
+                self.users_model.email,
+                self.users_model.role,
+            ).order_by(
+                self.users_model.nickname,
+            ).where(
+                self.users_model.nickname.ilike(
+                    f"%{pattern}%"
+                ),
+            ).offset(
+                offset,
+            ).limit(
+                limit,
+            )
+            result = await session.execute(
+                query,
+            )
+            users = result.mappings().all()
+            return UsersList.model_validate(
+                users,
+            )
+
     async def change_role_to_professor(self, id: uuid.UUID) -> None:
         async with (self.db.db_session() as session):
             query = update(

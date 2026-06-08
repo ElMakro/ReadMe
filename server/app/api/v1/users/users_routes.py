@@ -1,7 +1,7 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, HTTPException, Path, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Path, Query, UploadFile, status
 from starlette.responses import FileResponse
 
 from server.app.api.openapi_docs import openapi_extra_authorization_cookie
@@ -158,6 +158,39 @@ async def get_all_users(
         size=pagination_parameters.records_per_page,
     )
 
+@users_router.get(
+    path="/search",
+    summary="Поиск пользователя",
+    status_code=status.HTTP_200_OK,
+    response_model=UsersList,
+    response_description="Возвращена информация о соответствующих введённому шаблону пользователях",
+    responses={
+        status.HTTP_403_FORBIDDEN: {
+            "description": FORBIDDEN_ERROR_TEXT,
+        },
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {
+            "description": "Некорректно переданы параметры",
+        },
+    },
+)
+async def search_users(
+    user: Annotated[UserVerification, Depends(
+        check_role([Role.ADMIN]),
+    )],
+    search_pattern: str = Query(
+        ...,
+        description="Шаблон поиска"
+    ),
+    pagination_parameters: PaginationParameters = Depends(),
+    users_service: UsersService = Depends(
+        UsersService,
+    ),
+) -> UsersList:
+    return await users_service.search_users(
+        pattern=search_pattern,
+        page=pagination_parameters.page,
+        size=pagination_parameters.records_per_page,
+    )
 
 @users_router.put(
     path="/change-role",
