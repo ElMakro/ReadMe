@@ -2,7 +2,7 @@ import uuid
 from uuid import UUID
 
 from fastapi import Depends
-from sqlalchemy import delete, select
+from sqlalchemy import select
 
 from server.app.api.v1.courses.courses import CourseFullListResponse, CourseIDMixin, CourseResponse
 from server.app.api.v1.exceptions import ObjectMissingError
@@ -193,43 +193,6 @@ class CoursesManager:
         return bool(
             record,
         )
-
-    async def self_enroll_on_course(
-            self,
-            user_id: UUID,
-            course_id: UUID,
-    ) -> None:
-        async with self.db.db_session() as session:
-            record = CoursesForStudents(
-                student_id=user_id,
-                course_id=course_id,
-            )
-            session.add(
-                record,
-            )
-            await session.commit()
-
-    async def self_unenroll_from_course(
-            self,
-            user_id: UUID,
-            course_id: UUID,
-    ) -> None:
-        await self.get_course_by_id(
-            course_id,
-        )
-
-        async with self.db.db_session() as session:
-            query = delete(
-                self.courses_for_students_model,
-            ).where(
-                self.courses_for_students_model.student_id == user_id,
-                self.courses_for_students_model.course_id == course_id,
-            )
-
-            await session.execute(
-                query,
-            )
-            await session.commit()
 
     async def update_course(
             self,

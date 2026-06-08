@@ -1,4 +1,5 @@
 import uuid
+from uuid import UUID
 
 from fastapi import Depends
 from sqlalchemy import and_, delete, desc, exists, insert, literal, or_, select, update
@@ -31,7 +32,7 @@ from server.app.api.v1.users.users import (
     UserVerification,
 )
 from server.config.db_dependency import DBDependency
-from server.database.models import ApplicationLink, ProfessorsApplications, ProfessorsDetails, Users
+from server.database.models import ApplicationLink, CoursesForStudents, ProfessorsApplications, ProfessorsDetails, Users
 from server.enums.application_status import ApplicationStatus
 from server.enums.role import Role
 
@@ -366,3 +367,54 @@ class UsersManager:
             await session.commit()
             link = result.scalar_one()
             return SecretApplicationLink.model_validate(link)
+
+    async def self_enroll_on_course(
+            self,
+            user_id: uuid.UUID,
+            course_id: uuid.UUID,
+    ) -> None:
+        async with self.db.db_session() as session:
+            record = CoursesForStudents(
+                student_id=user_id,
+                course_id=course_id,
+            )
+            session.add(
+                record,
+            )
+            await session.commit()
+
+    async def self_unenroll_from_course(
+            self,
+            user_id: uuid.UUID,
+            course_id: uuid.UUID,
+    ) -> None:
+        async with self.db.db_session() as session:
+            query = delete(
+                CoursesForStudents,
+            ).where(
+                CoursesForStudents.student_id == user_id,
+                CoursesForStudents.course_id == course_id,
+            )
+
+            await session.execute(
+                query,
+            )
+            await session.commit()
+
+    async def get_enrolled_users(self, course_id: UUID) -> UsersList:
+        async with self.db.db_session() as session:
+            filtered_students = (
+                select(CoursesForStudents.student_id)
+                .where(CoursesForStudents.course_id == course_id)
+                .subquery()
+            )
+
+            query = (
+                select(Users)
+                .join(filtered_students, filtered_students.c.student_id == Users.id)
+            )
+
+            query = await session.execute(query)
+            result = query.scalars().all()
+
+        return UsersList.model_validate(result)

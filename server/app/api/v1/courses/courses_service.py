@@ -28,12 +28,6 @@ class CoursePrivacyLevelsError(
     """Исключение, связанное с противоречием в уровнях доступности курсов"""
 
 
-class UserEnrollmentError(
-    ValueError,
-):
-    """Исключение, связанное с записью пользователя на курс"""
-
-
 class CourseOwnerConflictError(
     ValueError,
 ):
@@ -150,43 +144,6 @@ class CoursesService:
             )
 
         return course
-
-    async def self_enroll_on_course(
-            self,
-            user: UserVerification,
-            course_id: UUID,
-    ) -> None:
-        course = await self.courses_manager.get_course_by_id(
-            course_id,
-        )
-
-        if course.professor_id == user.id:
-            raise UserEnrollmentError(
-                "Пользователь является преподавателем на данном курсе!",
-            )
-
-        if await self.courses_manager.check_is_user_enrolled_on_course(
-                user.id,
-                course_id,
-        ):
-            raise UserEnrollmentError(
-                "Пользователь уже записан на данный курс!",
-            )
-
-        await self.courses_manager.self_enroll_on_course(
-            user.id,
-            course_id,
-        )
-
-    async def self_unenroll_from_course(
-            self,
-            user: UserVerification,
-            course_id: UUID,
-    ) -> None:
-        await self.courses_manager.self_unenroll_from_course(
-            user.id,
-            course_id,
-        )
 
     async def update_course(
             self,

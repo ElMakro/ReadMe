@@ -14,12 +14,13 @@ from server.app.api.v1.common_schemas import (
     NOT_FOUND_ERROR_TEXT,
     NOT_UNIQUE_FIELDS_ERROR_TEXT,
     UNAUTHORIZED_ERROR_TEXT,
+    UNPROCESSABLE_ENTITY_ERROR_TEXT,
     UPDATED_LINK_ERROR_TEXT,
     USER_MUST_BE_IN_PROFESSORS_TABLE_ERROR_TEXT,
     WRONG_APPLICATION_LINK_ERROR_TEXT,
     PaginationParameters,
 )
-from server.app.api.v1.exceptions import ContentTypeError, ObjectMissingError
+from server.app.api.v1.exceptions import ContentTypeError, ObjectMissingError, OperationPermissionError
 from server.app.api.v1.notes.exceptions import CantChangeOwnRoleError, CantDeleteOwnProfileError
 from server.app.api.v1.users.exceptions import (
     ApplicationFieldsMismatchError,
@@ -42,8 +43,8 @@ from server.app.api.v1.users.users import (
     UserVerification,
     UserWithRole,
 )
-from server.app.api.v1.users.users_service import UsersService
-from server.app.common_dependencies.depends import check_role, get_auth_user, get_new_link
+from server.app.api.v1.users.users_service import UserEnrollmentError, UsersService
+from server.app.common_dependencies.depends import check_role, get_auth_user, get_current_user, get_new_link
 from server.app.common_dependencies.secret_link_strategies import UpdatedLinkStrategy
 from server.data.users_resources.users_resources_manager import UsersResourcesManager
 from server.enums.role import Role
@@ -459,6 +460,183 @@ async def get_my_applications(
 
 
 @users_router.post(
+    "/enroll",
+    summary="Записаться на курс",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_description="Пользователь успешно записан на курс",
+    responses={
+        status.HTTP_403_FORBIDDEN: {
+            "description": "Пользователь не имеет прав на запись на данный курс",
+        },
+        status.HTTP_404_NOT_FOUND: {
+            "description": "Курса или пользователя с таким идентификатором не существует",
+        },
+        status.HTTP_409_CONFLICT: {
+            "description": "Пользователь уже записан на данный курс или является преподавателем данного курса",
+        },
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {
+            "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
+        },
+    },
+    openapi_extra=openapi_extra_authorization_cookie,
+)
+async def enroll(
+        user: Annotated[UserVerification, Depends(
+            get_auth_user,
+        )],
+        user_id: uuid.UUID = Query(
+            None,
+            description="Уникальный идентификатор пользователя. В случае, если он не передан, "
+                        "то осуществляется запись текущего пользователя."
+        ),
+        course_id: uuid.UUID = Query(
+            ...,
+            description="Уникальный идентификатор курса",
+        ),
+        users_service: UsersService = Depends(
+            UsersService,
+        ),
+) -> None:
+    """Записать текущего пользователя на курс"""
+    try:
+        await users_service.self_enroll_on_course(
+            user,
+            user_id,
+            course_id,
+        )
+    except OperationPermissionError as error:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=str(
+                error,
+            ),
+        )
+    except ObjectMissingError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(
+                error,
+            ),
+        )
+    except UserEnrollmentError as error:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(
+                error,
+            ),
+        )
+
+
+@users_router.delete(
+    "/unenroll",
+    summary="Отписаться от курса",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_description="Текущий пользователь успешно отписан от курса",
+    responses={
+        status.HTTP_404_NOT_FOUND: {
+            "description": "Курса или пользователя с таким идентификатором не существует",
+        },
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {
+            "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
+        },
+    },
+    openapi_extra=openapi_extra_authorization_cookie,
+)
+async def unenroll(
+        user: Annotated[UserVerification, Depends(
+            get_auth_user,
+        )],
+        user_id: uuid.UUID = Query(
+            None,
+            description="Уникальный идентификатор пользователя. В случае, если он не передан, "
+                        "то осуществляется запись текущего пользователя."
+        ),
+        course_id: uuid.UUID = Query(
+            ...,
+            description="Уникальный идентификатор курса",
+        ),
+        users_service: UsersService = Depends(
+            UsersService,
+        ),
+):
+    """Отписать текущего пользователя от курса"""
+    try:
+        await users_service.self_unenroll_from_course(
+            user,
+            user_id,
+            course_id,
+        )
+    except OperationPermissionError as error:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=str(
+                error,
+            ),
+        )
+    except ObjectMissingError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(
+                error,
+            ),
+        )
+    except UserEnrollmentError as error:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(
+                error,
+            ),
+        )
+
+
+@users_router.get(
+    path="/enrolled-users/{course_id}",
+    summary="Получить список пользователей, записанных на курс",
+    status_code=status.HTTP_200_OK,
+    response_description="Получен список записанных на курс пользователей",
+    response_model=UsersList,
+    responses={
+        status.HTTP_403_FORBIDDEN: {
+            "description": "Пользователь не имеет прав на просмотр списка пользователей",
+        },
+        status.HTTP_404_NOT_FOUND: {
+            "description": "Курса с таким идентификатором не существует",
+        },
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {
+            "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
+        },
+    },
+    openapi_extra=openapi_extra_authorization_cookie,
+)
+async def get_enrolled_users(
+        user: Annotated[UserVerification | None, Depends(
+            get_current_user,
+        )],
+        course_id: uuid.UUID = Path(..., description="Уникальный идентификатор курса"),
+        users_service: UsersService = Depends(UsersService),
+) -> UsersList:
+    try:
+        return await users_service.get_enrolled_users(
+            user,
+            course_id,
+        )
+    except OperationPermissionError as error:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=str(
+                error,
+            ),
+        )
+    except ObjectMissingError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(
+                error,
+            ),
+        )
+
+
+@users_router.post(
     "/icon",
     description="Установить иконку текущему пользователю",
     status_code=status.HTTP_204_NO_CONTENT,
@@ -511,25 +689,3 @@ async def get_user_icon(user_id: uuid.UUID = Path(..., description="Уникал
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(error),
         )
-
-
-@users_router.post(
-    "/enroll",
-    summary="Записать другого студента на курс",
-    status_code=status.HTTP_204_NO_CONTENT,
-    deprecated=True,
-)
-async def enroll_other_student():
-    # TODO: Когда-нибудь дописать маршрут и схемы
-    pass
-
-
-@users_router.post(
-    "/unenroll",
-    summary="Отписать другого студента от курса",
-    status_code=status.HTTP_204_NO_CONTENT,
-    deprecated=True,
-)
-async def unenroll_other_student():
-    # TODO: Когда-нибудь дописать маршрут и схемы
-    pass
