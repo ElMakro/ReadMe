@@ -74,6 +74,10 @@ class IResourceStorage(ABC):
     def create_temp_directory(self) -> Path:
         pass
 
+    @abstractmethod
+    def get_absolute_path(self, path: Path) -> Path:
+        pass
+
 
 class LocalFileSystemStorage(IResourceStorage):
     def __init__(self, base_directory: Path):
@@ -138,6 +142,9 @@ class LocalFileSystemStorage(IResourceStorage):
 
     def create_temp_directory(self) -> Path:
         return Path(mkdtemp())
+
+    def get_absolute_path(self, path: Path) -> Path:
+        return self._resolve(path)
 
 
 def get_courses_resource_storage() -> IResourceStorage:

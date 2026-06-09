@@ -39,9 +39,8 @@ class CoursesResourcesManager:
             course_id = section.course_id
         return self.get_course_directory_path(course_id) / str(section_id)
 
-    @staticmethod
-    def get_full_topic_directory_path(topic_directory_path: str | Path) -> Path:
-        return Path(topic_directory_path)
+    def get_full_topic_directory_path(self, topic_directory_path: str | Path) -> Path:
+        return self.storage.get_absolute_path(Path(topic_directory_path))
 
     def create_course_directory(self, course_id: UUID) -> None:
         self.storage.create_directory(self.get_course_directory_path(course_id))

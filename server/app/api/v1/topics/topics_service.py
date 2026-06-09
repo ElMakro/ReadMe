@@ -96,7 +96,7 @@ class TopicsService:
         assert resource.filename is not None
         server_filename = f"{uuid.uuid4()}{Path(resource.filename).suffix}"
 
-        self.courses_resources_manager.upload_topic_resource(topic_response.topic_directory_path, server_filename,
+        await self.courses_resources_manager.upload_topic_resource(topic_response.topic_directory_path, server_filename,
                                                              resource)
 
         modified_file_item = FileItem.model_construct(original_filename=resource.filename,
