@@ -1,7 +1,7 @@
 from typing import Annotated, Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, HTTPException, Path, Query, UploadFile, status
+from fastapi import APIRouter, Depends, File, Path, Query, UploadFile, status
 from starlette.responses import FileResponse
 
 from server.app.api.openapi_docs import openapi_extra_authorization_cookie
@@ -15,15 +15,9 @@ from server.app.api.v1.courses.courses import (
     CoursesListSearchResponse,
     CourseUpdate,
 )
-from server.app.api.v1.courses.courses_service import (
-    CourseOwnerConflictError,
-    CoursePrivacyLevelsError,
-    CoursesService,
-    UnsupportedSearchCriteriaError,
-)
-from server.app.api.v1.exceptions import ContentTypeError, ObjectMissingError, OperationPermissionError
+from server.app.api.v1.courses.courses_service import CoursesService
+from server.app.api.v1.exceptions_handlers import HANDLED_EXCEPTIONS, handle_exception_chain
 from server.app.api.v1.users.users import UserVerification
-from server.app.api.v1.users.users_manager import UserExistenceError
 from server.app.common_dependencies.depends import get_auth_user, get_current_user
 
 courses_router = APIRouter(
@@ -73,20 +67,8 @@ async def create_course(
             course_data.is_content_public,
             course_data.tags,
         )
-    except OperationPermissionError as error:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=str(
-                error,
-            ),
-        )
-    except CoursePrivacyLevelsError as error:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=str(
-                error,
-            ),
-        )
+    except HANDLED_EXCEPTIONS as error:
+        raise handle_exception_chain(error)
 
 
 @courses_router.get(
@@ -135,13 +117,8 @@ async def search_courses(
             pagination_parameters.page,
             pagination_parameters.records_per_page,
         )
-    except UnsupportedSearchCriteriaError as error:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(
-                error,
-            ),
-        )
+    except HANDLED_EXCEPTIONS as error:
+        raise handle_exception_chain(error)
 
 
 @courses_router.get(
@@ -256,34 +233,8 @@ async def change_course_professor(
             course_id,
             new_professor_data.new_professor_id,
         )
-    except OperationPermissionError as error:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=str(
-                error,
-            ),
-        )
-    except ObjectMissingError as error:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(
-                error,
-            ),
-        )
-    except UserExistenceError as error:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(
-                error,
-            ),
-        )
-    except CourseOwnerConflictError as error:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=str(
-                error,
-            ),
-        )
+    except HANDLED_EXCEPTIONS as error:
+        raise handle_exception_chain(error)
 
 
 @courses_router.post(
@@ -329,25 +280,8 @@ async def set_course_icon(
             course_id,
             icon_file,
         )
-    except OperationPermissionError as error:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=str(
-                error,
-            ),
-        )
-    except ObjectMissingError as error:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(
-                error,
-            ),
-        )
-    except ContentTypeError as error:
-        raise HTTPException(
-            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
-            detail=str(error)
-        )
+    except HANDLED_EXCEPTIONS as error:
+        raise handle_exception_chain(error)
 
 
 @courses_router.get(
@@ -387,20 +321,8 @@ async def get_course_icon(
                 course_id,
             ),
         )
-    except OperationPermissionError as error:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=str(
-                error,
-            ),
-        )
-    except ObjectMissingError as error:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(
-                error,
-            ),
-        )
+    except HANDLED_EXCEPTIONS as error:
+        raise handle_exception_chain(error)
 
 
 @courses_router.get(
@@ -440,20 +362,8 @@ async def get_course_by_id(
             user,
             course_id,
         )
-    except OperationPermissionError as error:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=str(
-                error,
-            ),
-        )
-    except ObjectMissingError as error:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(
-                error,
-            ),
-        )
+    except HANDLED_EXCEPTIONS as error:
+        raise handle_exception_chain(error)
 
 
 @courses_router.put(
@@ -501,27 +411,8 @@ async def update_course(
             course_update.is_content_public,
             course_update.tags,
         )
-    except OperationPermissionError as error:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=str(
-                error,
-            ),
-        )
-    except ObjectMissingError as error:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(
-                error,
-            ),
-        )
-    except CoursePrivacyLevelsError as error:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=str(
-                error,
-            ),
-        )
+    except HANDLED_EXCEPTIONS as error:
+        raise handle_exception_chain(error)
 
 
 @courses_router.delete(
@@ -563,17 +454,5 @@ async def delete_course(
             user,
             course_id,
         )
-    except OperationPermissionError as error:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=str(
-                error,
-            ),
-        )
-    except ObjectMissingError as error:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(
-                error,
-            ),
-        )
+    except HANDLED_EXCEPTIONS as error:
+        raise handle_exception_chain(error)

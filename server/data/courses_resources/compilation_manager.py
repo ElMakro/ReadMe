@@ -1,18 +1,17 @@
 import asyncio
-import os
-import subprocess
-import uuid
 from pathlib import Path
 from shutil import copy2, rmtree
 from tempfile import mkdtemp
 
+from fastapi import Depends
+
 from server.app.api.v1.topics.topics import (
     BlockCompilationError,
     ContentCompilationError,
-    FileItem,
     TopicContent,
     TopicContentBlock,
 )
+from server.data.courses_resources.compilers import CompilerFactory
 
 
 class CompilationError(
@@ -28,6 +27,9 @@ class CompilationError(
 
 
 class CompilationManager:
+    def __init__(self, compiler_factory: CompilerFactory = Depends(CompilerFactory)):
+        self.compiler_factory = compiler_factory
+
     @staticmethod
     def make_backup(full_topic_directory_path: Path,
                     new_raw_content: TopicContent) -> Path | None:
@@ -121,116 +123,8 @@ class CompilationManager:
             content_path: Path,
     ) -> tuple[int, TopicContentBlock | None, str | None]:
         try:
-            if block.type not in ["files"] and len(block.content) > 1:
-                return index, None, (f"Для типа блока {block.type} ожидается один элемент в списке "
-                                     f"raw_content! Получено - {len(block.content)}")
-
-            if block.type == "markdown":
-                return index, TopicContentBlock.model_construct(
-                    type="markdown",
-                    content=block.content,
-                ), None
-
-            elif block.type == "plantuml":
-                return index, TopicContentBlock.model_construct(
-                    type="image",
-                    content=[(await self.compile_plantuml(block.content[0], content_path)).name],
-                ), None
-
-            elif block.type == "latex":
-                return index, TopicContentBlock.model_construct(
-                    type="latex",
-                    content=block.content,
-                ), None
-
-            elif block.type == "files":
-                return index, TopicContentBlock.model_construct(
-                    type="files",
-                    content=[FileItem.model_construct(
-                        original_filename=element.original_filename,
-                        server_filename=element.server_filename,
-                    ) for element in block.content],
-                ), None
-
-            else:
-                return index, None, f"Неизвестный тип блока: {block.type}"
-
+            compiler = self.compiler_factory.get_compiler(block.type)
+            result = await compiler.compile(block, content_path)
+            return index, result, None
         except Exception as e:
-            return index, None, str(
-                e,
-            )
-
-    async def compile_plantuml(self, plantuml_code: str, content_path: Path) -> Path:
-        image_filename = f"{uuid.uuid4()}.png"
-        image_path = content_path / image_filename
-
-        loop = asyncio.get_event_loop()
-        await loop.run_in_executor(
-            None,
-            self.convert_plantuml_to_png,
-            plantuml_code,
-            image_path,
-        )
-
-        return image_path
-
-    @staticmethod
-    def resolve_safe_filepath(content_path: Path, filename: str) -> Path:
-        index = 1
-        filename_path = Path(filename)
-        result_filepath = content_path / filename
-        while True:
-            if not result_filepath.exists():
-                break
-
-            result_filepath = content_path / f"{filename_path.stem} ({index}){filename_path.suffix}"
-
-        return result_filepath
-
-    @staticmethod
-    def convert_plantuml_to_png(
-            plantuml_string: str,
-            output_filepath: Path,
-    ) -> None:
-        file_stem = output_filepath.stem
-
-        temp_plantuml = output_filepath.parent / f"{file_stem}.puml"
-        with open(temp_plantuml, 'w') as temp_plantuml_file:
-            temp_plantuml_file.write(plantuml_string)
-
-        try:
-            jar_path = os.environ.get(
-                'PLANTUML_JAR_PATH',
-                '/opt/plantuml.jar',
-            )
-
-            subprocess.run(
-                ['java', '-jar', jar_path, '-tpng', str(
-                    temp_plantuml,
-                )],
-                check=True,
-                capture_output=True,
-                text=True,
-            )
-
-            generated_png = temp_plantuml.with_suffix(
-                '.png',
-            )
-
-            if not generated_png.exists():
-                raise FileNotFoundError(
-                    f"Не найден файл PNG: {generated_png}",
-                )
-
-            generated_png.rename(
-                output_filepath,
-            )
-
-        except subprocess.CalledProcessError as e:
-            raise RuntimeError(
-                f"Ошибка компиляции PlantUML: {e.stderr}",
-            ) from e
-        finally:
-            temp_plantuml.unlink(
-                missing_ok=True,
-            )
+            return index, None, str(e)

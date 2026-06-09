@@ -20,7 +20,7 @@ from server.app.api.v1.common_schemas import (
     WRONG_APPLICATION_LINK_ERROR_TEXT,
     PaginationParameters,
 )
-from server.app.api.v1.exceptions import ContentTypeError, ObjectMissingError, OperationPermissionError
+from server.app.api.v1.exceptions_handlers import HANDLED_EXCEPTIONS, handle_exception_chain
 from server.app.api.v1.notes.exceptions import CantChangeOwnRoleError, CantDeleteOwnProfileError
 from server.app.api.v1.users.exceptions import (
     ApplicationFieldsMismatchError,
@@ -43,7 +43,7 @@ from server.app.api.v1.users.users import (
     UserVerification,
     UserWithRole,
 )
-from server.app.api.v1.users.users_service import UserEnrollmentError, UsersService
+from server.app.api.v1.users.users_service import UsersService
 from server.app.common_dependencies.depends import check_role, get_auth_user, get_current_user, get_new_link
 from server.app.common_dependencies.secret_link_strategies import UpdatedLinkStrategy
 from server.data.users_resources.users_resources_manager import UsersResourcesManager
@@ -504,27 +504,8 @@ async def enroll(
             user_id,
             course_id,
         )
-    except OperationPermissionError as error:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=str(
-                error,
-            ),
-        )
-    except ObjectMissingError as error:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(
-                error,
-            ),
-        )
-    except UserEnrollmentError as error:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=str(
-                error,
-            ),
-        )
+    except HANDLED_EXCEPTIONS as error:
+        raise handle_exception_chain(error)
 
 
 @users_router.delete(
@@ -566,27 +547,8 @@ async def unenroll(
             user_id,
             course_id,
         )
-    except OperationPermissionError as error:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=str(
-                error,
-            ),
-        )
-    except ObjectMissingError as error:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(
-                error,
-            ),
-        )
-    except UserEnrollmentError as error:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=str(
-                error,
-            ),
-        )
+    except HANDLED_EXCEPTIONS as error:
+        raise handle_exception_chain(error)
 
 
 @users_router.get(
@@ -620,20 +582,8 @@ async def get_enrolled_users(
             user,
             course_id,
         )
-    except OperationPermissionError as error:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=str(
-                error,
-            ),
-        )
-    except ObjectMissingError as error:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(
-                error,
-            ),
-        )
+    except HANDLED_EXCEPTIONS as error:
+        raise handle_exception_chain(error)
 
 
 @users_router.post(
@@ -659,11 +609,8 @@ async def set_user_icon(
 ) -> None:
     try:
         users_service.set_user_icon(user, icon_file)
-    except ContentTypeError as error:
-        raise HTTPException(
-            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
-            detail=str(error)
-        )
+    except HANDLED_EXCEPTIONS as error:
+        raise handle_exception_chain(error)
 
 
 @users_router.get(
@@ -684,8 +631,5 @@ async def get_user_icon(user_id: uuid.UUID = Path(..., description="Уникал
         return FileResponse(
             users_resources_manager.get_user_icon_path(user_id)
         )
-    except ObjectMissingError as error:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(error),
-        )
+    except HANDLED_EXCEPTIONS as error:
+        raise handle_exception_chain(error)

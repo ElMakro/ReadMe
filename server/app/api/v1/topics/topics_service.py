@@ -5,9 +5,8 @@ from uuid import UUID
 from fastapi import Depends, UploadFile
 
 from server.app.api.v1.courses.courses_manager import CoursesManager
-from server.app.api.v1.exceptions import OperationPermissionError
+from server.app.api.v1.exceptions import BadRequestError, ConflictError, OperationPermissionError
 from server.app.api.v1.sections.sections_manager import SectionsManager
-from server.app.api.v1.sections.sections_service import OrderNumberConflictError
 from server.app.api.v1.topics.topics import (
     FileItem,
     TopicContent,
@@ -22,14 +21,6 @@ from server.app.api.v1.users.users_service import UsersService
 from server.data.courses_resources.compilation_manager import CompilationError
 from server.data.courses_resources.courses_resources_manager import CoursesResourcesManager
 from server.enums.access_permissions import AccessPermissions
-
-
-class ResourceUploadRequestError(ValueError):
-    """Ошибка, связанная с некорректным запросом на загрузку ресурса"""
-
-
-class ResourceUploadConflictError(ValueError):
-    """Ошибка, связанная с конфликтом ресурсов при загрузке"""
 
 
 class TopicsService:
@@ -89,18 +80,18 @@ class TopicsService:
         try:
             block = topic_response.raw_content.root[block_index]
         except IndexError as error:
-            raise IndexError("Блока с таким порядковым номером не существует!") from error
+            raise ConflictError("Блока с таким порядковым номером не существует!") from error
 
         if block.type != "files":
-            raise ResourceUploadRequestError("Блок данного типа не позволяет хранить файлы!")
+            raise BadRequestError("Блок данного типа не позволяет хранить файлы!")
 
         try:
             file_item = block.content[file_index]
         except IndexError as error:
-            raise IndexError("Файла с таким порядковым номером не существует в теме!") from error
+            raise ConflictError("Файла с таким порядковым номером не существует в теме!") from error
 
         if resource.filename != file_item.original_filename:
-            raise ResourceUploadConflictError("У объявленного и загруженного файлов должны быть одинаковые имена!")
+            raise ConflictError("У объявленного и загруженного файлов должны быть одинаковые имена!")
 
         assert resource.filename is not None
         server_filename = f"{uuid.uuid4()}{Path(resource.filename).suffix}"
@@ -168,7 +159,7 @@ class TopicsService:
         if await self.topics_manager.check_section_have_topic_with_order_number(
                 section_id,
                 order_number, ):
-            raise OrderNumberConflictError(
+            raise ConflictError(
                 "Тема с таким порядковым номером уже существует в этом разделе!",
             )
 

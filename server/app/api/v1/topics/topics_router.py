@@ -1,13 +1,12 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, HTTPException, Path, UploadFile, status
+from fastapi import APIRouter, Depends, File, Path, UploadFile, status
 from fastapi.responses import FileResponse
 
 from server.app.api.openapi_docs import openapi_extra_authorization_cookie
 from server.app.api.v1.common_schemas import UNPROCESSABLE_ENTITY_ERROR_TEXT
-from server.app.api.v1.exceptions import ObjectMissingError, OperationPermissionError
-from server.app.api.v1.sections.sections_service import OrderNumberConflictError
+from server.app.api.v1.exceptions_handlers import HANDLED_EXCEPTIONS, handle_exception_chain
 from server.app.api.v1.topics.topics import (
     ContentCompilationError,
     FileItem,
@@ -18,13 +17,10 @@ from server.app.api.v1.topics.topics import (
     TopicUpdate,
 )
 from server.app.api.v1.topics.topics_service import (
-    ResourceUploadConflictError,
-    ResourceUploadRequestError,
     TopicsService,
 )
 from server.app.api.v1.users.users import UserVerification
 from server.app.common_dependencies.depends import get_auth_user, get_current_user
-from server.data.courses_resources.compilation_manager import CompilationError
 
 topics_router = APIRouter(
     prefix="/topics",
@@ -76,26 +72,8 @@ async def create_topic(
             topic_creation.tags,
             topic_creation.raw_content,
         )
-    except CompilationError as error:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=[dict(element) for element in error.content_error.root],
-        )
-    except OperationPermissionError as error:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=str(error),
-        )
-    except ObjectMissingError as error:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(error),
-        )
-    except OrderNumberConflictError as error:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=str(error),
-        )
+    except HANDLED_EXCEPTIONS as error:
+        raise handle_exception_chain(error)
 
 
 @topics_router.post(
@@ -130,16 +108,8 @@ async def upload_resource(
 ) -> FileItem:
     try:
         return await topics_service.upload_resource(user, topic_id, block_number, file_number, resource)
-    except ResourceUploadRequestError as error:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error))
-    except OperationPermissionError as error:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(error))
-    except IndexError as error:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error))
-    except ObjectMissingError as error:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error))
-    except ResourceUploadConflictError as error:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(error))
+    except HANDLED_EXCEPTIONS as error:
+        raise handle_exception_chain(error)
 
 
 @topics_router.get(
@@ -184,20 +154,8 @@ async def get_topic_resource(
                 resource_filename,
             ),
         )
-    except OperationPermissionError as error:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=str(
-                error,
-            ),
-        )
-    except ObjectMissingError as error:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(
-                error,
-            ),
-        )
+    except HANDLED_EXCEPTIONS as error:
+        raise handle_exception_chain(error)
 
 
 @topics_router.get(
@@ -239,20 +197,8 @@ async def get_topics_by_section(
             user,
             section_id,
         )
-    except OperationPermissionError as error:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=str(
-                error,
-            ),
-        )
-    except ObjectMissingError as error:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(
-                error,
-            ),
-        )
+    except HANDLED_EXCEPTIONS as error:
+        raise handle_exception_chain(error)
 
 
 @topics_router.get(
@@ -294,20 +240,8 @@ async def get_topics_by_course(
             user,
             course_id,
         )
-    except OperationPermissionError as error:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=str(
-                error,
-            ),
-        )
-    except ObjectMissingError as error:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(
-                error,
-            ),
-        )
+    except HANDLED_EXCEPTIONS as error:
+        raise handle_exception_chain(error)
 
 
 @topics_router.get(
@@ -347,20 +281,8 @@ async def get_topic_by_id(
             user,
             topic_id,
         )
-    except OperationPermissionError as error:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=str(
-                error,
-            ),
-        )
-    except ObjectMissingError as error:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(
-                error,
-            ),
-        )
+    except HANDLED_EXCEPTIONS as error:
+        raise handle_exception_chain(error)
 
 
 @topics_router.put(
@@ -410,27 +332,8 @@ async def update_topic(
             topic_update.tags,
             topic_update.raw_content,
         )
-    except CompilationError as error:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=[dict(
-                element,
-            ) for element in error.content_error.root],
-        )
-    except OperationPermissionError as error:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=str(
-                error,
-            ),
-        )
-    except ObjectMissingError as error:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(
-                error,
-            ),
-        )
+    except HANDLED_EXCEPTIONS as error:
+        raise handle_exception_chain(error)
 
 
 @topics_router.delete(
@@ -472,17 +375,5 @@ async def delete_topic(
             user,
             topic_id,
         )
-    except OperationPermissionError as error:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=str(
-                error,
-            ),
-        )
-    except ObjectMissingError as error:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(
-                error,
-            ),
-        )
+    except HANDLED_EXCEPTIONS as error:
+        raise handle_exception_chain(error)

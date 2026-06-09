@@ -13,31 +13,15 @@ from server.app.api.v1.courses.courses import (
     CoursesListSearchResponse,
 )
 from server.app.api.v1.courses.courses_manager import CoursesManager
-from server.app.api.v1.exceptions import ContentTypeError, OperationPermissionError
+from server.app.api.v1.courses.search_strategies import SEARCH_STRATEGIES
+from server.app.api.v1.exceptions import ConflictError, MediaTypeError, ObjectMissingError, OperationPermissionError, \
+    BadRequestError
 from server.app.api.v1.users.users import UserVerification
-from server.app.api.v1.users.users_manager import UserExistenceError, UsersManager
+from server.app.api.v1.users.users_manager import UsersManager
 from server.app.api.v1.users.users_service import UsersService
 from server.data.courses_resources.courses_resources_manager import CoursesResourcesManager
 from server.enums.access_permissions import AccessPermissions
 from server.enums.role import Role
-
-
-class CoursePrivacyLevelsError(
-    ValueError,
-):
-    """Исключение, связанное с противоречием в уровнях доступности курсов"""
-
-
-class CourseOwnerConflictError(
-    ValueError,
-):
-    """Исключение, связанное с конфликтом владения курсом"""
-
-
-class UnsupportedSearchCriteriaError(
-    ValueError,
-):
-    """Исключение, связанное с неподдерживаемым критерием поиска"""
 
 
 class CoursesService:
@@ -107,7 +91,7 @@ class CoursesService:
             )
 
         if not is_public and is_content_public:
-            raise CoursePrivacyLevelsError(
+            raise ConflictError(
                 "Содержимое курса не может быть публичным, если сам курс непубличный!",
             )
 
@@ -179,7 +163,7 @@ class CoursesService:
         result_tags = new_tags if new_tags is not None else course.tags
 
         if not result_is_public and result_is_content_public:
-            raise CoursePrivacyLevelsError(
+            raise ConflictError(
                 "Содержимое курса не может быть публичным, если сам курс непубличный!",
             )
 
@@ -254,19 +238,11 @@ class CoursesService:
             records_per_page: int,
     ) -> CoursesListSearchResponse:
 
-        match criteria:
-            case "name_prefix":
-                searched_courses = await self.courses_manager.search_courses_by_name_prefix(
-                    value,
-                )
-            case "tag":
-                searched_courses = await self.courses_manager.search_courses_by_tag(
-                    value,
-                )
-            case _:
-                raise UnsupportedSearchCriteriaError(
-                    f"Неподдерживаемый критерий поиска! Допустимы name_prefix, tags, передан {value}!",
-                )
+        strategy = SEARCH_STRATEGIES.get(criteria)
+        if strategy is None:
+            raise BadRequestError(f"Неподдерживаемый критерий: {criteria}")
+
+        searched_courses = await strategy.search(self.courses_manager, value)
 
         stated_courses = []
 
@@ -317,7 +293,7 @@ class CoursesService:
         )
 
         if new_professor is None:
-            raise UserExistenceError(
+            raise ObjectMissingError(
                 "Не найден пользователь с идентификатором нового преподавателя!",
             )
 
@@ -338,7 +314,7 @@ class CoursesService:
             icon_upload_file: UploadFile,
     ) -> None:
         if "image" not in icon_upload_file.content_type:
-            raise ContentTypeError(
+            raise MediaTypeError(
                 "Некорректный тип файла!",
             )
 
