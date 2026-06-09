@@ -1,11 +1,11 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Path, status
+from fastapi import APIRouter, Depends, Path, status
 
 from server.app.api.openapi_docs import openapi_extra_authorization_cookie
 from server.app.api.v1.common_schemas import UNPROCESSABLE_ENTITY_ERROR_TEXT, SwapContentOrder
-from server.app.api.v1.exceptions import ObjectMissingError, OperationPermissionError
+from server.app.api.v1.exceptions_handlers import HANDLED_EXCEPTIONS, handle_exception_chain
 from server.app.api.v1.sections.sections import (
     SectionCreation,
     SectionIDMixin,
@@ -13,8 +13,7 @@ from server.app.api.v1.sections.sections import (
     SectionsFullListResponse,
     SectionUpdate,
 )
-from server.app.api.v1.sections.sections_manager import DifferentSourcesContentSwapError
-from server.app.api.v1.sections.sections_service import OrderNumberConflictError, SectionsService
+from server.app.api.v1.sections.sections_service import SectionsService
 from server.app.api.v1.users.users import UserVerification
 from server.app.common_dependencies.depends import get_auth_user, get_current_user
 
@@ -68,27 +67,8 @@ async def create_section(
             section_data.order_number,
             section_data.tags,
         )
-    except OperationPermissionError as error:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=str(
-                error,
-            ),
-        )
-    except ObjectMissingError as error:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(
-                error,
-            ),
-        )
-    except OrderNumberConflictError as error:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=str(
-                error,
-            ),
-        )
+    except HANDLED_EXCEPTIONS as error:
+        raise handle_exception_chain(error)
 
 
 @sections_router.get(
@@ -131,20 +111,8 @@ async def get_sections_by_course_id(
             user,
             course_id,
         )
-    except OperationPermissionError as error:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=str(
-                error,
-            ),
-        )
-    except ObjectMissingError as error:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(
-                error,
-            ),
-        )
+    except HANDLED_EXCEPTIONS as error:
+        raise handle_exception_chain(error)
 
 
 @sections_router.put(
@@ -184,27 +152,8 @@ async def swap_sections(
             sections_swap.first_element_id,
             sections_swap.second_element_id,
         )
-    except OperationPermissionError as error:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=str(
-                error,
-            ),
-        )
-    except ObjectMissingError as error:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(
-                error,
-            ),
-        )
-    except DifferentSourcesContentSwapError as error:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=str(
-                error,
-            ),
-        )
+    except HANDLED_EXCEPTIONS as error:
+        raise handle_exception_chain(error)
 
 
 @sections_router.get(
@@ -244,20 +193,8 @@ async def get_section_by_id(
             user,
             section_id,
         )
-    except OperationPermissionError as error:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=str(
-                error,
-            ),
-        )
-    except ObjectMissingError as error:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(
-                error,
-            ),
-        )
+    except HANDLED_EXCEPTIONS as error:
+        raise handle_exception_chain(error)
 
 
 @sections_router.put(
@@ -300,20 +237,8 @@ async def update_section(
             section_update.description,
             section_update.tags,
         )
-    except OperationPermissionError as error:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=str(
-                error,
-            ),
-        )
-    except ObjectMissingError as error:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(
-                error,
-            ),
-        )
+    except HANDLED_EXCEPTIONS as error:
+        raise handle_exception_chain(error)
 
 
 @sections_router.delete(
@@ -355,17 +280,5 @@ async def delete_section(
             user,
             section_id,
         )
-    except OperationPermissionError as error:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=str(
-                error,
-            ),
-        )
-    except ObjectMissingError as error:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(
-                error,
-            ),
-        )
+    except HANDLED_EXCEPTIONS as error:
+        raise handle_exception_chain(error)

@@ -3,20 +3,13 @@ from uuid import UUID
 from fastapi import Depends
 
 from server.app.api.v1.courses.courses_manager import CoursesManager
-from server.app.api.v1.exceptions import OperationPermissionError
+from server.app.api.v1.exceptions import ConflictError, OperationPermissionError
 from server.app.api.v1.sections.sections import SectionIDMixin, SectionResponse, SectionsFullListResponse
 from server.app.api.v1.sections.sections_manager import DifferentSourcesContentSwapError, SectionsManager
 from server.app.api.v1.users.users import UserVerification
 from server.app.api.v1.users.users_service import UsersService
 from server.data.courses_resources.courses_resources_manager import CoursesResourcesManager
 from server.enums.access_permissions import AccessPermissions
-
-
-class OrderNumberConflictError(
-    ValueError,
-):
-    """Исключение, связанное с нарушением порядка элементов"""
-    pass
 
 
 class SectionsService:
@@ -70,7 +63,7 @@ class SectionsService:
         if await self.sections_manager.check_course_have_section_with_order_number(
                 course_id,
                 order_number, ):
-            raise OrderNumberConflictError(
+            raise ConflictError(
                 "Раздел с таким порядковым номером уже существует!",
             )
 

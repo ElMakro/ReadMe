@@ -1,3 +1,15 @@
+class BadRequestError(
+    ValueError,
+):
+    """Исключение, связанное с некорректной формой запроса"""
+
+
+class OperationPermissionError(
+    ValueError,
+):
+    """Исключение, связанное с наличием у пользователя прав на операцию над объектом"""
+
+
 class ObjectMissingError(
     ValueError,
 ):
@@ -5,13 +17,14 @@ class ObjectMissingError(
     pass
 
 
-class OperationPermissionError(
+class ConflictError(
     ValueError,
 ):
-    """Исключение, связанное с наличием у пользователя прав на операцию над объектом информационной системы"""
+    """Исключение, связанное с нарушением целостности данных"""
+    pass
 
 
-class ContentTypeError(
+class MediaTypeError(
     ValueError,
 ):
     """Исключение, связанное с типом загружаемого файла"""

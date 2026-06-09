@@ -37,13 +37,6 @@ from server.enums.application_status import ApplicationStatus
 from server.enums.role import Role
 
 
-class UserExistenceError(
-    ValueError,
-):
-    """Исключение, связанное с существованием пользователя"""
-    pass
-
-
 class UsersManager:
     def __init__(
             self,

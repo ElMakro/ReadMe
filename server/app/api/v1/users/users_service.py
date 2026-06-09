@@ -13,7 +13,7 @@ from server.app.api.v1.common_schemas import (
 )
 from server.app.api.v1.courses.courses import CourseResponse
 from server.app.api.v1.courses.courses_manager import CoursesManager
-from server.app.api.v1.exceptions import ContentTypeError, ObjectMissingError, OperationPermissionError
+from server.app.api.v1.exceptions import ConflictError, MediaTypeError, ObjectMissingError, OperationPermissionError
 from server.app.api.v1.notes.exceptions import CantChangeOwnRoleError, CantDeleteOwnProfileError
 from server.app.api.v1.users.exceptions import NotExistingLinkError, UpdatedLinkError
 from server.app.api.v1.users.secret_application_link_handler import SecretApplicationLinkHandler
@@ -37,12 +37,6 @@ from server.config.settings import settings
 from server.data.users_resources.users_resources_manager import UsersResourcesManager
 from server.enums.access_permissions import AccessPermissions
 from server.enums.role import Role
-
-
-class UserEnrollmentError(
-    ValueError,
-):
-    """Исключение, связанное с записью пользователя на курс"""
 
 
 class UsersService:
@@ -189,7 +183,7 @@ class UsersService:
             icon_upload_file: UploadFile,
     ) -> None:
         if "image" not in icon_upload_file.content_type:
-            raise ContentTypeError(
+            raise MediaTypeError(
                 "Некорректный тип файла!",
             )
 
@@ -251,13 +245,13 @@ class UsersService:
                 raise OperationPermissionError("Преподаватель может записать другого студента только на свой курс!")
 
         if target_user_id == course.professor_id:
-            raise UserEnrollmentError("Преподаватель курса не может быть записан на него же")
+            raise ConflictError("Преподаватель курса не может быть записан на него же")
 
         if await self.courses_manager.check_is_user_enrolled_on_course(
                 user.id,
                 course_id,
         ):
-            raise UserEnrollmentError("Пользователь уже записан на данный курс!")
+            raise ConflictError("Пользователь уже записан на данный курс!")
 
         await self.users_manager.self_enroll_on_course(
             target_user_id,
@@ -289,13 +283,13 @@ class UsersService:
                 raise OperationPermissionError("Преподаватель может отписать другого студента только со своего курса!")
 
         if target_user_id == course.professor_id:
-            raise UserEnrollmentError("Преподаватель курса не может быть отписан со своего же курса!")
+            raise ConflictError("Преподаватель курса не может быть отписан со своего же курса!")
 
         if not await self.courses_manager.check_is_user_enrolled_on_course(
                 target_user_id,
                 course_id,
         ):
-            raise UserEnrollmentError("Пользователь не записан на данный курс!")
+            raise ConflictError("Пользователь не записан на данный курс!")
 
         await self.users_manager.self_unenroll_from_course(
             target_user_id,
