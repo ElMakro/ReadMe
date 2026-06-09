@@ -227,3 +227,35 @@ def professor_client(api_client, _sync_sessionmaker):
     assert login_res.status_code == 200, f"Student login failed: {login_res.text}"
 
     return api_client
+
+
+@pytest.fixture
+def admin_client(api_client, _sync_sessionmaker):
+    """🛡️ Клиент с ролью admin (создаётся с нуля)"""
+    nick = f"admin_{uuid.uuid4().hex[:6]}"
+    password = "StrongPassword123!"
+
+    api_client.post("/api/v1/auth/reg", json={
+        "nickname": nick,
+        "email": f"{nick}@test.com",
+        "password": password
+    })
+    api_client.post("/api/v1/auth/login", json={
+        "nickname": nick,
+        "password": password
+    })
+    profile = api_client.get("/api/v1/users/profile").json()
+    user_id = profile["id"]
+
+    with _sync_sessionmaker() as session:
+        session.execute(text("UPDATE users SET role = 'ADMIN' WHERE id = :uid"), {"uid": user_id})
+        session.commit()
+
+    # Перелогиниваемся, чтобы токен обновился
+    api_client.cookies.clear()
+    login_res = api_client.post("/api/v1/auth/login", json={
+        "nickname": nick,
+        "password": password
+    })
+    assert login_res.status_code == 200
+    return api_client
