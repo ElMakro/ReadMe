@@ -212,3 +212,6 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+server/data/courses_resources/resources
+server/data/users_resources/resources

@@ -335,14 +335,17 @@ class CoursesService:
                 "У пользователя нет прав на установку иконки курса!",
             )
 
-        self.courses_resources_manager.set_course_icon(
-            course_id,
-            icon_upload_file,
-        )
+        try:
+            await self.courses_resources_manager.set_course_icon(
+                course_id,
+                icon_upload_file,
+            )
+        except ValueError as error:
+            raise BadRequestError(str(error))
 
     async def get_course_icon_path(
             self,
-            user: UserVerification,
+            user: UserVerification | None,
             course_id: UUID,
     ):
         course = await self.courses_manager.get_course_by_id(

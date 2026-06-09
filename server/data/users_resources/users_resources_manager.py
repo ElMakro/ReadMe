@@ -5,12 +5,18 @@ from fastapi import Depends, UploadFile
 
 from server.app.api.v1.exceptions import ObjectMissingError
 from server.app.api.v1.users.users import CreatedUserInfo
+from server.data.resource_storage import IResourceStorage, get_users_resource_storage
 from server.data.users_resources import USERS_RESOURCES_DIRECTORY_PATH
 from server.data.users_resources.icons_generator import IconsGenerator
 
 
 class UsersResourcesManager:
-    def __init__(self, icons_generator: IconsGenerator = Depends(IconsGenerator)):
+    def __init__(
+            self,
+            storage: IResourceStorage = Depends(get_users_resource_storage),
+            icons_generator: IconsGenerator = Depends(IconsGenerator),
+    ):
+        self.storage = storage
         self.icons_generator = icons_generator
 
     @staticmethod
@@ -22,45 +28,41 @@ class UsersResourcesManager:
 
     def create_user(self, created_user_info: CreatedUserInfo) -> None:
         user_directory_path = self.get_user_directory_path(created_user_info.id)
-        user_directory_path.mkdir(parents=True, exist_ok=True)
+        self.storage.create_directory(user_directory_path)
 
         user_files_directory_path = self.get_user_files_directory_path(created_user_info.id)
-        user_files_directory_path.mkdir(parents=True, exist_ok=True)
+        self.storage.create_directory(user_files_directory_path)
 
         self.icons_generator.generate_icon(created_user_info, user_directory_path)
 
     def get_user_icon_path(self, user_id: UUID) -> Path:
         user_directory_path = self.get_user_directory_path(user_id)
-        if not user_directory_path.exists():
+
+        if not self.storage.file_exists(user_directory_path):
             raise ObjectMissingError("Пользователя с таким id не существует!")
 
-        for filepath in user_directory_path.iterdir():
-            if filepath.is_file() and "icon" in filepath.name:
-                return filepath
+        icon_path = self.storage.find_file_by_pattern(user_directory_path, "icon")
+        if icon_path is None:
+            raise ObjectMissingError("Иконка пользователя не найдена!")
 
-        raise ObjectMissingError(
-            "Иконка пользователя не найдена!",
-        )
+        return icon_path
 
-    @staticmethod
-    def delete_user_icon(user_directory_path: Path) -> None:
-        for filename in user_directory_path.iterdir():
-            if filename.is_file() and "icon" in filename.name:
-                filename.unlink()
+    def delete_user_icon(self, user_directory_path: Path) -> None:
+        self.storage.delete_files_by_pattern(user_directory_path, "icon")
 
-    def set_user_icon(self, user_id: UUID, icon_upload_file: UploadFile) -> None:
+    async def set_user_icon(self, user_id: UUID, icon_upload_file: UploadFile) -> None:
         user_directory_path = self.get_user_directory_path(user_id)
-        if not user_directory_path.exists():
+
+        if not self.storage.file_exists(user_directory_path):
             raise ObjectMissingError("Пользователя с таким id не существует!")
 
         self.delete_user_icon(user_directory_path)
 
-        icon_upload_file_filename = icon_upload_file.filename
-        assert icon_upload_file_filename is not None
-        icon_path = user_directory_path / f"icon{Path(icon_upload_file_filename).suffix}"
-        icon_file = icon_upload_file.file
+        filename = icon_upload_file.filename
+        if not filename:
+            raise ValueError("Имя файла иконки не может быть пустым")
 
-        with open(icon_path, "wb") as icon_result_file:
-            icon_result_file.write(icon_file.read())
+        icon_path = user_directory_path / f"icon{Path(filename).suffix}"
 
-        icon_file.close()
+        content = await icon_upload_file.read()
+        self.storage.save_file(icon_path, content)

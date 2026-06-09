@@ -16,7 +16,6 @@ from server.app.api.v1.courses.courses import (
     CourseUpdate,
 )
 from server.app.api.v1.courses.courses_service import CoursesService
-from server.app.api.v1.exceptions_handlers import HANDLED_EXCEPTIONS, handle_exception_chain
 from server.app.api.v1.users.users import UserVerification
 from server.app.common_dependencies.depends import get_auth_user, get_current_user
 
@@ -58,17 +57,14 @@ async def create_course(
     Создать новый курс.
     Текущий пользователь автоматически становится преподавателем курса.
     """
-    try:
-        return await courses_service.create_course(
-            user,
-            course_data.name,
-            course_data.description,
-            course_data.is_public,
-            course_data.is_content_public,
-            course_data.tags,
-        )
-    except HANDLED_EXCEPTIONS as error:
-        raise handle_exception_chain(error)
+    return await courses_service.create_course(
+        user,
+        course_data.name,
+        course_data.description,
+        course_data.is_public,
+        course_data.is_content_public,
+        course_data.tags,
+    )
 
 
 @courses_router.get(
@@ -109,16 +105,13 @@ async def search_courses(
     """
     Пагинированный поиск курсов по началу названия. Требует авторизации для поиска по закрытым курсам.
     """
-    try:
-        return await courses_service.search_courses(
-            user,
-            criteria,
-            value,
-            pagination_parameters.page,
-            pagination_parameters.records_per_page,
-        )
-    except HANDLED_EXCEPTIONS as error:
-        raise handle_exception_chain(error)
+    return await courses_service.search_courses(
+        user,
+        criteria,
+        value,
+        pagination_parameters.page,
+        pagination_parameters.records_per_page,
+    )
 
 
 @courses_router.get(
@@ -227,14 +220,11 @@ async def change_course_professor(
     Сменить преподавателя курса.
     Только текущий преподаватель или администратор может передать права другому пользователю.
     """
-    try:
-        await courses_service.change_course_professor(
-            user,
-            course_id,
-            new_professor_data.new_professor_id,
-        )
-    except HANDLED_EXCEPTIONS as error:
-        raise handle_exception_chain(error)
+    await courses_service.change_course_professor(
+        user,
+        course_id,
+        new_professor_data.new_professor_id,
+    )
 
 
 @courses_router.post(
@@ -274,14 +264,11 @@ async def set_course_icon(
         ),
 ) -> None:
     """Установить иконку курса"""
-    try:
-        return await courses_service.set_course_icon(
-            user,
-            course_id,
-            icon_file,
-        )
-    except HANDLED_EXCEPTIONS as error:
-        raise handle_exception_chain(error)
+    return await courses_service.set_course_icon(
+        user,
+        course_id,
+        icon_file,
+    )
 
 
 @courses_router.get(
@@ -302,8 +289,8 @@ async def set_course_icon(
     openapi_extra=openapi_extra_authorization_cookie,
 )
 async def get_course_icon(
-        user: Annotated[UserVerification, Depends(
-            get_auth_user,
+        user: Annotated[UserVerification | None, Depends(
+            get_current_user,
         )],
         course_id: UUID = Path(
             ...,
@@ -314,15 +301,12 @@ async def get_course_icon(
         ),
 ) -> FileResponse:
     """Установить иконку курса"""
-    try:
-        return FileResponse(
-            await courses_service.get_course_icon_path(
-                user,
-                course_id,
-            ),
-        )
-    except HANDLED_EXCEPTIONS as error:
-        raise handle_exception_chain(error)
+    return FileResponse(
+        await courses_service.get_course_icon_path(
+            user,
+            course_id,
+        ),
+    )
 
 
 @courses_router.get(
@@ -357,13 +341,10 @@ async def get_course_by_id(
         ),
 ) -> CourseResponse:
     """Получить полную информацию о курсе по его идентификатору."""
-    try:
-        return await courses_service.get_course_by_id(
-            user,
-            course_id,
-        )
-    except HANDLED_EXCEPTIONS as error:
-        raise handle_exception_chain(error)
+    return await courses_service.get_course_by_id(
+        user,
+        course_id,
+    )
 
 
 @courses_router.put(
@@ -401,18 +382,15 @@ async def update_course(
         ),
 ):
     """Обновить информацию о курсе (только для преподавателя курса или администратора системы)."""
-    try:
-        await courses_service.update_course(
-            user,
-            course_id,
-            course_update.name,
-            course_update.description,
-            course_update.is_public,
-            course_update.is_content_public,
-            course_update.tags,
-        )
-    except HANDLED_EXCEPTIONS as error:
-        raise handle_exception_chain(error)
+    await courses_service.update_course(
+        user,
+        course_id,
+        course_update.name,
+        course_update.description,
+        course_update.is_public,
+        course_update.is_content_public,
+        course_update.tags,
+    )
 
 
 @courses_router.delete(
@@ -449,10 +427,7 @@ async def delete_course(
     Удалить курс и все связанные с ним данные (разделы, темы, заметки студентов).
     Только преподаватель курса или администратор системы могут его удалить.
     """
-    try:
-        await courses_service.delete_course(
-            user,
-            course_id,
-        )
-    except HANDLED_EXCEPTIONS as error:
-        raise handle_exception_chain(error)
+    await courses_service.delete_course(
+        user,
+        course_id,
+    )

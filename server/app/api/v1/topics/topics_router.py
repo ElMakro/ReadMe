@@ -6,7 +6,6 @@ from fastapi.responses import FileResponse
 
 from server.app.api.openapi_docs import openapi_extra_authorization_cookie
 from server.app.api.v1.common_schemas import UNPROCESSABLE_ENTITY_ERROR_TEXT
-from server.app.api.v1.exceptions_handlers import HANDLED_EXCEPTIONS, handle_exception_chain
 from server.app.api.v1.topics.topics import (
     ContentCompilationError,
     FileItem,
@@ -63,17 +62,14 @@ async def create_topic(
     Создать новую тему в разделе.
     Порядковый номер определяет отображение тем в разделе.
     """
-    try:
-        return await topics_service.create_topic(
-            user,
-            topic_creation.section_id,
-            topic_creation.name,
-            topic_creation.order_number,
-            topic_creation.tags,
-            topic_creation.raw_content,
-        )
-    except HANDLED_EXCEPTIONS as error:
-        raise handle_exception_chain(error)
+    return await topics_service.create_topic(
+        user,
+        topic_creation.section_id,
+        topic_creation.name,
+        topic_creation.order_number,
+        topic_creation.tags,
+        topic_creation.raw_content,
+    )
 
 
 @topics_router.post(
@@ -106,10 +102,7 @@ async def upload_resource(
         resource: UploadFile = File(..., description="Ресурс темы"),
         topics_service: TopicsService = Depends(TopicsService)
 ) -> FileItem:
-    try:
-        return await topics_service.upload_resource(user, topic_id, block_number, file_number, resource)
-    except HANDLED_EXCEPTIONS as error:
-        raise handle_exception_chain(error)
+    return await topics_service.upload_resource(user, topic_id, block_number, file_number, resource)
 
 
 @topics_router.get(
@@ -146,16 +139,13 @@ async def get_topic_resource(
             TopicsService,
         ),
 ) -> FileResponse:
-    try:
-        return FileResponse(
-            await topics_service.get_resource(
-                user,
-                topic_id,
-                resource_filename,
-            ),
-        )
-    except HANDLED_EXCEPTIONS as error:
-        raise handle_exception_chain(error)
+    return FileResponse(
+        await topics_service.get_resource(
+            user,
+            topic_id,
+            resource_filename,
+        ),
+    )
 
 
 @topics_router.get(
@@ -192,13 +182,10 @@ async def get_topics_by_section(
     """
     Получить все темы раздела, отсортированные по порядковому номеру.
     """
-    try:
-        return await topics_service.get_topics_by_section_id(
-            user,
-            section_id,
-        )
-    except HANDLED_EXCEPTIONS as error:
-        raise handle_exception_chain(error)
+    return await topics_service.get_topics_by_section_id(
+        user,
+        section_id,
+    )
 
 
 @topics_router.get(
@@ -235,13 +222,10 @@ async def get_topics_by_course(
     """
     Получить все темы курса.
     """
-    try:
-        return await topics_service.get_topics_by_course_id(
-            user,
-            course_id,
-        )
-    except HANDLED_EXCEPTIONS as error:
-        raise handle_exception_chain(error)
+    return await topics_service.get_topics_by_course_id(
+        user,
+        course_id,
+    )
 
 
 @topics_router.get(
@@ -276,13 +260,10 @@ async def get_topic_by_id(
         ),
 ) -> TopicResponse:
     """Получить полную информацию о теме по её идентификатору."""
-    try:
-        return await topics_service.get_topic_by_id(
-            user,
-            topic_id,
-        )
-    except HANDLED_EXCEPTIONS as error:
-        raise handle_exception_chain(error)
+    return await topics_service.get_topic_by_id(
+        user,
+        topic_id,
+    )
 
 
 @topics_router.put(
@@ -324,16 +305,13 @@ async def update_topic(
         ),
 ) -> None:
     """Изменить содержимое темы."""
-    try:
-        await topics_service.update_topic(
-            user,
-            topic_id,
-            topic_update.name,
-            topic_update.tags,
-            topic_update.raw_content,
-        )
-    except HANDLED_EXCEPTIONS as error:
-        raise handle_exception_chain(error)
+    await topics_service.update_topic(
+        user,
+        topic_id,
+        topic_update.name,
+        topic_update.tags,
+        topic_update.raw_content,
+    )
 
 
 @topics_router.delete(
@@ -370,10 +348,7 @@ async def delete_topic(
     Удалить тему и все связанные с ней заметки студентов.
     Только преподаватель курса может удалить тему.
     """
-    try:
-        await topics_service.delete_topic(
-            user,
-            topic_id,
-        )
-    except HANDLED_EXCEPTIONS as error:
-        raise handle_exception_chain(error)
+    await topics_service.delete_topic(
+        user,
+        topic_id,
+    )
