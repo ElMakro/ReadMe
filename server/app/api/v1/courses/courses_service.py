@@ -14,8 +14,13 @@ from server.app.api.v1.courses.courses import (
 )
 from server.app.api.v1.courses.courses_manager import CoursesManager
 from server.app.api.v1.courses.search_strategies import SEARCH_STRATEGIES
-from server.app.api.v1.exceptions import ConflictError, MediaTypeError, ObjectMissingError, OperationPermissionError, \
-    BadRequestError
+from server.app.api.v1.exceptions import (
+    BadRequestError,
+    ConflictError,
+    MediaTypeError,
+    ObjectMissingError,
+    OperationPermissionError,
+)
 from server.app.api.v1.users.users import UserVerification
 from server.app.api.v1.users.users_manager import UsersManager
 from server.app.api.v1.users.users_service import UsersService
