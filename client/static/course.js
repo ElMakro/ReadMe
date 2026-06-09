@@ -103,7 +103,7 @@
         async function handleEnroll() {
             if (!window.COURSE_ID) return;
             try {
-                const resp = await fetch(`${window.API_BASE_URL}courses/${window.COURSE_ID}/enroll`, {
+                const resp = await fetch(`${window.API_BASE_URL}users/enroll?course_id=${window.COURSE_ID}`, {
                     method: 'POST',
                     credentials: 'include'
                 });
@@ -111,6 +111,7 @@
                     window.showToast('Вы успешно записались на курс!');
                     await updateEnrollButton();
                     if (currentCourse) showCourseDescription();
+                    await buildSidebar();         // <-- обновляем боковую панель
                 } else if (resp.status === 409) {
                     window.showToast('Вы уже записаны на этот курс', 'danger');
                     await updateEnrollButton();
@@ -127,14 +128,15 @@
             if (!window.COURSE_ID) return;
             if (!confirm('Вы уверены, что хотите отписаться от курса?')) return;
             try {
-                const resp = await fetch(`${window.API_BASE_URL}courses/${window.COURSE_ID}/unenroll`, {
-                    method: 'POST',
+                const resp = await fetch(`${window.API_BASE_URL}users/unenroll?course_id=${window.COURSE_ID}`, {
+                    method: 'DELETE',
                     credentials: 'include'
                 });
                 if (resp.ok) {
                     window.showToast('Вы отписались от курса');
                     await updateEnrollButton();
                     if (currentCourse) showCourseDescription();
+                    await buildSidebar();         // <-- обновляем боковую панель
                 } else {
                     window.showToast('Не удалось отписаться', 'danger');
                 }
@@ -174,8 +176,6 @@
             applySidebarState();
         }
 
-        // Загружает список разделов курса, для каждого – список тем
-        // === НОВАЯ ФУНКЦИЯ: загружает разделы с их темами ===
         async function fetchSectionsWithTopics() {
             try {
                 const url = `${window.API_BASE_URL}sections/by_course/${window.COURSE_ID}`;
@@ -260,7 +260,6 @@
 
             topicContent.innerHTML = html;
 
-            // Обработчики клика по заголовку раздела (весь блок)
             document.querySelectorAll('.section-header-clickable').forEach(header => {
                 const sectionCard = header.closest('.section-card');
                 const body = sectionCard.querySelector('.section-body');
@@ -277,7 +276,6 @@
                 });
             });
 
-            // Обработчики тем (без изменений)
             document.querySelectorAll('.topic-link-main').forEach(link => {
                 link.addEventListener('click', (e) => {
                     e.preventDefault();
@@ -291,67 +289,6 @@
             window.activeTopicId = null;
             if (window.Notes && window.Notes.onTopicChanged) window.Notes.onTopicChanged(null);
         }
-
-        async function showSectionDescription(sectionId, sectionName, sectionDescription) {
-            topicContent.innerHTML = '<div class="text-muted">Загрузка...</div>';
-            try {
-                const topicsUrl = `${window.API_BASE_URL}topics/by-section/${sectionId}`;
-                const resp = await fetch(topicsUrl, {credentials: 'include'});
-                let topics = [];
-                if (resp.ok) {
-                    const data = await resp.json();
-                    topics = Array.isArray(data) ? data : (data.topics || []);
-                    topics.sort((a, b) => a.order_number - b.order_number);
-                }
-
-                let topicsHtml = '';
-                if (topics.length) {
-                    topicsHtml = '<ul class="list-unstyled mt-3">';
-                    for (const topic of topics) {
-                        topicsHtml += `
-                    <li class="mb-2">
-                        <a href="#" class="topic-link-section text-decoration-none" data-topic-id="${topic.id}">
-                            ${escapeHtml(topic.name)}
-                        </a>
-                    </li>
-                `;
-                    }
-                    topicsHtml += '</ul>';
-                } else {
-                    topicsHtml = '<p class="text-muted">В этом разделе нет тем.</p>';
-                }
-
-                const html = `
-            <div class="section-detail-card p-4 rounded-4 border">
-                <h2 class="h3 fw-semibold mb-3">${escapeHtml(sectionName)}</h2>
-                <p class="text-secondary mb-4">${escapeHtml(sectionDescription || 'Описание отсутствует')}</p>
-                <hr class="my-4 opacity-25">
-                <h4 class="h6 fw-semibold mb-3">Темы раздела</h4>
-                ${topicsHtml}
-            </div>
-        `;
-                topicContent.innerHTML = html;
-
-                document.querySelectorAll('.topic-link-section').forEach(link => {
-                    link.addEventListener('click', (e) => {
-                        e.preventDefault();
-                        const topicId = link.dataset.topicId;
-                        const topicName = link.textContent.trim();
-                        displayTopic(topicId, topicName);
-                    });
-                });
-            } catch (err) {
-                console.error('Ошибка загрузки тем раздела:', err);
-                topicContent.innerHTML = '<p class="text-muted">Не удалось загрузить содержимое раздела.</p>';
-            }
-
-            currentTopicId = null;
-            window.activeTopicId = null;
-            if (window.Notes && window.Notes.onTopicChanged) window.Notes.onTopicChanged(null);
-        }
-
-        // Заменяем displayTopic (используем rendered_content)
-        // static/course.js (только заменяемые функции, остальное не трогаем)
 
         async function displayTopic(topicId, topicName) {
             if (!topicId) return;
@@ -380,7 +317,6 @@
                     throw new Error(`HTTP ${resp.status}`);
                 }
                 const topicData = await resp.json();
-                // Используем rendered_content, а не raw_content
                 const renderedContent = topicData.rendered_content || [];
                 renderedCache.set(topicId, renderedContent);
                 await renderTopicContent(renderedContent);
@@ -395,11 +331,9 @@
             for (const block of blocks) {
                 let blockHtml = '';
                 try {
-                    // Нормализуем тип (бекенд может отдавать 'uml' или 'image' вместо 'plantuml')
                     let blockType = block.type;
                     if (blockType === 'uml') blockType = 'plantuml';
 
-                    // Для всех типов, кроме files, контент может быть строкой или массивом
                     let rawContent = '';
                     if (blockType === 'files') {
                         rawContent = null;
@@ -414,7 +348,6 @@
                         const latexSource = prepareLatexBlock(rawContent);
                         blockHtml = `<div class="latex-block">${escapeHtml(latexSource)}</div>`;
                     } else if (blockType === 'plantuml' || blockType === 'image') {
-                        // rawContent — имя файла (например, "730a574d-2d94-4ec0-8b80-d84ec231d40f.png")
                         if (rawContent && typeof rawContent === 'string' && rawContent.length > 0) {
                             const imgUrl = `${window.API_BASE_URL}topics/get-resource/${currentTopicId}/${encodeURIComponent(rawContent)}`;
                             blockHtml = `<div class="text-center"><img src="${imgUrl}" class="img-fluid" alt="Изображение" style="max-width: 100%;"></div>`;
@@ -441,6 +374,7 @@
                     blockHtml = `<div class="alert alert-danger">Ошибка рендеринга: ${escapeHtml(err.message)}</div>`;
                 }
                 html += `<div class="topic-block topic-block-type-${block.type}">${blockHtml}</div>`;
+                html += '<hr>';
             }
             html += '<button class="btn btn-accent mt-3" id="checkYourselfBtn">Проверить Себя</button>';
             html += '</div>';
@@ -462,13 +396,13 @@
 
         async function buildSidebar() {
             if (!sectionList) return;
-            sectionList.innerHTML = '<li class="list-group-item text-muted">Загрузка...</li>';
+            sectionList.innerHTML = '<li class="section-item text-muted">Загрузка...</li>';
             try {
                 const url = `${window.API_BASE_URL}sections/by_course/${window.COURSE_ID}`;
                 const resp = await fetch(url, {credentials: 'include'});
                 if (!resp.ok) {
                     if (resp.status === 401 || resp.status === 403) {
-                        sectionList.innerHTML = '<li class="list-group-item text-muted">Войдите, чтобы увидеть содержимое курса.</li>';
+                        sectionList.innerHTML = '<li class="section-item text-muted">Войдите, чтобы увидеть содержимое курса.</li>';
                         return;
                     }
                     throw new Error(`HTTP ${resp.status}`);
@@ -476,14 +410,14 @@
                 const data = await resp.json();
                 const sections = Array.isArray(data) ? data : (data.sections || []);
                 if (!sections.length) {
-                    sectionList.innerHTML = '<li class="list-group-item text-muted">В курсе нет разделов.</li>';
+                    sectionList.innerHTML = '<li class="section-item text-muted">В курсе нет разделов.</li>';
                     return;
                 }
                 sections.sort((a, b) => a.order_number - b.order_number);
                 sectionList.innerHTML = '';
                 for (const section of sections) {
                     const li = document.createElement('li');
-                    li.className = 'list-group-item section-item p-0';
+                    li.className = 'section-item section-item p-0';
                     const toggle = document.createElement('div');
                     toggle.className = 'section-toggle';
                     toggle.innerHTML = `<span class="toggle-icon">▶</span><span>${escapeHtml(section.name)}</span>`;
@@ -610,7 +544,7 @@
     });
 })();
 
-// Плавающее окно конспекта (без изменений, но тоже использует Notes.showMessage – заменим на window.showToast)
+// Плавающее окно конспекта
 (function () {
     document.addEventListener('DOMContentLoaded', function () {
         const win = document.getElementById('floatingWindow');
@@ -755,6 +689,7 @@
                 currentNoteId = result.noteId;
                 window.showToast('Конспект сохранён');
             } catch (err) {
+                // ошибка уже обработана в Notes.saveNote
             }
         }
 
@@ -769,6 +704,7 @@
                 textarea.value = '';
                 currentNoteId = null;
             } catch (err) {
+                // ошибка уже обработана
             }
         }
 

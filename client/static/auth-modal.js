@@ -67,7 +67,6 @@
     async function fillSavedCredentials() {
         if (!window.PasswordCredential || !navigator.credentials) return;
         try {
-            // optional – покажет выбор аккаунта (если сохранено несколько), но только один раз
             const credential = await navigator.credentials.get({
                 password: true,
                 mediation: 'optional'
@@ -223,6 +222,7 @@
                 window.dispatchEvent(new CustomEvent('auth-changed', {detail: {user: userProfile}}));
                 await savePasswordWithAPI(nickname, password);
                 closeModal();
+                location.reload(); // Перезагрузка страницы после входа
             } else {
                 const nickname = regNickname.value.trim();
                 const email = regEmail.value.trim() || undefined;
@@ -271,6 +271,7 @@
 
                 savePasswordWithAPI(nickname, password);
                 closeModal();
+                location.reload(); // Перезагрузка страницы после регистрации
             }
         } catch (error) {
             console.error('Ошибка:', error);

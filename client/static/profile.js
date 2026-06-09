@@ -153,7 +153,6 @@
                                              class="current-user-icon rounded-circle"
                                              width="64" height="64"
                                              style="object-fit: cover;"
-                                             onerror="this.style.display='none'">
                                         <div>
                                             <button type="button" class="btn btn-outline-accent select-avatar-btn">Выбрать файл</button>
                                             <span class="ms-2 text-muted avatar-filename"></span>
