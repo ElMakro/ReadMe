@@ -190,3 +190,84 @@ class TestProfessorApplication:
         assert login_res.status_code == 200
         new_profile = api_client.get("/api/v1/users/profile").json()
         assert new_profile["role"] == "professor"
+
+# test_users_admin.py — добавьте в конец
+
+class TestAdminUserManagement:
+    @staticmethod
+    def test_get_all_users(admin_client):
+        res = admin_client.get("/api/v1/users/all")
+        assert res.status_code == 200
+        assert len(res.json()) >= 1
+
+    @staticmethod
+    def test_change_user_role(api_client, _sync_sessionmaker):
+        # Создаём админа
+        admin_nick = f"admin_{uuid.uuid4().hex[:6]}"
+        admin_pass = "StrongPassword123!"
+        api_client.post("/api/v1/auth/reg",
+                        json={"nickname": admin_nick, "email": f"{admin_nick}@t.com", "password": admin_pass})
+        api_client.post("/api/v1/auth/login", json={"nickname": admin_nick, "password": admin_pass})
+        admin_profile = api_client.get("/api/v1/users/profile").json()
+        admin_id = admin_profile["id"]
+        with _sync_sessionmaker() as session:
+            session.execute(text("UPDATE users SET role = 'ADMIN' WHERE id = :uid"), {"uid": admin_id})
+            session.commit()
+        api_client.get("/api/v1/auth/logout")
+        api_client.cookies.clear()
+
+        # Создаём студента
+        student_nick = f"student_{uuid.uuid4().hex[:6]}"
+        student_pass = "StrongPassword123!"
+        api_client.post("/api/v1/auth/reg",
+                        json={"nickname": student_nick, "email": f"{student_nick}@t.com", "password": student_pass})
+        api_client.post("/api/v1/auth/login", json={"nickname": student_nick, "password": student_pass})
+        student_profile = api_client.get("/api/v1/users/profile").json()
+        student_id = student_profile["id"]
+        api_client.get("/api/v1/auth/logout")
+        api_client.cookies.clear()
+
+        # Админ меняет роль студента на ADMIN
+        api_client.post("/api/v1/auth/login", json={"nickname": admin_nick, "password": admin_pass})
+        change = api_client.put("/api/v1/users/change-role", json={"id": student_id, "role": "admin"})
+        assert change.status_code == 204
+
+        # Проверяем через БД
+        with _sync_sessionmaker() as session:
+            role = session.execute(text("SELECT role FROM users WHERE id = :uid"), {"uid": student_id}).scalar()
+            assert role == "ADMIN"
+
+    @staticmethod
+    def test_delete_user(api_client, _sync_sessionmaker):
+        # Создаём админа
+        admin_nick = f"admin_{uuid.uuid4().hex[:6]}"
+        admin_pass = "StrongPassword123!"
+        api_client.post("/api/v1/auth/reg",
+                        json={"nickname": admin_nick, "email": f"{admin_nick}@t.com", "password": admin_pass})
+        api_client.post("/api/v1/auth/login", json={"nickname": admin_nick, "password": admin_pass})
+        admin_profile = api_client.get("/api/v1/users/profile").json()
+        admin_id = admin_profile["id"]
+        with _sync_sessionmaker() as session:
+            session.execute(text("UPDATE users SET role = 'ADMIN' WHERE id = :uid"), {"uid": admin_id})
+            session.commit()
+        api_client.get("/api/v1/auth/logout")
+        api_client.cookies.clear()
+
+        # Создаём студента
+        student_nick = f"todelete_{uuid.uuid4().hex[:6]}"
+        student_pass = "StrongPassword123!"
+        api_client.post("/api/v1/auth/reg",
+                        json={"nickname": student_nick, "email": f"{student_nick}@t.com", "password": student_pass})
+        api_client.post("/api/v1/auth/login", json={"nickname": student_nick, "password": student_pass})
+        student_profile = api_client.get("/api/v1/users/profile").json()
+        student_id = student_profile["id"]
+        api_client.get("/api/v1/auth/logout")
+        api_client.cookies.clear()
+
+        # Админ удаляет
+        api_client.post("/api/v1/auth/login", json={"nickname": admin_nick, "password": admin_pass})
+        delete = api_client.delete(f"/api/v1/users/delete-user/{student_id}")
+        assert delete.status_code == 204
+        with _sync_sessionmaker() as session:
+            user = session.execute(text("SELECT * FROM users WHERE id = :uid"), {"uid": student_id}).fetchone()
+            assert user is None
