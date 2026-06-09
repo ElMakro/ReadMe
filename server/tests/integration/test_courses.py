@@ -147,28 +147,36 @@ class TestCourseUpdate:
 class TestCourseEnrollUnenroll:
     @staticmethod
     def test_enroll_on_course(api_client, _sync_sessionmaker):
-        # Профессор создаёт открытый курс
         prof = _create_professor(api_client, _sync_sessionmaker)
         create = prof.post("/api/v1/courses/create-course", json={"name": "Public Course", "is_public": True})
         assert create.status_code == 201
         course_id = create.json()["id"]
 
-        # Создаём нового студента
+        # Выходим из профессора
+        api_client.get("/api/v1/auth/logout")
+        api_client.cookies.clear()
+
+        # Студент логинится
         student_nick = f"student_{uuid.uuid4().hex[:6]}"
         student_pass = "StrongPassword123!"
         api_client.post("/api/v1/auth/reg",
                         json={"nickname": student_nick, "email": f"{student_nick}@t.com", "password": student_pass})
         api_client.post("/api/v1/auth/login", json={"nickname": student_nick, "password": student_pass})
 
-        enroll = api_client.post(f"/api/v1/courses/{course_id}/enroll")
-        assert enroll.status_code == 204
+        # Проверяем, видит ли студент курс (должен видеть, так как публичный)
+        get_course = api_client.get(f"/api/v1/courses/{course_id}")
+        assert get_course.status_code == 200, "Студент не видит публичный курс"
 
-        # Проверяем подписку
+        # Запись на курс через новый эндпоинт
+        enroll = api_client.post(f"/api/v1/users/enroll?course_id={course_id}")
+        assert enroll.status_code == 204, f"Ожидался 204, получили {enroll.status_code}"
+
+        # Проверяем, что курс появился в followed-courses
         followed = api_client.get("/api/v1/courses/followed-courses")
         assert any(c["id"] == course_id for c in followed.json())
 
-        # Отписываемся
-        unenroll = api_client.post(f"/api/v1/courses/{course_id}/unenroll")
+        # Отписываемся через новый эндпоинт
+        unenroll = api_client.delete(f"/api/v1/users/unenroll?course_id={course_id}")
         assert unenroll.status_code == 204
         followed2 = api_client.get("/api/v1/courses/followed-courses")
         assert not any(c["id"] == course_id for c in followed2.json())
@@ -188,19 +196,24 @@ class TestCourseEnrollUnenroll:
         assert create.status_code == 201
         course_id = create.json()["id"]
 
-        # 🔁 Выходим из профессора и чистим cookies
+        # Выход из профессора
         api_client.get("/api/v1/auth/logout")
         api_client.cookies.clear()
 
-        # 👨‍🎓 Создаём студента
+        # Студент логинится
         student_nick = f"student_{uuid.uuid4().hex[:6]}"
         student_pass = "StrongPassword123!"
         api_client.post("/api/v1/auth/reg",
                         json={"nickname": student_nick, "email": f"{student_nick}@t.com", "password": student_pass})
         api_client.post("/api/v1/auth/login", json={"nickname": student_nick, "password": student_pass})
 
-        enroll = api_client.post(f"/api/v1/courses/{course_id}/enroll")
-        assert enroll.status_code == 403  # студент не должен записаться на приватный курс
+        # Попытка получить приватный курс должна вернуть 403
+        get_course = api_client.get(f"/api/v1/courses/{course_id}")
+        assert get_course.status_code == 403, "Студент не должен видеть приватный курс"
+
+        # Попытка записи через новый эндпоинт должна вернуть 403
+        enroll = api_client.post(f"/api/v1/users/enroll?course_id={course_id}")
+        assert enroll.status_code == 403, "Студент не должен записываться на приватный курс"
 
         api_client.get("/api/v1/auth/logout")
         api_client.cookies.clear()
