@@ -5,7 +5,6 @@ from fastapi import APIRouter, Depends, Path, status
 
 from server.app.api.openapi_docs import openapi_extra_authorization_cookie
 from server.app.api.v1.common_schemas import UNPROCESSABLE_ENTITY_ERROR_TEXT, SwapContentOrder
-from server.app.api.v1.exceptions_handlers import HANDLED_EXCEPTIONS, handle_exception_chain
 from server.app.api.v1.sections.sections import (
     SectionCreation,
     SectionIDMixin,
@@ -58,17 +57,14 @@ async def create_section(
     Создать новый раздел в курсе.
     Порядковый номер определяет отображение разделов.
     """
-    try:
-        return await sections_service.create_section(
-            user,
-            section_data.course_id,
-            section_data.name,
-            section_data.description,
-            section_data.order_number,
-            section_data.tags,
-        )
-    except HANDLED_EXCEPTIONS as error:
-        raise handle_exception_chain(error)
+    return await sections_service.create_section(
+        user,
+        section_data.course_id,
+        section_data.name,
+        section_data.description,
+        section_data.order_number,
+        section_data.tags,
+    )
 
 
 @sections_router.get(
@@ -106,13 +102,10 @@ async def get_sections_by_course_id(
     Получить все разделы курса, отсортированные по порядковому номеру.
     Возвращает полные данные о разделах.
     """
-    try:
-        return await sections_service.get_sections_by_course_id(
-            user,
-            course_id,
-        )
-    except HANDLED_EXCEPTIONS as error:
-        raise handle_exception_chain(error)
+    return await sections_service.get_sections_by_course_id(
+        user,
+        course_id,
+    )
 
 
 @sections_router.put(
@@ -146,14 +139,11 @@ async def swap_sections(
         ),
 ) -> None:
     """Обменять порядковые номера между разделами."""
-    try:
-        await sections_service.swap_sections(
-            user,
-            sections_swap.first_element_id,
-            sections_swap.second_element_id,
-        )
-    except HANDLED_EXCEPTIONS as error:
-        raise handle_exception_chain(error)
+    await sections_service.swap_sections(
+        user,
+        sections_swap.first_element_id,
+        sections_swap.second_element_id,
+    )
 
 
 @sections_router.get(
@@ -188,13 +178,10 @@ async def get_section_by_id(
         ),
 ) -> SectionResponse:
     """Получить полную информацию о разделе по его идентификатору."""
-    try:
-        return await sections_service.get_section_by_id(
-            user,
-            section_id,
-        )
-    except HANDLED_EXCEPTIONS as error:
-        raise handle_exception_chain(error)
+    return await sections_service.get_section_by_id(
+        user,
+        section_id,
+    )
 
 
 @sections_router.put(
@@ -229,16 +216,13 @@ async def update_section(
         ),
 ) -> None:
     """Обновить информацию о разделе."""
-    try:
-        await sections_service.update_section(
-            user,
-            section_id,
-            section_update.name,
-            section_update.description,
-            section_update.tags,
-        )
-    except HANDLED_EXCEPTIONS as error:
-        raise handle_exception_chain(error)
+    await sections_service.update_section(
+        user,
+        section_id,
+        section_update.name,
+        section_update.description,
+        section_update.tags,
+    )
 
 
 @sections_router.delete(
@@ -275,10 +259,7 @@ async def delete_section(
     Удалить раздел и все связанные с ним темы.
     Только преподаватель курса может удалить раздел.
     """
-    try:
-        await sections_service.delete_section(
-            user,
-            section_id,
-        )
-    except HANDLED_EXCEPTIONS as error:
-        raise handle_exception_chain(error)
+    await sections_service.delete_section(
+        user,
+        section_id,
+    )

@@ -13,7 +13,13 @@ from server.app.api.v1.common_schemas import (
 )
 from server.app.api.v1.courses.courses import CourseResponse
 from server.app.api.v1.courses.courses_manager import CoursesManager
-from server.app.api.v1.exceptions import ConflictError, MediaTypeError, ObjectMissingError, OperationPermissionError
+from server.app.api.v1.exceptions import (
+    BadRequestError,
+    ConflictError,
+    MediaTypeError,
+    ObjectMissingError,
+    OperationPermissionError,
+)
 from server.app.api.v1.notes.exceptions import CantChangeOwnRoleError, CantDeleteOwnProfileError
 from server.app.api.v1.users.exceptions import NotExistingLinkError, UpdatedLinkError
 from server.app.api.v1.users.secret_application_link_handler import SecretApplicationLinkHandler
@@ -187,10 +193,13 @@ class UsersService:
                 "Некорректный тип файла!",
             )
 
-        self.users_resources_manager.set_user_icon(
-            user.id,
-            icon_upload_file,
-        )
+        try:
+            self.users_resources_manager.set_user_icon(
+                user.id,
+                icon_upload_file,
+            )
+        except ValueError as error:
+            raise BadRequestError(str(error))
 
     async def get_secret_application_link(self) -> SecretApplicationLink:
         if (link := await self.users_manager.get_secret_application_link()) is None:

@@ -1,5 +1,5 @@
-
-from fastapi import HTTPException, status
+from fastapi import FastAPI, Request, status
+from starlette.responses import JSONResponse
 
 from server.app.api.v1.exceptions import (
     BadRequestError,
@@ -31,10 +31,34 @@ COMMON_HANDLERS: ExceptionHandlerMap = {
 }
 
 
-def handle_exception_chain(
-        exc: Exception,
-) -> Exception:
+def create_exception_handler(status_code: int):
+    async def custom_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+        return JSONResponse(
+            status_code=status_code,
+            content={"detail": str(exc)},
+        )
+
+    return custom_exception_handler
+
+
+async def compilation_error_handler(request: Request, exc: Exception) -> JSONResponse:
+    if isinstance(exc, CompilationError):
+        print(exc.content_error.model_dump())
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={"detail": exc.content_error.model_dump()},
+        )
+
+    return JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content={"detail": "Internal Server Error"},
+    )
+
+
+def register_global_exception_handlers(app: FastAPI) -> None:
+    app.add_exception_handler(CompilationError, compilation_error_handler)
+
     for exc_type, status_code in COMMON_HANDLERS.items():
-        if isinstance(exc, exc_type):
-            return HTTPException(status_code=status_code, detail=str(exc))
-    return exc
+        if exc_type is not CompilationError:
+            handler = create_exception_handler(status_code)
+            app.add_exception_handler(exc_type, handler)

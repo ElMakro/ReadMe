@@ -20,7 +20,6 @@ from server.app.api.v1.common_schemas import (
     WRONG_APPLICATION_LINK_ERROR_TEXT,
     PaginationParameters,
 )
-from server.app.api.v1.exceptions_handlers import HANDLED_EXCEPTIONS, handle_exception_chain
 from server.app.api.v1.notes.exceptions import CantChangeOwnRoleError, CantDeleteOwnProfileError
 from server.app.api.v1.users.exceptions import (
     ApplicationFieldsMismatchError,
@@ -159,6 +158,7 @@ async def get_all_users(
         size=pagination_parameters.records_per_page,
     )
 
+
 @users_router.get(
     path="/search",
     summary="Поиск пользователя",
@@ -175,23 +175,24 @@ async def get_all_users(
     },
 )
 async def search_users(
-    user: Annotated[UserVerification, Depends(
-        check_role([Role.ADMIN]),
-    )],
-    search_pattern: str = Query(
-        ...,
-        description="Шаблон поиска"
-    ),
-    pagination_parameters: PaginationParameters = Depends(),
-    users_service: UsersService = Depends(
-        UsersService,
-    ),
+        user: Annotated[UserVerification, Depends(
+            check_role([Role.ADMIN]),
+        )],
+        search_pattern: str = Query(
+            ...,
+            description="Шаблон поиска"
+        ),
+        pagination_parameters: PaginationParameters = Depends(),
+        users_service: UsersService = Depends(
+            UsersService,
+        ),
 ) -> UsersList:
     return await users_service.search_users(
         pattern=search_pattern,
         page=pagination_parameters.page,
         size=pagination_parameters.records_per_page,
     )
+
 
 @users_router.put(
     path="/change-role",
@@ -498,14 +499,11 @@ async def enroll(
         ),
 ) -> None:
     """Записать текущего пользователя на курс"""
-    try:
-        await users_service.self_enroll_on_course(
-            user,
-            user_id,
-            course_id,
-        )
-    except HANDLED_EXCEPTIONS as error:
-        raise handle_exception_chain(error)
+    await users_service.self_enroll_on_course(
+        user,
+        user_id,
+        course_id,
+    )
 
 
 @users_router.delete(
@@ -541,14 +539,11 @@ async def unenroll(
         ),
 ):
     """Отписать текущего пользователя от курса"""
-    try:
-        await users_service.self_unenroll_from_course(
-            user,
-            user_id,
-            course_id,
-        )
-    except HANDLED_EXCEPTIONS as error:
-        raise handle_exception_chain(error)
+    await users_service.self_unenroll_from_course(
+        user,
+        user_id,
+        course_id,
+    )
 
 
 @users_router.get(
@@ -577,13 +572,10 @@ async def get_enrolled_users(
         course_id: uuid.UUID = Path(..., description="Уникальный идентификатор курса"),
         users_service: UsersService = Depends(UsersService),
 ) -> UsersList:
-    try:
-        return await users_service.get_enrolled_users(
-            user,
-            course_id,
-        )
-    except HANDLED_EXCEPTIONS as error:
-        raise handle_exception_chain(error)
+    return await users_service.get_enrolled_users(
+        user,
+        course_id,
+    )
 
 
 @users_router.post(
@@ -607,10 +599,7 @@ async def set_user_icon(
         ),
         users_service: UsersService = Depends(UsersService)
 ) -> None:
-    try:
-        users_service.set_user_icon(user, icon_file)
-    except HANDLED_EXCEPTIONS as error:
-        raise handle_exception_chain(error)
+    users_service.set_user_icon(user, icon_file)
 
 
 @users_router.get(
@@ -627,9 +616,6 @@ async def set_user_icon(
 async def get_user_icon(user_id: uuid.UUID = Path(..., description="Уникальный идентификатор пользователя"),
                         users_resources_manager: UsersResourcesManager = Depends(
                             UsersResourcesManager)) -> FileResponse:
-    try:
-        return FileResponse(
-            users_resources_manager.get_user_icon_path(user_id)
-        )
-    except HANDLED_EXCEPTIONS as error:
-        raise handle_exception_chain(error)
+    return FileResponse(
+        users_resources_manager.get_user_icon_path(user_id)
+    )

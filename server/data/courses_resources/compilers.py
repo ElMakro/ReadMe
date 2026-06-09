@@ -1,11 +1,14 @@
-import asyncio
 import os
 import subprocess
+import tempfile
 import uuid
 from abc import ABC, abstractmethod
 from pathlib import Path
 
+from fastapi import Depends
+
 from server.app.api.v1.topics.topics import FileItem, TopicContentBlock
+from server.data.resource_storage import IResourceStorage, get_courses_resource_storage
 
 
 class BlockCompiler(ABC):
@@ -23,74 +26,43 @@ class MarkdownCompiler(BlockCompiler):
 
 
 class PlantUMLCompiler(BlockCompiler):
+    def __init__(self, storage: IResourceStorage):
+        self.storage = storage
+
     async def compile(self, block: TopicContentBlock, content_path: Path) -> TopicContentBlock:
-        image_path = await self._compile_plantuml(block.content[0], content_path)
+        plantuml_code = block.content[0]
+        image_filename = f"{uuid.uuid4()}.png"
+        target_image_path = content_path / image_filename
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_dir_path = Path(temp_dir)
+            temp_puml = temp_dir_path / "diagram.puml"
+            temp_png = temp_dir_path / "diagram.png"
+
+            temp_puml.write_text(plantuml_code, encoding="utf-8")
+
+            jar_path = os.environ.get('PLANTUML_JAR_PATH', '/opt/plantuml.jar')
+
+            try:
+                subprocess.run(
+                    ['java', '-jar', jar_path, '-tpng', str(temp_puml)],
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                )
+            except subprocess.CalledProcessError as e:
+                raise RuntimeError(f"Ошибка компиляции PlantUML: {e.stderr}") from e
+
+            if not temp_png.exists():
+                raise FileNotFoundError(f"PlantUML не сгенерировал PNG файл: {temp_png}")
+
+            png_bytes = temp_png.read_bytes()
+            self.storage.save_file(target_image_path, png_bytes)
+
         return TopicContentBlock.model_construct(
             type="image",
-            content=[image_path.name],
+            content=[image_filename],
         )
-
-    async def _compile_plantuml(self, plantuml_code: str, content_path: Path) -> Path:
-        image_filename = f"{uuid.uuid4()}.png"
-        image_path = content_path / image_filename
-
-        loop = asyncio.get_event_loop()
-        await loop.run_in_executor(
-            None,
-            self.convert_plantuml_to_png,
-            plantuml_code,
-            image_path,
-        )
-
-        return image_path
-
-    @staticmethod
-    def convert_plantuml_to_png(
-            plantuml_string: str,
-            output_filepath: Path,
-    ) -> None:
-        file_stem = output_filepath.stem
-
-        temp_plantuml = output_filepath.parent / f"{file_stem}.puml"
-        with open(temp_plantuml, 'w') as temp_plantuml_file:
-            temp_plantuml_file.write(plantuml_string)
-
-        try:
-            jar_path = os.environ.get(
-                'PLANTUML_JAR_PATH',
-                '/opt/plantuml.jar',
-            )
-
-            subprocess.run(
-                ['java', '-jar', jar_path, '-tpng', str(
-                    temp_plantuml,
-                )],
-                check=True,
-                capture_output=True,
-                text=True,
-            )
-
-            generated_png = temp_plantuml.with_suffix(
-                '.png',
-            )
-
-            if not generated_png.exists():
-                raise FileNotFoundError(
-                    f"Не найден файл PNG: {generated_png}",
-                )
-
-            generated_png.rename(
-                output_filepath,
-            )
-
-        except subprocess.CalledProcessError as e:
-            raise RuntimeError(
-                f"Ошибка компиляции PlantUML: {e.stderr}",
-            ) from e
-        finally:
-            temp_plantuml.unlink(
-                missing_ok=True,
-            )
 
 
 class LaTeXCompiler(BlockCompiler):
@@ -105,24 +77,29 @@ class FilesCompiler(BlockCompiler):
     async def compile(self, block: TopicContentBlock, content_path: Path) -> TopicContentBlock:
         return TopicContentBlock.model_construct(
             type="files",
-            content=[FileItem.model_construct(
-                original_filename=element.original_filename,
-                server_filename=element.server_filename,
-            ) for element in block.content],
+            content=[
+                FileItem.model_construct(
+                    original_filename=element.original_filename,
+                    server_filename=element.server_filename,
+                )
+                for element in block.content
+            ],
         )
 
 
 class CompilerFactory:
-    _compilers = {
-        "markdown": MarkdownCompiler(),
-        "plantuml": PlantUMLCompiler(),
-        "latex": LaTeXCompiler(),
-        "files": FilesCompiler(),
-    }
+    def __init__(self, storage: IResourceStorage = Depends(get_courses_resource_storage)):
+        self._compilers: dict[str, BlockCompiler] = {
+            "markdown": MarkdownCompiler(),
+            "plantuml": PlantUMLCompiler(storage=storage),
+            "latex": LaTeXCompiler(),
+            "files": FilesCompiler(),
+        }
 
-    @classmethod
-    def get_compiler(cls, block_type: str) -> BlockCompiler:
-        compiler = cls._compilers.get(block_type)
-        if not compiler:
-            raise ValueError(f"Неизвестный тип блока: {block_type}")
+    def get_compiler(self, block_type: str) -> BlockCompiler:
+        clean_type = block_type.strip().lower()
+        compiler = self._compilers.get(clean_type)
+
+        if compiler is None:
+            raise ValueError(f"Неизвестный тип блока: '{block_type}'")
         return compiler

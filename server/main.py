@@ -3,6 +3,7 @@ from fastapi import FastAPI, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 
 from server.app.api import api_router
+from server.app.api.v1.exceptions_handlers import register_global_exception_handlers
 from server.config.settings import settings
 
 app = FastAPI(
@@ -19,6 +20,8 @@ app.add_middleware(
 app.include_router(
     api_router,
 )
+
+register_global_exception_handlers(app)
 
 
 def run():
