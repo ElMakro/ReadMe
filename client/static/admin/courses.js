@@ -77,17 +77,20 @@
             const shortDescription = truncateWords(course.description || '', 15);
 
             card.innerHTML = `
-                <div class="d-flex align-items-center gap-3">
-                    <img src="${window.API_BASE_URL}courses/${course.id}/icon"
-                         class="course-thumb"
-                         onerror="this.style.display='none'">
-                    <div class="flex-grow-1">
-                        <strong>${escapeHtml(course.name)}</strong>
-                        ${shortDescription ? `<div class="text-secondary small mt-1">${escapeHtml(shortDescription)}</div>` : ''}
-                        ${course.tags && course.tags.length ? `<div class="small text-muted mt-1">Теги: ${course.tags.map(t => escapeHtml(t)).join(' ')}</div>` : ''}
-                        <div class="small text-muted mt-1">
-                            ${course.is_public ? 'Публичный' : 'Закрытый'} |
-                            ${course.is_content_public ? 'Контент открыт' : 'Контент скрыт'}
+                <div class="course-item-container">
+                    <div class="course-item-info">
+                        <div class="d-flex align-items-start gap-3">
+                            <img src="${window.API_BASE_URL}courses/${course.id}/icon"
+                                 class="course-thumb">
+                            <div class="course-details">
+                                <strong class="course-name">${escapeHtml(course.name)}</strong>
+                                ${shortDescription ? `<div class="text-secondary small mt-1">${escapeHtml(shortDescription)}</div>` : ''}
+                                ${course.tags && course.tags.length ? `<div class="small text-muted mt-1">Теги: ${course.tags.map(t => escapeHtml(t)).join(' ')}</div>` : ''}
+                                <div class="small text-muted mt-1">
+                                    ${course.is_public ? 'Публичный' : 'Закрытый'} |
+                                    ${course.is_content_public ? 'Контент открыт' : 'Контент скрыт'}
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>

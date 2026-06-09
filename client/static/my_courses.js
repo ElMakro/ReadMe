@@ -81,7 +81,6 @@
                 <div class="course-card position-relative d-flex flex-column h-100">
                     <img src="${window.API_BASE_URL}courses/${course.id}/icon"
                          class="course-icon"
-                         onerror="this.style.display='none'"
                          alt="Иконка курса">
                     <a href="/course/${course.id}" class="stretched-link text-decoration-none">
                         <h5 class="course-title mt-2">${escapeHtml(title)}</h5>
