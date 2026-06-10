@@ -32,8 +32,7 @@ async def get_current_user(
     if not await auth_manager.get_token(user_id=user_id, session_id=session_id):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Токен недействителен.")
     user = await user_manager.get_user_by_id(user_id)
-    return UserVerification(id=user_id, role=user.role, email=user.email,
-                            nickname=user.nickname, session_id=session_id)
+    return UserVerification(id=user_id, role=user.role, nickname=user.nickname, session_id=session_id)
 
 
 async def get_auth_user(

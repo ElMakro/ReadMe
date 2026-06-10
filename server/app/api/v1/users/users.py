@@ -31,8 +31,7 @@ class UserByEmail(
         extra='ignore',
     )
 
-    email: EmailStr | None = Field(
-        None,
+    email: EmailStr = Field(
         description="Адрес электронной почты пользователя",
         examples=[
             "readme.ivt.yarsu@mail.ru"],
@@ -143,7 +142,6 @@ class UserInfo(
 class UserVerification(
     UserByID,
     UserByNickname,
-    UserByEmail,
 ):
     model_config = ConfigDict(
         from_attributes=True,
