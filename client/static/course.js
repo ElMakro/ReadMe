@@ -52,6 +52,10 @@
                     const followedCourses = Array.isArray(followedData) ? followedData : (followedData.courses || []);
                     const isEnrolled = followedCourses.some(c => c.id === window.COURSE_ID);
                     if (isEnrolled) return 'enrolled';
+                } else if (followedResp.status === 401) {
+                    // Не авторизован – глобальный обработчик
+                } else if (followedResp.status === 403) {
+                    // Недостаточно прав
                 }
 
                 const controlledResp = await fetch(`${window.API_BASE_URL}courses/controlled-courses`, {
@@ -115,6 +119,12 @@
                 } else if (resp.status === 409) {
                     window.showToast('Вы уже записаны на этот курс', 'danger');
                     await updateEnrollButton();
+                } else if (resp.status === 401 || resp.status === 403) {
+                    // глобальный обработчик
+                } else if (resp.status === 404) {
+                    window.showToast('Курс не найден', 'danger');
+                } else if (resp.status === 422) {
+                    window.showToast('Ошибка валидации параметров', 'danger');
                 } else {
                     window.showToast('Не удалось записаться на курс', 'danger');
                 }
@@ -137,6 +147,10 @@
                     await updateEnrollButton();
                     if (currentCourse) showCourseDescription();
                     await buildSidebar();         // <-- обновляем боковую панель
+                } else if (resp.status === 404) {
+                    window.showToast('Курс не найден', 'danger');
+                } else if (resp.status === 422) {
+                    window.showToast('Ошибка валидации', 'danger');
                 } else {
                     window.showToast('Не удалось отписаться', 'danger');
                 }
@@ -180,7 +194,11 @@
             try {
                 const url = `${window.API_BASE_URL}sections/by_course/${window.COURSE_ID}`;
                 const resp = await fetch(url, {credentials: 'include'});
-                if (!resp.ok) return [];
+                if (!resp.ok) {
+                    if (resp.status === 401 || resp.status === 403) throw new Error('Доступ запрещён');
+                    if (resp.status === 404) throw new Error('Курс не найден');
+                    throw new Error(`HTTP ${resp.status}`);
+                }
                 const data = await resp.json();
                 const sections = Array.isArray(data) ? data : (data.sections || []);
                 sections.sort((a, b) => a.order_number - b.order_number);
@@ -314,6 +332,10 @@
                         topicContent.innerHTML = '<p class="text-danger">Для просмотра этой темы необходимо <a href="/">войти</a>.</p>';
                         return;
                     }
+                    if (resp.status === 404) {
+                        topicContent.innerHTML = '<p class="text-danger">Тема не найдена.</p>';
+                        return;
+                    }
                     throw new Error(`HTTP ${resp.status}`);
                 }
                 const topicData = await resp.json();
@@ -405,6 +427,10 @@
                         sectionList.innerHTML = '<li class="section-item text-muted">Войдите, чтобы увидеть содержимое курса.</li>';
                         return;
                     }
+                    if (resp.status === 404) {
+                        sectionList.innerHTML = '<li class="section-item text-muted">Курс не найден.</li>';
+                        return;
+                    }
                     throw new Error(`HTTP ${resp.status}`);
                 }
                 const data = await resp.json();
@@ -485,7 +511,11 @@
             try {
                 const url = `${window.API_BASE_URL}courses/${window.COURSE_ID}`;
                 const resp = await fetch(url, {credentials: 'include'});
-                if (!resp.ok) throw new Error(`Course HTTP ${resp.status}`);
+                if (!resp.ok) {
+                    if (resp.status === 401 || resp.status === 403) throw new Error('Доступ запрещён');
+                    if (resp.status === 404) throw new Error('Курс не найден');
+                    throw new Error(`HTTP ${resp.status}`);
+                }
                 currentCourse = await resp.json();
                 courseTitleHeader.textContent = escapeHtml(currentCourse.name);
                 if (courseNameMain) courseNameMain.textContent = escapeHtml(currentCourse.name);
@@ -495,7 +525,7 @@
             } catch (err) {
                 console.error(err);
                 courseTitleHeader.textContent = 'Курс не найден';
-                topicContent.innerHTML = '<p class="text-muted">Не удалось загрузить курс.</p>';
+                topicContent.innerHTML = `<p class="text-muted">${err.message}</p>`;
             }
         }
 
@@ -544,7 +574,7 @@
     });
 })();
 
-// Плавающее окно конспекта
+// Плавающее окно конспекта (без изменений – нет fetch)
 (function () {
     document.addEventListener('DOMContentLoaded', function () {
         const win = document.getElementById('floatingWindow');

@@ -51,6 +51,7 @@
             const url = `${window.API_BASE_URL}users/all?page=${page}&size=${PAGE_SIZE}`;
             const response = await fetch(url, { credentials: 'include' });
             if (response.status === 401 || response.status === 403) {
+                // Глобальный обработчик покажет сообщение
                 container.innerHTML = `
                     <div class="col-12 text-center py-5">
                         <p class="text-danger">Доступ запрещён. Только для администраторов.</p>
@@ -62,7 +63,11 @@
                 isLoading = false;
                 return;
             }
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            if (!response.ok) {
+                if (response.status === 404) throw new Error('Ресурс не найден.');
+                if (response.status === 422) throw new Error('Ошибка валидации параметров.');
+                throw new Error(`HTTP ${response.status}`);
+            }
             const users = await response.json();
             if (!Array.isArray(users)) throw new Error('Неверный формат ответа');
             renderUsers(users);
@@ -175,6 +180,12 @@
             if (response.status === 204) {
                 window.showToast(`Роль пользователя ${selectedUserName} изменена на ${getRoleName(newRole)}.`);
                 loadUsers(currentPage);
+            } else if (response.status === 401 || response.status === 403) {
+                // глобальный обработчик
+                if (roleModal) roleModal.hide();
+            } else if (response.status === 404) {
+                window.showToast('Пользователь не найден.', 'danger');
+                if (roleModal) roleModal.hide();
             } else if (response.status === 409) {
                 const errorData = await response.json().catch(() => ({}));
                 let msg = errorData.detail || 'Невозможно изменить роль.';
@@ -184,12 +195,14 @@
                     msg = 'Нельзя изменить собственную роль.';
                 }
                 window.showToast(msg, 'danger');
-            } else if (response.status === 404) {
-                window.showToast('Пользователь не найден.', 'danger');
-            } else if (response.status === 403) {
-                window.showToast('Доступ запрещён.', 'danger');
+                if (roleModal) roleModal.hide();
+            } else if (response.status === 422) {
+                const errorData = await response.json().catch(() => ({}));
+                window.showToast(errorData.detail || 'Ошибка валидации данных.', 'danger');
+                if (roleModal) roleModal.hide();
             } else {
                 window.showToast('Ошибка при изменении роли.', 'danger');
+                if (roleModal) roleModal.hide();
             }
         } catch (err) {
             console.error(err);
@@ -222,13 +235,22 @@
             if (response.status === 204) {
                 window.showToast(`Пользователь ${userName} удалён.`);
                 loadUsers(currentPage);
+            } else if (response.status === 401 || response.status === 403) {
+                // глобальный обработчик
+                if (deleteModal) deleteModal.hide();
+            } else if (response.status === 404) {
+                window.showToast('Пользователь не найден.', 'danger');
+                if (deleteModal) deleteModal.hide();
             } else if (response.status === 409) {
                 const errorData = await response.json().catch(() => ({}));
                 window.showToast(errorData.detail || 'Нельзя удалить собственный профиль.', 'danger');
-            } else if (response.status === 404) {
-                window.showToast('Пользователь не найден.', 'danger');
+                if (deleteModal) deleteModal.hide();
+            } else if (response.status === 422) {
+                window.showToast('Ошибка валидации идентификатора.', 'danger');
+                if (deleteModal) deleteModal.hide();
             } else {
                 window.showToast('Ошибка при удалении.', 'danger');
+                if (deleteModal) deleteModal.hide();
             }
         } catch (err) {
             console.error(err);

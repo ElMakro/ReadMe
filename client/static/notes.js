@@ -16,7 +16,10 @@
                 credentials: 'include'
             });
             if (resp.status === 204) return null;
-            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+            if (!resp.ok) {
+                if (resp.status === 401 || resp.status === 403) throw new Error('Доступ запрещён');
+                throw new Error(`HTTP ${resp.status}`);
+            }
             return await resp.json();
         } catch (err) {
             console.warn('loadNoteForTopic error:', err);
@@ -34,7 +37,11 @@
                     credentials: 'include',
                     body: JSON.stringify({ note_id: noteId, topic_id: topicId, name, content })
                 });
-                if (!resp.ok) throw new Error(`Update failed: ${resp.status}`);
+                if (!resp.ok) {
+                    if (resp.status === 401 || resp.status === 403) throw new Error('Доступ запрещён');
+                    if (resp.status === 409) throw new Error('Конспект не принадлежит вам или уже изменён');
+                    throw new Error(`Update failed: ${resp.status}`);
+                }
                 return { success: true, noteId };
             } else {
                 const resp = await fetch(`${API_BASE}notes/create-note`, {
@@ -43,7 +50,11 @@
                     credentials: 'include',
                     body: JSON.stringify({ topic_id: topicId, name, content })
                 });
-                if (!resp.ok) throw new Error(`Create failed: ${resp.status}`);
+                if (!resp.ok) {
+                    if (resp.status === 401 || resp.status === 403) throw new Error('Доступ запрещён');
+                    if (resp.status === 409) throw new Error('Конспект для этой темы уже существует');
+                    throw new Error(`Create failed: ${resp.status}`);
+                }
                 const data = await resp.json();
                 return { success: true, noteId: data.id };
             }
@@ -61,12 +72,16 @@
                 method: 'DELETE',
                 credentials: 'include'
             });
-            if (!resp.ok) throw new Error(`Delete failed: ${resp.status}`);
+            if (!resp.ok) {
+                if (resp.status === 401 || resp.status === 403) throw new Error('Доступ запрещён');
+                if (resp.status === 404) throw new Error('Конспект не найден');
+                throw new Error(`Delete failed: ${resp.status}`);
+            }
             window.showToast('Конспект удалён');
             return true;
         } catch (err) {
             console.error('deleteNote error:', err);
-            window.showToast('Ошибка удаления конспекта', 'danger');
+            window.showToast('Ошибка удаления конспекта: ' + err.message, 'danger');
             throw err;
         }
     }
@@ -74,7 +89,11 @@
     async function getMyNotes(page = 1, perPage = 10) {
         const url = `${API_BASE}notes/my-notes?page=${page}&records_per_page=${perPage}`;
         const resp = await fetch(url, { credentials: 'include' });
-        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        if (!resp.ok) {
+            if (resp.status === 401 || resp.status === 403) throw new Error('Доступ запрещён');
+            if (resp.status === 422) throw new Error('Ошибка валидации параметров');
+            throw new Error(`HTTP ${resp.status}`);
+        }
         const data = await resp.json();
         return Array.isArray(data) ? data : [];
     }
@@ -84,7 +103,10 @@
             const resp = await fetch(`${API_BASE}topics/${topicId}`, {
                 credentials: 'include'
             });
-            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+            if (!resp.ok) {
+                if (resp.status === 404) return null;
+                throw new Error(`HTTP ${resp.status}`);
+            }
             const topic = await resp.json();
             return topic.course_id;
         } catch (err) {
@@ -121,7 +143,7 @@
                 if (paginationDiv) paginationDiv.style.display = 'flex';
             } catch (err) {
                 console.error(err);
-                container.innerHTML = '<div class="text-danger text-center py-4">Ошибка загрузки заметок</div>';
+                container.innerHTML = `<div class="text-danger text-center py-4">${err.message}</div>`;
                 if (paginationDiv) paginationDiv.style.display = 'none';
             }
         }

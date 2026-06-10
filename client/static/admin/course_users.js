@@ -52,12 +52,14 @@
                 courseProfessorName = professorFullName || course.professor_id;
                 professorInfoSpan.innerHTML = `<small>Преподаватель курса: <strong>${escapeHtml(courseProfessorName)}</strong></small>`;
             } else {
-                courseNameSpan.textContent = 'Курс';
-                professorInfoSpan.innerHTML = '<small class="text-danger">Не удалось загрузить информацию о преподавателе</small>';
+                if (resp.status === 401 || resp.status === 403) throw new Error('Доступ запрещён');
+                if (resp.status === 404) throw new Error('Курс не найден');
+                throw new Error(`HTTP ${resp.status}`);
             }
         } catch(e) {
             console.error(e);
             courseNameSpan.textContent = 'Курс';
+            professorInfoSpan.innerHTML = `<small class="text-danger">${e.message}</small>`;
         }
     }
 
@@ -67,7 +69,10 @@
             const resp = await fetch(`${window.API_BASE_URL}users/all?page=1&records_per_page=30`, {
                 credentials: 'include'
             });
-            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+            if (!resp.ok) {
+                if (resp.status === 401 || resp.status === 403) throw new Error('Доступ запрещён');
+                throw new Error(`HTTP ${resp.status}`);
+            }
             let users = await resp.json();
             users = Array.isArray(users) ? users : [];
             // Исключаем преподавателя курса из общего списка (чтобы он не попал в "Не записаны")
@@ -88,7 +93,11 @@
             const resp = await fetch(`${window.API_BASE_URL}users/enrolled-users/${courseId}`, {
                 credentials: 'include'
             });
-            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+            if (!resp.ok) {
+                if (resp.status === 401 || resp.status === 403) throw new Error('Доступ запрещён');
+                if (resp.status === 404) throw new Error('Курс не найден');
+                throw new Error(`HTTP ${resp.status}`);
+            }
             let users = await resp.json();
             users = Array.isArray(users) ? users : [];
             // Исключаем преподавателя из списка записанных (он там не должен быть, но на всякий случай)
@@ -246,6 +255,12 @@
                 await loadDataAndRender();
             } else if (res.status === 409) {
                 window.showToast(isEnroll ? 'Пользователь уже записан на курс' : 'Пользователь не был записан', 'warning');
+            } else if (res.status === 401 || res.status === 403) {
+                // глобальный обработчик
+            } else if (res.status === 404) {
+                window.showToast('Курс или пользователь не найдены', 'danger');
+            } else if (res.status === 422) {
+                window.showToast('Ошибка валидации параметров', 'danger');
             } else {
                 const text = await res.text();
                 window.showToast(`Ошибка: ${text}`, 'danger');

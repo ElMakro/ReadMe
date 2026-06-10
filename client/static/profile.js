@@ -40,6 +40,8 @@
                 renderProfile(user);
             } else if (response.status === 401) {
                 renderNotLoggedIn();
+            } else if (response.status === 403) {
+                renderNotLoggedIn('Доступ запрещён.');
             } else {
                 throw new Error('Ошибка загрузки профиля');
             }
@@ -225,10 +227,13 @@
                 });
 
                 if (!response.ok) {
+                    if (response.status === 401 || response.status === 403) throw new Error('Доступ запрещён');
+                    if (response.status === 404) throw new Error('Пользователь не найден');
                     if (response.status === 409) {
                         const error = await response.json().catch(() => ({}));
                         throw new Error(error.detail || 'Никнейм или email уже заняты');
                     }
+                    if (response.status === 422) throw new Error('Ошибка валидации данных');
                     throw new Error('Ошибка обновления профиля');
                 }
 
@@ -242,6 +247,8 @@
                         body: formData
                     });
                     if (!iconRes.ok) {
+                        if (iconRes.status === 401 || iconRes.status === 403) throw new Error('Доступ запрещён');
+                        if (iconRes.status === 415) throw new Error('Некорректный тип файла');
                         throw new Error('Не удалось загрузить фото профиля');
                     }
                 }
@@ -257,12 +264,12 @@
         cancelBtn.addEventListener('click', () => loadProfile());
     }
 
-    function renderNotLoggedIn() {
+    function renderNotLoggedIn(message = 'Вы не авторизованы.') {
         profileContainer.innerHTML = `
             <div class="row justify-content-center">
                 <div class="col-lg-8">
                     <div class="card border-0 shadow-sm text-center p-4" style="background: var(--bg-secondary);">
-                        <p class="mb-3">Вы не авторизованы.</p>
+                        <p class="mb-3">${message}</p>
                         <button class="btn btn-accent" id="loginFromProfileBtn">Войти</button>
                     </div>
                 </div>

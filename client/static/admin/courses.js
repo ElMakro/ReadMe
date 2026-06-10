@@ -117,7 +117,12 @@
                 records_per_page: limit
             });
             const resp = await fetch(`${window.API_BASE_URL}courses/search?${params}`, { credentials: 'include' });
-            if (!resp.ok) throw new Error('Ошибка загрузки курсов');
+            if (!resp.ok) {
+                if (resp.status === 401 || resp.status === 403) throw new Error('Доступ запрещён');
+                if (resp.status === 400) throw new Error('Неправильный критерий поиска');
+                if (resp.status === 422) throw new Error('Ошибка валидации параметров');
+                throw new Error(`HTTP ${resp.status}`);
+            }
             const coursesData = await resp.json();
             const coursesArray = Array.isArray(coursesData) ? coursesData : (coursesData.items || []);
             renderCourses(coursesArray);

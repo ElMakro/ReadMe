@@ -37,7 +37,11 @@
             const res = await fetch(`${window.API_BASE_URL}courses/controlled-courses?page=1&records_per_page=30`, {
                 credentials: 'include'
             });
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            if (!res.ok) {
+                if (res.status === 401 || res.status === 403) throw new Error('Доступ запрещён');
+                if (res.status === 422) throw new Error('Ошибка валидации параметров');
+                throw new Error(`HTTP ${res.status}`);
+            }
             const data = await res.json();
             let coursesArray = Array.isArray(data) ? data : (data.items || []);
             courses = coursesArray.map(c => ({
@@ -246,7 +250,13 @@
                             is_content_public: newIsContentPublic
                         })
                     });
-                    if (!res.ok) throw new Error('Ошибка обновления курса');
+                    if (!res.ok) {
+                        if (res.status === 401 || res.status === 403) throw new Error('Доступ запрещён');
+                        if (res.status === 404) throw new Error('Курс не найден');
+                        if (res.status === 409) throw new Error('Конфликт уровней публичности курса');
+                        if (res.status === 422) throw new Error('Ошибка валидации данных');
+                        throw new Error('Ошибка обновления курса');
+                    }
                     // Обновляем локальный объект
                     course.name = newName;
                     course.description = newDesc;
@@ -269,7 +279,12 @@
                             is_content_public: newIsContentPublic
                         })
                     });
-                    if (!res.ok) throw new Error('Ошибка создания курса');
+                    if (!res.ok) {
+                        if (res.status === 403) throw new Error('Недостаточно прав для создания курса');
+                        if (res.status === 409) throw new Error('Конфликт уровней публичности');
+                        if (res.status === 422) throw new Error('Ошибка валидации данных');
+                        throw new Error('Ошибка создания курса');
+                    }
                     const data = await res.json();
                     course.id = data.id;
                     course.name = newName;
@@ -290,6 +305,9 @@
                         body: formData
                     });
                     if (!iconRes.ok) {
+                        if (iconRes.status === 403) throw new Error('Недостаточно прав для установки иконки');
+                        if (iconRes.status === 404) throw new Error('Курс не найден');
+                        if (iconRes.status === 415) throw new Error('Некорректный тип файла');
                         throw new Error('Не удалось загрузить иконку курса');
                     }
                 }
@@ -328,7 +346,11 @@
                     method: 'DELETE',
                     credentials: 'include'
                 });
-                if (!res.ok) throw new Error('Ошибка удаления');
+                if (!res.ok) {
+                    if (res.status === 401 || res.status === 403) throw new Error('Доступ запрещён');
+                    if (res.status === 404) throw new Error('Курс не найден');
+                    throw new Error('Ошибка удаления');
+                }
                 const idx = courses.findIndex(c => c.id === course.id);
                 if (idx !== -1) courses.splice(idx, 1);
                 originalCourses = originalCourses.filter(c => c.id !== course.id);
