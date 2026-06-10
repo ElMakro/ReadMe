@@ -10,6 +10,7 @@
     const nextPageBtn = document.getElementById('nextPageBtn');
     const refreshBtn = document.getElementById('refreshBtn');
     const pageInfoSpan = document.getElementById('pageInfo');
+    const paginationDiv = document.querySelector('.pagination');
 
     // Модальное окно изменения статуса
     const modalElement = document.getElementById('statusModal');
@@ -22,7 +23,36 @@
     const currentUserIdInput = document.getElementById('currentUserId');
     const currentNewStatusInput = document.getElementById('currentNewStatus');
 
-    // --- Функция перевода статуса на русский ---
+    function hidePagination() {
+        if (paginationDiv) paginationDiv.style.display = 'none';
+    }
+
+    function showPagination() {
+        if (paginationDiv) paginationDiv.style.display = 'flex';
+    }
+
+    function handleAccessDenied(message = 'Доступ запрещён.') {
+        container.innerHTML = `
+            <div class="col-12 text-center py-5">
+                <p class="text-danger">${message}</p>
+                <button class="btn btn-accent" id="accessDeniedLoginBtn">Войти</button>
+                <button class="btn btn-outline-accent ms-2" onclick="window.location.href='/'">На главную</button>
+            </div>
+        `;
+        hidePagination();
+        const loginBtn = document.getElementById('accessDeniedLoginBtn');
+        if (loginBtn) {
+            loginBtn.addEventListener('click', () => {
+                const headerLoginBtn = document.getElementById('loginBtn');
+                if (headerLoginBtn) headerLoginBtn.click();
+                else window.location.href = '/';
+            });
+        }
+        if (refreshBtn) refreshBtn.disabled = true;
+        if (prevPageBtn) prevPageBtn.disabled = true;
+        if (nextPageBtn) nextPageBtn.disabled = true;
+    }
+
     function getStatusText(status) {
         const map = {
             'pending': 'На рассмотрении',
@@ -32,7 +62,6 @@
         return map[status] || status;
     }
 
-    // --- Функция для получения класса бэйджа (цвета) ---
     function getStatusBadgeClass(status) {
         if (status === 'pending') return 'bg-warning text-dark';
         if (status === 'approved') return 'bg-success';
@@ -55,26 +84,6 @@
         });
     }
 
-    function showAccessDenied(message = 'Доступ запрещён.') {
-        container.innerHTML = `
-            <div class="col-12 text-center py-5">
-                <p class="text-danger">${message}</p>
-                <button class="btn btn-accent" id="accessDeniedLoginBtn">Войти</button>
-                <button class="btn btn-outline-accent ms-2" onclick="window.location.href='/'">На главную</button>
-            </div>
-        `;
-        const paginationDiv = document.querySelector('.pagination');
-        if (paginationDiv) paginationDiv.style.display = 'none';
-        const loginBtn = document.getElementById('accessDeniedLoginBtn');
-        if (loginBtn) {
-            loginBtn.addEventListener('click', () => {
-                const headerLoginBtn = document.getElementById('loginBtn');
-                if (headerLoginBtn) headerLoginBtn.click();
-                else window.location.href = '/';
-            });
-        }
-    }
-
     function updatePagination(page, total) {
         if (prevPageBtn) prevPageBtn.disabled = page <= 1;
         if (nextPageBtn) nextPageBtn.disabled = page >= total;
@@ -91,18 +100,14 @@
             const url = `${window.API_BASE_URL}users/get-active-applications?page=${page}&size=${PAGE_SIZE}`;
             const response = await fetch(url, { credentials: 'include' });
             if (response.status === 401 || response.status === 403) {
-                showAccessDenied('Вы не авторизованы или недостаточно прав.');
+                handleAccessDenied('Вы не авторизованы или недостаточно прав.');
                 isLoading = false;
                 return;
             }
             if (!response.ok) {
-                if (response.status === 404) {
-                    throw new Error('Ресурс не найден. Проверьте правильность запроса.');
-                } else if (response.status === 422) {
-                    throw new Error('Ошибка валидации параметров запроса.');
-                } else {
-                    throw new Error(`HTTP ${response.status}`);
-                }
+                if (response.status === 404) throw new Error('Ресурс не найден.');
+                if (response.status === 422) throw new Error('Ошибка валидации параметров.');
+                throw new Error(`HTTP ${response.status}`);
             }
             const applications = await response.json();
             if (!Array.isArray(applications)) throw new Error('Неверный формат ответа');
@@ -110,6 +115,8 @@
             const hasNext = applications.length === PAGE_SIZE;
             const total = hasNext ? page + 1 : page;
             updatePagination(page, total);
+            showPagination();
+            if (refreshBtn) refreshBtn.disabled = false;
         } catch (err) {
             console.error(err);
             container.innerHTML = `
@@ -118,6 +125,7 @@
                     <button class="btn btn-outline-accent" onclick="location.reload()">Повторить</button>
                 </div>
             `;
+            hidePagination();
             updatePagination(page, page);
         } finally {
             isLoading = false;
@@ -167,7 +175,6 @@
         if (currentPage < totalPages && !isLoading) loadPage(currentPage + 1);
     }
 
-    // --- Модальное окно изменения статуса ---
     let currentAppId, currentUserId, currentNewStatus, currentUserName;
     function openStatusModal(appId, userId, userName, newStatus) {
         currentAppId = appId;
@@ -206,9 +213,8 @@
                 statusModal.hide();
                 loadPage(currentPage);
             } else if (response.status === 401 || response.status === 403) {
-                // Глобальный обработчик уже покажет сообщение, не дублируем
+                handleAccessDenied();
                 statusModal.hide();
-                loadPage(currentPage);
             } else if (response.status === 404) {
                 window.showToast('Заявка или пользователь не найдены.', 'danger');
                 statusModal.hide();
@@ -232,7 +238,6 @@
         }
     }
 
-    // --- Управление секретной ссылкой с кнопкой копирования ---
     function addSecretLinkControls() {
         const manageBtn = document.getElementById('manageSecretLinkBtn');
         if (!manageBtn) return;
@@ -297,8 +302,6 @@
                 if (response.ok) {
                     const data = await response.json();
                     const fullLink = `${window.location.origin}/submit_professor_application/${data.secret_part}`;
-
-                    // Формируем блок с полем ввода и кнопкой копирования
                     resultDiv.className = 'alert alert-success mt-3';
                     resultDiv.innerHTML = `
                         <strong>Ссылка установлена:</strong><br>
@@ -309,8 +312,6 @@
                         <small class="text-muted mt-2 d-block">Секретная часть: ${escapeHtml(data.secret_part)}</small>
                     `;
                     resultDiv.style.display = 'block';
-
-                    // Обработчик копирования
                     const copyBtn = document.getElementById('copyLinkBtn');
                     if (copyBtn) {
                         copyBtn.addEventListener('click', async () => {
@@ -321,10 +322,9 @@
                             }
                         });
                     }
-
                     window.showToast('Ссылка для подачи заявок успешно обновлена');
                 } else if (response.status === 401 || response.status === 403) {
-                    // Глобальный обработчик
+                    handleAccessDenied();
                     resultDiv.className = 'alert alert-danger mt-3';
                     resultDiv.innerHTML = 'Недостаточно прав для выполнения операции.';
                     resultDiv.style.display = 'block';
@@ -348,7 +348,6 @@
         const customBtn = modal.querySelector('#setCustomBtn');
         const customInput = modal.querySelector('#customLinkInput');
 
-        // Генерация случайной строки (аналог Fernet.generate_key().decode())
         const generateRandomSecret = () => {
             const randomBytes = new Uint8Array(32);
             crypto.getRandomValues(randomBytes);
@@ -372,14 +371,14 @@
         modalObj.show();
     }
 
-    // --- Обработчики событий ---
     if (prevPageBtn) prevPageBtn.addEventListener('click', (e) => { e.preventDefault(); goPrevPage(); });
     if (nextPageBtn) nextPageBtn.addEventListener('click', (e) => { e.preventDefault(); goNextPage(); });
     if (refreshBtn) refreshBtn.addEventListener('click', () => loadPage(currentPage));
     if (confirmStatusBtn) confirmStatusBtn.addEventListener('click', confirmStatusChange);
 
-    // Добавляем управление ссылкой после загрузки DOM
     document.addEventListener('DOMContentLoaded', addSecretLinkControls);
 
+    // Изначально скрываем пагинацию, пока не загрузим данные
+    hidePagination();
     loadPage(1);
 })();

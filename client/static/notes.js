@@ -123,28 +123,53 @@
         const pageInfoSpan = document.getElementById('notesPageInfo');
         const paginationDiv = document.getElementById('notesPagination');
 
+        function hidePagination() {
+            if (paginationDiv) paginationDiv.style.display = 'none';
+            if (prevBtn) prevBtn.disabled = true;
+            if (nextBtn) nextBtn.disabled = true;
+        }
+
+        function showPagination() {
+            if (paginationDiv) paginationDiv.style.display = 'flex';
+        }
+
         let currentPage = 1;
         const perPage = 9;
         let totalPages = 0;
 
         async function loadNotes(page) {
             container.innerHTML = '<div class="text-muted text-center py-4">Загрузка...</div>';
+            hidePagination();
             try {
                 const notes = await getMyNotes(page, perPage);
                 if (!notes.length) {
                     container.innerHTML = '<div class="text-muted text-center py-4">У вас пока нет сохранённых конспектов.</div>';
-                    if (paginationDiv) paginationDiv.style.display = 'none';
                     return;
                 }
                 const hasNext = notes.length === perPage;
                 totalPages = hasNext ? page + 1 : page;
                 renderNotes(notes);
                 updatePagination(page, totalPages);
-                if (paginationDiv) paginationDiv.style.display = 'flex';
+                showPagination();
             } catch (err) {
                 console.error(err);
-                container.innerHTML = `<div class="text-danger text-center py-4">${err.message}</div>`;
-                if (paginationDiv) paginationDiv.style.display = 'none';
+                if (err.message === 'Доступ запрещён') {
+                    container.innerHTML = `
+                        <div class="text-center py-4">
+                            <p class="text-danger">${err.message}</p>
+                            <button class="btn btn-accent" id="loginFromNotesBtn">Войти</button>
+                            <button class="btn btn-outline-accent ms-2" onclick="window.location.href='/'">На главную</button>
+                        </div>
+                    `;
+                    const loginBtn = document.getElementById('loginFromNotesBtn');
+                    if (loginBtn) {
+                        loginBtn.addEventListener('click', () => {
+                            if (window.AuthModal) window.AuthModal.open();
+                        });
+                    }
+                } else {
+                    container.innerHTML = `<div class="text-danger text-center py-4">${err.message}</div>`;
+                }
             }
         }
 
