@@ -1,6 +1,8 @@
 import uuid
+from pathlib import Path
+from typing import Any
 
-from sqlalchemy import ForeignKey, Index, Integer, String
+from sqlalchemy import ForeignKey, Index, Integer, String, TypeDecorator
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy_json import mutable_json_type
@@ -8,6 +10,25 @@ from sqlalchemy_json import mutable_json_type
 from server.database.mixins.id_mixins import IDMixin
 from server.database.mixins.timestamp_mixins import TimestampsMixin
 from server.database.models.base import Base
+
+
+class PathType(TypeDecorator):
+    impl = String(255)
+    cache_ok = True
+
+    def process_bind_param(self, value: Path | str | None, dialect: Any) -> str | None:
+        if value is None:
+            return None
+        return str(value) if isinstance(value, Path) else value
+
+    def process_result_value(self, value: str | None, dialect: Any) -> Path | None:
+        if value is None:
+            return None
+        return Path(value)
+
+    @property
+    def python_type(self) -> type[Path]:
+        return Path
 
 
 class Topics(
@@ -60,10 +81,8 @@ class Topics(
         default=list,
         nullable=False,
     )
-    topic_directory_path: Mapped[str] = mapped_column(
-        String(
-            255,
-        ),
+    topic_directory_path: Mapped[Path] = mapped_column(
+        PathType,
         nullable=False,
         unique=True,
     )
