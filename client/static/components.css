@@ -454,58 +454,7 @@
     color: white;
 }
 
-/*!* ========== ОСНОВНОЙ КОНТЕНТ КУРСА (дополнительные блоки) ========== *!*/
-/*.course-description-card {*/
-/*    background: linear-gradient(135deg, rgba(var(--accent-rgb), 0.05) 0%, rgba(var(--accent-rgb), 0.02) 100%);*/
-/*    border-radius: var(--radius-2xl);*/
-/*    padding: 1.5rem;*/
-/*    margin-bottom: 2rem;*/
-/*    font-size: 1.05rem;*/
-/*    line-height: 1.5;*/
-/*    color: var(--text-primary);*/
-/*}*/
-/*.topic-block {*/
-/*    margin-bottom: 2rem;*/
-/*    padding: 1rem;*/
-/*    background: var(--bg-secondary);*/
-/*    border-radius: var(--radius-xl);*/
-/*    border: 1px solid var(--border-color);*/
-/*}*/
-/*.latex-block {*/
-/*    background: rgba(0, 0, 0, 0.02);*/
-/*    padding: 1rem;*/
-/*    border-radius: var(--radius-lg);*/
-/*    overflow-x: auto;*/
-/*}*/
-/*.file-list {*/
-/*    list-style: none;*/
-/*    padding-left: 0;*/
-/*}*/
-/*.file-list li {*/
-/*    margin-bottom: 0.5rem;*/
-/*}*/
-/*.file-list a {*/
-/*    display: inline-flex;*/
-/*    align-items: center;*/
-/*    gap: 0.5rem;*/
-/*    text-decoration: none;*/
-/*}*/
-/*.file-list a:hover {*/
-/*    text-decoration: underline;*/
-/*}*/
-/*#checkYourselfBtn {*/
-/*    background: var(--accent);*/
-/*    color: white;*/
-/*    border: none;*/
-/*    padding: 0.75rem 2rem;*/
-/*    border-radius: var(--radius-full);*/
-/*    font-weight: 600;*/
-/*    transition: all var(--transition-base);*/
-/*}*/
-/*#checkYourselfBtn:hover {*/
-/*    background: var(--accent-hover);*/
-/*    transform: translateY(-2px);*/
-/*}*/
+/* ========== КОНТЕНТ КУРСА (дополнительные блоки) ========== */
 #enrollBtn {
     background: var(--accent);
     color: white;
@@ -927,4 +876,27 @@ input[type="file"]::file-selector-button {
 }
 input[type="file"]::file-selector-button:hover {
     background: var(--accent-hover);
+}
+
+/* ========== ЕДИНЫЕ СКРУГЛЕНИЯ ДЛЯ ПОЛЬЗОВАТЕЛЬСКИХ КОМПОНЕНТОВ ========== */
+.current-course-icon,
+.course-thumb {
+    border-radius: var(--radius-md);
+}
+
+.current-user-icon {
+    border-radius: var(--radius-full) !important;
+    object-fit: cover;
+}
+
+/* Переопределение Bootstrap-кнопок */
+.btn, .btn-primary, .btn-outline-primary, .btn-secondary, .btn-outline-secondary,
+.btn-success, .btn-danger, .btn-warning, .btn-accent, .btn-outline-accent {
+    border-radius: var(--radius-md) !important;
+}
+
+/* Формы */
+.form-control, .form-select, .input-group-text {
+    border-radius: var(--radius-md) !important;
+    border-width: var(--border-width) !important;
 }

@@ -4,12 +4,19 @@
     let currentPage = 1;
     const limit = 9;
     let isLoading = false;
+    const paginationContainer = document.getElementById('paginationControls');
 
-    // Создаём пагинацию внутри header-контейнера
+    function hidePagination() {
+        if (paginationContainer) paginationContainer.style.display = 'none';
+    }
+
+    function showPagination() {
+        if (paginationContainer) paginationContainer.style.display = 'flex';
+    }
+
     function createPagination() {
-        const container = document.getElementById('paginationControls');
-        if (!container || container.children.length > 0) return;
-        container.innerHTML = `
+        if (!paginationContainer || paginationContainer.children.length > 0) return;
+        paginationContainer.innerHTML = `
             <button class="pagination-btn" id="prevPageBtn" disabled>← Предыдущий</button>
             <span id="pageInfo" class="text-muted">Страница 1</span>
             <button class="pagination-btn" id="nextPageBtn">Следующий →</button>
@@ -20,6 +27,7 @@
         if (isLoading) return;
         isLoading = true;
         grid.innerHTML = '<div class="col-12 text-center py-5"><div class="spinner-border text-accent" role="status"></div></div>';
+        hidePagination();
 
         const params = new URLSearchParams();
         params.append('page', page);
@@ -29,17 +37,24 @@
             const response = await fetch(`${window.API_BASE_URL}courses/followed-courses?${params.toString()}`, {
                 credentials: 'include'
             });
-            if (!response.ok) {
-                if (response.status === 401) {
-                    grid.innerHTML = '<div class="col-12 text-center">Вы не авторизованы. <a href="#" id="loginLink">Войдите</a></div>';
-                    const loginLink = document.getElementById('loginLink');
-                    if (loginLink) loginLink.addEventListener('click', (e) => {
-                        e.preventDefault();
+            if (response.status === 401 || response.status === 403) {
+                grid.innerHTML = `
+                    <div class="col-12 text-center py-5">
+                        <p class="text-danger">Вы не авторизованы или доступ запрещён.</p>
+                        <button class="btn btn-accent" id="loginFromMyCoursesBtn">Войти</button>
+                        <button class="btn btn-outline-accent ms-2" onclick="window.location.href='/'">На главную</button>
+                    </div>
+                `;
+                const loginBtn = document.getElementById('loginFromMyCoursesBtn');
+                if (loginBtn) {
+                    loginBtn.addEventListener('click', () => {
                         if (window.AuthModal) window.AuthModal.open();
                     });
-                    return;
                 }
-                if (response.status === 403) throw new Error('Доступ запрещён');
+                isLoading = false;
+                return;
+            }
+            if (!response.ok) {
                 if (response.status === 422) throw new Error('Ошибка валидации параметров');
                 throw new Error('Ошибка загрузки курсов');
             }
@@ -49,6 +64,7 @@
             renderCourses(courses);
             updatePagination(page, hasNext);
             currentPage = page;
+            showPagination();
         } catch (error) {
             console.error(error);
             grid.innerHTML = `<div class="col-12 text-center text-danger">${error.message}</div>`;

@@ -6,9 +6,27 @@
     let courses = [];
     let originalCourses = [];
 
-    // Временное хранилище выбранного файла иконки для редактируемого курса
     let selectedIconFile = null;
     let currentEditingCourseId = null;
+
+    function handleAccessDenied(message = 'Доступ запрещён.') {
+        container.innerHTML = `
+            <div class="text-center py-4">
+                <p class="text-danger">${message}</p>
+                <button class="btn btn-accent" id="accessDeniedLoginBtn">Войти</button>
+                <button class="btn btn-outline-accent ms-2" onclick="window.location.href='/'">На главную</button>
+            </div>
+        `;
+        if (addBtn) addBtn.disabled = true;
+        const loginBtn = document.getElementById('accessDeniedLoginBtn');
+        if (loginBtn) {
+            loginBtn.addEventListener('click', () => {
+                const headerLoginBtn = document.getElementById('loginBtn');
+                if (headerLoginBtn) headerLoginBtn.click();
+                else window.location.href = '/';
+            });
+        }
+    }
 
     function autosize(textarea) {
         textarea.style.height = 'auto';
@@ -37,8 +55,11 @@
             const res = await fetch(`${window.API_BASE_URL}courses/controlled-courses?page=1&records_per_page=30`, {
                 credentials: 'include'
             });
+            if (res.status === 401 || res.status === 403) {
+                handleAccessDenied('Доступ запрещён. Только для преподавателей и администраторов.');
+                return;
+            }
             if (!res.ok) {
-                if (res.status === 401 || res.status === 403) throw new Error('Доступ запрещён');
                 if (res.status === 422) throw new Error('Ошибка валидации параметров');
                 throw new Error(`HTTP ${res.status}`);
             }
@@ -54,12 +75,14 @@
             }));
             originalCourses = JSON.parse(JSON.stringify(courses));
             renderCourses();
+            if (addBtn) addBtn.disabled = false;
         } catch (err) {
             console.error(err);
             container.innerHTML = `<div class="text-danger">Ошибка загрузки курсов: ${err.message}</div>`;
             courses = [];
             originalCourses = [];
             renderCourses();
+            if (addBtn) addBtn.disabled = true;
         }
     }
 
@@ -152,14 +175,13 @@
                     <div id="tagsManagerPlaceholder-${course.id || 'new'}"></div>
                 </div>
                 
-                <!-- Блок выбора иконки курса (одна кнопка, загрузка при сохранении) -->
                 <div class="mb-3">
                     <label class="form-label">Иконка курса</label>
                     <div class="d-flex align-items-center gap-3">
                         <img src="${window.API_BASE_URL}courses/${course.id}/icon"
-                             class="current-course-icon rounded"
+                             class="current-course-icon"
                              width="64" height="64"
-                             style="object-fit: cover; border-radius: 16px;"
+                             style="object-fit: cover;">
                         <div>
                             <button type="button" class="btn btn-outline-accent select-icon-btn">Выбрать файл</button>
                             <span class="ms-2 text-muted icon-filename"></span>
@@ -192,7 +214,6 @@
         const cancelBtn = card.querySelector('.cancel-edit');
         const delBtn = card.querySelector('.delete-course');
 
-        // Элементы для иконки
         const selectIconBtn = card.querySelector('.select-icon-btn');
         const fileInput = card.querySelector(`#iconFileInput-${course.id}`);
         const filenameSpan = card.querySelector('.icon-filename');
@@ -206,7 +227,6 @@
             if (fileInput.files.length > 0) {
                 selectedIconFile = fileInput.files[0];
                 filenameSpan.textContent = selectedIconFile.name;
-                // Показать превью
                 const reader = new FileReader();
                 reader.onload = (e) => {
                     if (previewImg) previewImg.src = e.target.result;
@@ -236,7 +256,6 @@
             const newTags = [...course.tags];
 
             try {
-                // 1. Обновляем основные данные курса
                 if (course.id) {
                     const res = await fetch(`${window.API_BASE_URL}courses/${course.id}`, {
                         method: 'PUT',
@@ -250,14 +269,16 @@
                             is_content_public: newIsContentPublic
                         })
                     });
+                    if (res.status === 401 || res.status === 403) {
+                        handleAccessDenied();
+                        return;
+                    }
                     if (!res.ok) {
-                        if (res.status === 401 || res.status === 403) throw new Error('Доступ запрещён');
                         if (res.status === 404) throw new Error('Курс не найден');
                         if (res.status === 409) throw new Error('Конфликт уровней публичности курса');
                         if (res.status === 422) throw new Error('Ошибка валидации данных');
                         throw new Error('Ошибка обновления курса');
                     }
-                    // Обновляем локальный объект
                     course.name = newName;
                     course.description = newDesc;
                     course.tags = newTags;
@@ -266,7 +287,6 @@
                     const orig = originalCourses.find(c => c.id === course.id);
                     if (orig) Object.assign(orig, course);
                 } else {
-                    // Создание нового курса
                     const res = await fetch(`${window.API_BASE_URL}courses/create-course`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -279,8 +299,11 @@
                             is_content_public: newIsContentPublic
                         })
                     });
+                    if (res.status === 401 || res.status === 403) {
+                        handleAccessDenied();
+                        return;
+                    }
                     if (!res.ok) {
-                        if (res.status === 403) throw new Error('Недостаточно прав для создания курса');
                         if (res.status === 409) throw new Error('Конфликт уровней публичности');
                         if (res.status === 422) throw new Error('Ошибка валидации данных');
                         throw new Error('Ошибка создания курса');
@@ -295,7 +318,6 @@
                     originalCourses.push({ ...course });
                 }
 
-                // 2. Если выбран файл иконки, загружаем его
                 if (selectedIconFile) {
                     const formData = new FormData();
                     formData.append('icon_file', selectedIconFile);
@@ -304,8 +326,11 @@
                         credentials: 'include',
                         body: formData
                     });
+                    if (iconRes.status === 401 || iconRes.status === 403) {
+                        handleAccessDenied();
+                        return;
+                    }
                     if (!iconRes.ok) {
-                        if (iconRes.status === 403) throw new Error('Недостаточно прав для установки иконки');
                         if (iconRes.status === 404) throw new Error('Курс не найден');
                         if (iconRes.status === 415) throw new Error('Некорректный тип файла');
                         throw new Error('Не удалось загрузить иконку курса');
@@ -346,8 +371,11 @@
                     method: 'DELETE',
                     credentials: 'include'
                 });
+                if (res.status === 401 || res.status === 403) {
+                    handleAccessDenied();
+                    return;
+                }
                 if (!res.ok) {
-                    if (res.status === 401 || res.status === 403) throw new Error('Доступ запрещён');
                     if (res.status === 404) throw new Error('Курс не найден');
                     throw new Error('Ошибка удаления');
                 }

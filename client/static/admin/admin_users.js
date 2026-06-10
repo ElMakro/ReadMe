@@ -1,4 +1,4 @@
-// static/admin_users.js
+// static/admin/admin_users.js
 (function() {
     const PAGE_SIZE = 9;
     let currentPage = 1;
@@ -10,8 +10,8 @@
     const nextPageBtn = document.getElementById('nextPageBtn');
     const refreshBtn = document.getElementById('refreshBtn');
     const pageInfoSpan = document.getElementById('pageInfo');
+    const paginationDiv = document.querySelector('.pagination');
 
-    // Модальные окна
     const roleModalEl = document.getElementById('roleModal');
     let roleModal;
     const roleUserNameSpan = document.getElementById('roleUserName');
@@ -24,6 +24,36 @@
     const deleteUserNameSpan = document.getElementById('deleteUserName');
     const deleteUserIdInput = document.getElementById('deleteUserId');
     const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
+
+    function hidePagination() {
+        if (paginationDiv) paginationDiv.style.display = 'none';
+    }
+
+    function showPagination() {
+        if (paginationDiv) paginationDiv.style.display = 'flex';
+    }
+
+    function handleAccessDenied(message = 'Доступ запрещён.') {
+        container.innerHTML = `
+            <div class="col-12 text-center py-5">
+                <p class="text-danger">${message}</p>
+                <button class="btn btn-accent" id="accessDeniedLoginBtn">Войти</button>
+                <button class="btn btn-outline-accent ms-2" onclick="window.location.href='/'">На главную</button>
+            </div>
+        `;
+        hidePagination();
+        const loginBtn = document.getElementById('accessDeniedLoginBtn');
+        if (loginBtn) {
+            loginBtn.addEventListener('click', () => {
+                const headerLoginBtn = document.getElementById('loginBtn');
+                if (headerLoginBtn) headerLoginBtn.click();
+                else window.location.href = '/';
+            });
+        }
+        if (refreshBtn) refreshBtn.disabled = true;
+        if (prevPageBtn) prevPageBtn.disabled = true;
+        if (nextPageBtn) nextPageBtn.disabled = true;
+    }
 
     function escapeHtml(str) {
         if (!str) return '';
@@ -51,15 +81,7 @@
             const url = `${window.API_BASE_URL}users/all?page=${page}&size=${PAGE_SIZE}`;
             const response = await fetch(url, { credentials: 'include' });
             if (response.status === 401 || response.status === 403) {
-                // Глобальный обработчик покажет сообщение
-                container.innerHTML = `
-                    <div class="col-12 text-center py-5">
-                        <p class="text-danger">Доступ запрещён. Только для администраторов.</p>
-                        <button class="btn btn-primary" onclick="window.location.href='/'">На главную</button>
-                    </div>
-                `;
-                const paginationDiv = document.querySelector('.pagination');
-                if (paginationDiv) paginationDiv.style.display = 'none';
+                handleAccessDenied('Доступ запрещён. Только для администраторов.');
                 isLoading = false;
                 return;
             }
@@ -74,6 +96,8 @@
             const hasNext = users.length === PAGE_SIZE;
             const total = hasNext ? page + 1 : page;
             updatePagination(page, total);
+            showPagination();
+            if (refreshBtn) refreshBtn.disabled = false;
         } catch (err) {
             console.error(err);
             container.innerHTML = `
@@ -82,6 +106,7 @@
                     <button class="btn btn-outline-accent" onclick="location.reload()">Повторить</button>
                 </div>
             `;
+            hidePagination();
             updatePagination(page, page);
         } finally {
             isLoading = false;
@@ -141,7 +166,6 @@
         if (currentPage < totalPages && !isLoading) loadUsers(currentPage + 1);
     }
 
-    // --- Роли ---
     let selectedUserId, selectedUserName, currentRole;
 
     function openRoleModal(userId, userName, role) {
@@ -181,7 +205,7 @@
                 window.showToast(`Роль пользователя ${selectedUserName} изменена на ${getRoleName(newRole)}.`);
                 loadUsers(currentPage);
             } else if (response.status === 401 || response.status === 403) {
-                // глобальный обработчик
+                handleAccessDenied();
                 if (roleModal) roleModal.hide();
             } else if (response.status === 404) {
                 window.showToast('Пользователь не найден.', 'danger');
@@ -214,7 +238,6 @@
         }
     }
 
-    // --- Удаление ---
     function openDeleteModal(userId, userName) {
         deleteUserIdInput.value = userId;
         deleteUserNameSpan.innerText = userName;
@@ -236,7 +259,7 @@
                 window.showToast(`Пользователь ${userName} удалён.`);
                 loadUsers(currentPage);
             } else if (response.status === 401 || response.status === 403) {
-                // глобальный обработчик
+                handleAccessDenied();
                 if (deleteModal) deleteModal.hide();
             } else if (response.status === 404) {
                 window.showToast('Пользователь не найден.', 'danger');
@@ -262,12 +285,12 @@
         }
     }
 
-    // --- Обработчики ---
     if (prevPageBtn) prevPageBtn.addEventListener('click', (e) => { e.preventDefault(); goPrevPage(); });
     if (nextPageBtn) nextPageBtn.addEventListener('click', (e) => { e.preventDefault(); goNextPage(); });
     if (refreshBtn) refreshBtn.addEventListener('click', () => loadUsers(currentPage));
     if (confirmRoleBtn) confirmRoleBtn.addEventListener('click', confirmRoleChange);
     if (confirmDeleteBtn) confirmDeleteBtn.addEventListener('click', confirmDelete);
 
+    hidePagination();
     loadUsers(1);
 })();

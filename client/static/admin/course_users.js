@@ -59,7 +59,6 @@
         } catch(e) {
             console.error(e);
             courseNameSpan.textContent = 'Курс';
-            professorInfoSpan.innerHTML = `<small class="text-danger">${e.message}</small>`;
         }
     }
 
@@ -255,12 +254,6 @@
                 await loadDataAndRender();
             } else if (res.status === 409) {
                 window.showToast(isEnroll ? 'Пользователь уже записан на курс' : 'Пользователь не был записан', 'warning');
-            } else if (res.status === 401 || res.status === 403) {
-                // глобальный обработчик
-            } else if (res.status === 404) {
-                window.showToast('Курс или пользователь не найдены', 'danger');
-            } else if (res.status === 422) {
-                window.showToast('Ошибка валидации параметров', 'danger');
             } else {
                 const text = await res.text();
                 window.showToast(`Ошибка: ${text}`, 'danger');

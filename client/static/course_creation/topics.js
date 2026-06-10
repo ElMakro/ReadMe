@@ -16,6 +16,26 @@
 
     if (!window.tagManagerInstances) window.tagManagerInstances = new Map();
 
+    function handleAccessDenied(message = 'Доступ запрещён.') {
+        container.innerHTML = `
+            <div class="text-center py-4">
+                <p class="text-danger">${message}</p>
+                <button class="btn btn-accent" id="accessDeniedLoginBtn">Войти</button>
+                <button class="btn btn-outline-accent ms-2" onclick="window.location.href='/'">На главную</button>
+            </div>
+        `;
+        if (addBtn) addBtn.disabled = true;
+        if (saveAllBtn) saveAllBtn.disabled = true;
+        const loginBtn = document.getElementById('accessDeniedLoginBtn');
+        if (loginBtn) {
+            loginBtn.addEventListener('click', () => {
+                const headerLoginBtn = document.getElementById('loginBtn');
+                if (headerLoginBtn) headerLoginBtn.click();
+                else window.location.href = '/';
+            });
+        }
+    }
+
     function updateUnsavedFlag(unsaved) {
         hasUnsavedChanges = unsaved;
         const titleEl = document.querySelector('title');
@@ -197,8 +217,11 @@
             const res = await fetch(`${window.API_BASE_URL}topics/by-section/${sectionId}`, {
                 credentials: 'include'
             });
+            if (res.status === 401 || res.status === 403) {
+                handleAccessDenied('Вы не авторизованы или недостаточно прав для редактирования тем.');
+                return;
+            }
             if (!res.ok) {
-                if (res.status === 401 || res.status === 403) throw new Error('Доступ запрещён');
                 if (res.status === 404) throw new Error('Раздел не найден');
                 if (res.status === 422) throw new Error('Ошибка валидации');
                 throw new Error(`HTTP ${res.status}`);
@@ -215,12 +238,16 @@
             topics.sort((a,b) => a.order_number - b.order_number);
             originalTopics = JSON.parse(JSON.stringify(topics));
             renderTopics();
+            if (addBtn) addBtn.disabled = false;
+            if (saveAllBtn) saveAllBtn.disabled = false;
         } catch (err) {
             console.error(err);
             container.innerHTML = `<div class="text-danger">Ошибка загрузки тем: ${err.message}</div>`;
             topics = [];
             originalTopics = [];
             renderTopics();
+            if (addBtn) addBtn.disabled = true;
+            if (saveAllBtn) saveAllBtn.disabled = true;
         }
     }
 
@@ -472,7 +499,6 @@
                             addFileBtn.textContent = 'Загрузка...';
                             try {
                                 if (!block.content) block.content = [];
-                                // Сохраняем файл во временном поле _file – загрузка на сервер произойдёт при сохранении темы
                                 block.content.push({
                                     original_filename: file.name,
                                     server_filename: null,
@@ -649,8 +675,6 @@
         const cancelBtn = card.querySelector('.cancel-edit');
         const delBtn = card.querySelector('.delete-topic');
 
-        // В обработчике saveBtn заменяем существующий код на:
-
         saveBtn.addEventListener('click', async (e) => {
             e.stopPropagation();
             const newName = nameInput.value.trim();
@@ -660,36 +684,6 @@
             }
             const newTags = tagManager ? tagManager.tags : topic.tags;
 
-            // 1. Сначала загружаем все файлы, помеченные _file, и получаем server_filename
-            const blocksCopy = JSON.parse(JSON.stringify(blocks)); // копируем для обработки
-            let hasFilesUploaded = false;
-            for (let blockIdx = 0; blockIdx < blocksCopy.length; blockIdx++) {
-                const block = blocksCopy[blockIdx];
-                if (block.type === 'files' && block.content) {
-                    for (let fileIdx = 0; fileIdx < block.content.length; fileIdx++) {
-                        const fileItem = block.content[fileIdx];
-                        if (fileItem._file) {
-                            hasFilesUploaded = true;
-                            try {
-                                // Временно сохраняем topic.id? Но для новой темы его ещё нет.
-                                // Если тема новая, сначала нужно создать тему (без файлов), потом загрузить файлы, потом обновить.
-                                // Упростим: для существующей темы загружаем сразу, для новой — создаём тему, потом загружаем, потом обновляем.
-                                // Но сейчас у нас уже есть savedTopicId после первого PUT? Нет, мы хотим один PUT.
-                                // Значит, нужно разделить логику: если тема новая — сначала создаём, получаем ID, потом загружаем файлы, потом обновляем.
-                                // Это сложно. Лучше оставить два PUT для нового курса? Но для существующего можно один.
-                                // Оптимальное решение: для существующей темы загружаем файлы до PUT, для новой — создаём пустую тему, загружаем файлы, потом обновляем.
-                                // Но это уже много изменений. Предлагаю более простой вариант: оставить два PUT, но второй делать только если были загружены файлы.
-                                // Это решит проблему двойного запроса для тем без файлов.
-                            } catch(e) {}
-                        }
-                    }
-                }
-            }
-
-            // Если тема существует и нет новых файлов — можно обойтись одним PUT.
-            // Реализуем просто: второй PUT только если были загружены файлы.
-
-            // Формируем raw_content для отправки (с _file, если ещё не загружены)
             const rawContentForFirstPut = blocks.map(b => {
                 if (b.type === 'files') {
                     return { type: 'files', content: b.content || [] };
@@ -704,10 +698,8 @@
 
             try {
                 let savedTopicId = topic.id;
-                let needsSecondPut = false;
 
                 if (topic.id) {
-                    // Обновляем существующую тему
                     const updateBody = { name: newName, tags: newTags, raw_content: rawContentForFirstPut };
                     const res = await fetch(`${window.API_BASE_URL}topics/${topic.id}`, {
                         method: 'PUT',
@@ -715,10 +707,13 @@
                         credentials: 'include',
                         body: JSON.stringify(updateBody)
                     });
+                    if (res.status === 401 || res.status === 403) {
+                        handleAccessDenied();
+                        return;
+                    }
                     if (!res.ok) {
                         let errorMsg = 'Ошибка обновления темы';
-                        if (res.status === 401 || res.status === 403) errorMsg = 'Доступ запрещён';
-                        else if (res.status === 404) errorMsg = 'Тема не найдена';
+                        if (res.status === 404) errorMsg = 'Тема не найдена';
                         else if (res.status === 409) errorMsg = 'Тема с таким порядковым номером уже существует';
                         else if (res.status === 400) {
                             const errData = await res.json().catch(() => null);
@@ -728,7 +723,6 @@
                     }
                     savedTopicId = topic.id;
                 } else {
-                    // Создаём новую тему
                     const createBody = {
                         name: newName,
                         order_number: topic.order_number,
@@ -742,10 +736,13 @@
                         credentials: 'include',
                         body: JSON.stringify(createBody)
                     });
+                    if (res.status === 401 || res.status === 403) {
+                        handleAccessDenied();
+                        return;
+                    }
                     if (!res.ok) {
                         let errorMsg = 'Ошибка создания темы';
-                        if (res.status === 401 || res.status === 403) errorMsg = 'Доступ запрещён';
-                        else if (res.status === 404) errorMsg = 'Раздел не найден';
+                        if (res.status === 404) errorMsg = 'Раздел не найден';
                         else if (res.status === 409) errorMsg = 'Тема с таким порядковым номером уже существует';
                         else if (res.status === 400) {
                             const errData = await res.json().catch(() => null);
@@ -780,7 +777,6 @@
                     }
                 }
 
-                // Если были загружены файлы — обновляем raw_content финальной версией
                 if (filesUploaded) {
                     const finalRawContent = blocks.map(b => {
                         if (b.type === 'files') return { type: 'files', content: b.content || [] };
@@ -797,7 +793,6 @@
                     });
                 }
 
-                // Обновляем локальные данные
                 topic.name = newName;
                 topic.tags = newTags;
                 topic.raw_content = filesUploaded ? blocks.map(b => {
@@ -843,8 +838,11 @@
                     method: 'DELETE',
                     credentials: 'include'
                 });
+                if (res.status === 401 || res.status === 403) {
+                    handleAccessDenied();
+                    return;
+                }
                 if (!res.ok) {
-                    if (res.status === 401 || res.status === 403) throw new Error('Доступ запрещён');
                     if (res.status === 404) throw new Error('Тема не найдена');
                     throw new Error('Ошибка удаления');
                 }

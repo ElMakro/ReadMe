@@ -9,6 +9,38 @@
     const prevBtn = document.getElementById('prevPageBtn');
     const nextBtn = document.getElementById('nextPageBtn');
     const pageInfoSpan = document.getElementById('pageInfo');
+    const paginationDiv = document.querySelector('.pagination');
+
+    function hidePagination() {
+        if (paginationDiv) paginationDiv.style.display = 'none';
+        if (prevBtn) prevBtn.disabled = true;
+        if (nextBtn) nextBtn.disabled = true;
+    }
+
+    function showPagination() {
+        if (paginationDiv) paginationDiv.style.display = 'flex';
+        if (prevBtn) prevBtn.disabled = currentPage <= 1;
+        if (nextBtn) nextBtn.disabled = currentPage >= totalPages;
+    }
+
+    function handleAccessDenied(message = 'Вы не авторизованы.') {
+        container.innerHTML = `
+            <div class="col-12 text-center py-5">
+                <p class="text-danger">${message}</p>
+                <button class="btn btn-accent" id="accessDeniedLoginBtn">Войти</button>
+                <button class="btn btn-outline-accent ms-2" onclick="window.location.href='/'">На главную</button>
+            </div>
+        `;
+        hidePagination();
+        const loginBtn = document.getElementById('accessDeniedLoginBtn');
+        if (loginBtn) {
+            loginBtn.addEventListener('click', () => {
+                const headerLoginBtn = document.getElementById('loginBtn');
+                if (headerLoginBtn) headerLoginBtn.click();
+                else window.location.href = '/';
+            });
+        }
+    }
 
     function formatDate(dateStr) {
         if (!dateStr) return '—';
@@ -49,27 +81,12 @@
         try {
             const url = `${window.API_BASE_URL}users/get-my-applications?page=${page}&size=${PAGE_SIZE}`;
             const response = await fetch(url, { credentials: 'include' });
-            if (response.status === 401) {
-                container.innerHTML = `
-                    <div class="col-12 text-center py-5">
-                        <p class="text-danger">Вы не авторизованы. <a href="#" id="loginLink">Войдите</a>.</p>
-                    </div>
-                `;
-                const loginLink = document.getElementById('loginLink');
-                if (loginLink) {
-                    loginLink.addEventListener('click', (e) => {
-                        e.preventDefault();
-                        const loginBtn = document.getElementById('loginBtn');
-                        if (loginBtn) loginBtn.click();
-                    });
-                }
-                const paginationDiv = document.querySelector('.pagination');
-                if (paginationDiv) paginationDiv.style.display = 'none';
+            if (response.status === 401 || response.status === 403) {
+                handleAccessDenied('Вы не авторизованы или недостаточно прав.');
                 isLoading = false;
                 return;
             }
             if (!response.ok) {
-                if (response.status === 403) throw new Error('Доступ запрещён');
                 if (response.status === 422) throw new Error('Ошибка валидации параметров');
                 throw new Error(`HTTP ${response.status}`);
             }
@@ -79,6 +96,7 @@
             const hasNext = applications.length === PAGE_SIZE;
             const total = hasNext ? page + 1 : page;
             updatePagination(page, total);
+            showPagination();
         } catch (err) {
             console.error(err);
             container.innerHTML = `
@@ -87,6 +105,7 @@
                     <button class="btn btn-outline-accent" onclick="location.reload()">Повторить</button>
                 </div>
             `;
+            hidePagination();
             updatePagination(page, page);
         } finally {
             isLoading = false;
@@ -129,5 +148,6 @@
     if (prevBtn) prevBtn.addEventListener('click', (e) => { e.preventDefault(); goPrevPage(); });
     if (nextBtn) nextBtn.addEventListener('click', (e) => { e.preventDefault(); goNextPage(); });
 
+    hidePagination();
     loadPage(1);
 })();

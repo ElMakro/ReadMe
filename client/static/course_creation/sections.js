@@ -7,6 +7,25 @@
     let sections = [];
     let originalSections = [];
 
+    function handleAccessDenied(message = 'Доступ запрещён.') {
+        container.innerHTML = `
+            <div class="text-center py-4">
+                <p class="text-danger">${message}</p>
+                <button class="btn btn-accent" id="accessDeniedLoginBtn">Войти</button>
+                <button class="btn btn-outline-accent ms-2" onclick="window.location.href='/'">На главную</button>
+            </div>
+        `;
+        if (addBtn) addBtn.disabled = true;
+        const loginBtn = document.getElementById('accessDeniedLoginBtn');
+        if (loginBtn) {
+            loginBtn.addEventListener('click', () => {
+                const headerLoginBtn = document.getElementById('loginBtn');
+                if (headerLoginBtn) headerLoginBtn.click();
+                else window.location.href = '/';
+            });
+        }
+    }
+
     function autosize(textarea) {
         textarea.style.height = 'auto';
         const maxHeight = 200;
@@ -27,8 +46,11 @@
             const res = await fetch(`${window.API_BASE_URL}sections/by_course/${courseId}`, {
                 credentials: 'include'
             });
+            if (res.status === 401 || res.status === 403) {
+                handleAccessDenied('Вы не авторизованы или недостаточно прав для редактирования курса.');
+                return;
+            }
             if (!res.ok) {
-                if (res.status === 401 || res.status === 403) throw new Error('Доступ запрещён');
                 if (res.status === 404) throw new Error('Курс не найден');
                 if (res.status === 422) throw new Error('Ошибка валидации');
                 throw new Error(`HTTP ${res.status}`);
@@ -45,12 +67,14 @@
             sections.sort((a,b) => a.order_number - b.order_number);
             originalSections = JSON.parse(JSON.stringify(sections));
             renderSections();
+            if (addBtn) addBtn.disabled = false;
         } catch (err) {
             console.error(err);
             container.innerHTML = `<div class="text-danger">Ошибка загрузки разделов: ${err.message}</div>`;
             sections = [];
             originalSections = [];
             renderSections();
+            if (addBtn) addBtn.disabled = true;
         }
     }
 
@@ -157,8 +181,11 @@
                         credentials: 'include',
                         body: JSON.stringify({ name: newName, description: newDesc, tags: newTags })
                     });
+                    if (res.status === 401 || res.status === 403) {
+                        handleAccessDenied();
+                        return;
+                    }
                     if (!res.ok) {
-                        if (res.status === 401 || res.status === 403) throw new Error('Доступ запрещён');
                         if (res.status === 404) throw new Error('Раздел не найден');
                         if (res.status === 422) throw new Error('Ошибка валидации данных');
                         throw new Error('Ошибка обновления');
@@ -191,8 +218,11 @@
                             tags: newTags
                         })
                     });
+                    if (res.status === 401 || res.status === 403) {
+                        handleAccessDenied();
+                        return;
+                    }
                     if (!res.ok) {
-                        if (res.status === 401 || res.status === 403) throw new Error('Доступ запрещён');
                         if (res.status === 404) throw new Error('Курс не найден');
                         if (res.status === 409) throw new Error('Раздел с таким порядковым номером уже существует');
                         if (res.status === 422) throw new Error('Ошибка валидации');
@@ -238,8 +268,11 @@
                         method: 'DELETE',
                         credentials: 'include'
                     });
+                    if (res.status === 401 || res.status === 403) {
+                        handleAccessDenied();
+                        return;
+                    }
                     if (!res.ok) {
-                        if (res.status === 401 || res.status === 403) throw new Error('Доступ запрещён');
                         if (res.status === 404) throw new Error('Раздел не найден');
                         throw new Error('Ошибка удаления');
                     }

@@ -125,7 +125,7 @@
     }
 
     function enterEditMode(user) {
-        selectedAvatarFile = null; // сброс временного файла
+        selectedAvatarFile = null;
         const iconUrl = `${window.API_BASE_URL}users/${user.id}/icon?t=${Date.now()}`;
         profileContainer.innerHTML = `
             <div class="row justify-content-center">
@@ -147,14 +147,14 @@
                                     </div>
                                 </div>
 
-                                <!-- Блок выбора фото профиля (одна кнопка, загрузка при сохранении) -->
+                                <!-- Блок выбора фото профиля -->
                                 <div class="mb-3 mt-3">
                                     <label class="form-label fw-bold">Фото профиля</label>
                                     <div class="d-flex align-items-center gap-3">
                                         <img src="${escapeHtml(iconUrl)}"
-                                             class="current-user-icon rounded-circle"
+                                             class="current-user-icon"
                                              width="64" height="64"
-                                             style="object-fit: cover;"
+                                             style="object-fit: cover;">
                                         <div>
                                             <button type="button" class="btn btn-outline-accent select-avatar-btn">Выбрать файл</button>
                                             <span class="ms-2 text-muted avatar-filename"></span>
@@ -180,7 +180,6 @@
         const fileInput = document.getElementById('avatarFileInput');
         const filenameSpan = form.querySelector('.avatar-filename');
 
-        // Обработчик выбора файла
         selectBtn.addEventListener('click', () => {
             fileInput.click();
         });
@@ -188,7 +187,6 @@
             if (fileInput.files.length > 0) {
                 selectedAvatarFile = fileInput.files[0];
                 filenameSpan.textContent = selectedAvatarFile.name;
-                // Показать превью выбранного файла (опционально)
                 const reader = new FileReader();
                 reader.onload = (e) => {
                     const previewImg = form.querySelector('.current-user-icon');
@@ -203,7 +201,6 @@
             }
         });
 
-        // Сохранение формы
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             const newNickname = document.getElementById('editNickname').value.trim();
@@ -214,7 +211,6 @@
                 return;
             }
 
-            // 1. Обновляем текстовые данные профиля
             const payload = { nickname: newNickname };
             if (newEmail !== null) payload.email = newEmail;
 
@@ -237,7 +233,6 @@
                     throw new Error('Ошибка обновления профиля');
                 }
 
-                // 2. Если выбран файл аватара, загружаем его
                 if (selectedAvatarFile) {
                     const formData = new FormData();
                     formData.append('icon_file', selectedAvatarFile);
@@ -254,7 +249,7 @@
                 }
 
                 window.showToast('Профиль успешно обновлён');
-                loadProfile(); // перезагружаем страницу профиля
+                loadProfile();
             } catch (err) {
                 console.error(err);
                 window.showToast(err.message, 'danger');
