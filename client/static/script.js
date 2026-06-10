@@ -42,12 +42,11 @@
         try {
             const response = await fetch(url, { credentials: 'include' });
             if (!response.ok) {
-                if (response.status === 401) {
-                    if (window.Auth && window.Auth.check) await window.Auth.check();
-                    else window.location.reload();
+                if (response.status === 401 || response.status === 403) {
+                    window.showAccessDenied(coursesGrid, 'Для просмотра курсов необходимо войти.', true);
+                    isLoading = false;
                     return;
                 }
-                if (response.status === 403) throw new Error('Доступ запрещён');
                 if (response.status === 400) throw new Error('Неправильный критерий поиска');
                 if (response.status === 422) throw new Error('Ошибка валидации параметров');
                 throw new Error('Ошибка загрузки курсов');
@@ -105,7 +104,7 @@
                     </a>
                 </div>
             `;
-                        coursesGrid.appendChild(col);
+            coursesGrid.appendChild(col);
         });
     }
 

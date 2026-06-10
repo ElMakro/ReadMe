@@ -9,6 +9,13 @@
     const limit = 9;
     let totalPages = 1;
     let isLoading = false;
+    let currentUserRole = null;
+
+    function hidePagination() {
+        if (prevBtn) prevBtn.style.display = 'none';
+        if (nextBtn) nextBtn.style.display = 'none';
+        if (pageInfoSpan) pageInfoSpan.style.display = 'none';
+    }
 
     function escapeHtml(str) {
         if (!str) return '';
@@ -64,7 +71,7 @@
 
     function renderCourses(coursesArray) {
         if (!coursesArray.length) {
-            container.innerHTML = '<p class="text-muted text-center">Курсы не найдены</p>';
+            container.innerHTML = '<p class="text-muted text-center mt-4">Курсы не найдены</p>';
             return;
         }
         container.innerHTML = '';
@@ -80,12 +87,11 @@
                 <div class="course-item-container">
                     <div class="course-item-info">
                         <div class="d-flex align-items-start gap-3">
-                            <img src="${window.API_BASE_URL}courses/${course.id}/icon"
-                                 class="course-thumb">
+                            <img src="${window.API_BASE_URL}courses/${course.id}/icon" class="course-thumb">
                             <div class="course-details">
                                 <strong class="course-name">${escapeHtml(course.name)}</strong>
                                 ${shortDescription ? `<div class="text-secondary small mt-1">${escapeHtml(shortDescription)}</div>` : ''}
-                                ${course.tags && course.tags.length ? `<div class="small text-muted mt-1">Теги: ${course.tags.map(t => escapeHtml(t)).join(' ')}</div>` : ''}
+                                ${course.tags && course.tags.length ? `<div class="small text-muted mt-1">Теги: ${course.tags.map(t => escapeHtml(t)).join(', ')}</div>` : ''}
                                 <div class="small text-muted mt-1">
                                     ${course.is_public ? 'Публичный' : 'Закрытый'} |
                                     ${course.is_content_public ? 'Контент открыт' : 'Контент скрыт'}
@@ -105,52 +111,94 @@
         scheduleIconAdjustment();
     }
 
+    async function checkUserRole() {
+        try {
+            const resp = await fetch(`${window.API_BASE_URL}users/profile`, { credentials: 'include' });
+            if (resp.ok) {
+                const profile = await resp.json();
+                currentUserRole = profile.role;
+
+                if (currentUserRole === 'student') {
+                    window.showAccessDenied(container, 'Управление курсами доступно только администраторам и преподавателям.', false);
+                    hidePagination();
+                    return false;
+                }
+                return true;
+            } else if (resp.status === 401) {
+                window.showAccessDenied(container, 'Необходимо войти в систему для просмотра этой страницы.', true);
+                hidePagination();
+                return false;
+            } else {
+                throw new Error('Не удалось получить профиль');
+            }
+        } catch (err) {
+            window.showAccessDenied(container, `Ошибка авторизации: ${err.message}.`, true);
+            hidePagination();
+            return false;
+        }
+    }
+
     async function loadCourses(page) {
         if (isLoading) return;
         isLoading = true;
-        container.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-accent"></div></div>';
+        container.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary"></div></div>';
         try {
-            const params = new URLSearchParams({
-                criteria: 'name_prefix',
-                value: '',
-                page: page,
-                records_per_page: limit
-            });
-            const resp = await fetch(`${window.API_BASE_URL}courses/search?${params}`, { credentials: 'include' });
+            let url;
+            if (currentUserRole === 'professor') {
+                url = `${window.API_BASE_URL}courses/controlled-courses?page=${page}&records_per_page=${limit}`;
+            } else {
+                url = `${window.API_BASE_URL}courses/search?criteria=name_prefix&value=&page=${page}&records_per_page=${limit}`;
+            }
+
+            const resp = await fetch(url, { credentials: 'include' });
             if (!resp.ok) {
                 if (resp.status === 401 || resp.status === 403) throw new Error('Доступ запрещён');
                 if (resp.status === 400) throw new Error('Неправильный критерий поиска');
                 if (resp.status === 422) throw new Error('Ошибка валидации параметров');
                 throw new Error(`HTTP ${resp.status}`);
             }
+
             const coursesData = await resp.json();
             const coursesArray = Array.isArray(coursesData) ? coursesData : (coursesData.items || []);
+
             renderCourses(coursesArray);
             const hasNext = coursesArray.length === limit;
             totalPages = hasNext ? page + 1 : page;
             updatePagination(page, totalPages);
         } catch (err) {
-            container.innerHTML = `<div class="alert alert-danger">${err.message}</div>`;
+            window.showAccessDenied(container, err.message, err.message.includes('Доступ запрещён') || err.message.includes('авторизации'));
+            hidePagination();
         } finally {
             isLoading = false;
         }
     }
 
     function updatePagination(page, total) {
-        prevBtn.disabled = page <= 1;
-        nextBtn.disabled = page >= total;
-        pageInfoSpan.textContent = `Страница ${page} из ${total}`;
+        if (prevBtn) prevBtn.disabled = page <= 1;
+        if (nextBtn) nextBtn.disabled = page >= total;
+        if (pageInfoSpan) pageInfoSpan.textContent = `Страница ${page} из ${total}`;
         currentPage = page;
     }
 
-    prevBtn.addEventListener('click', () => {
-        if (currentPage > 1 && !isLoading) loadCourses(currentPage - 1);
-    });
-    nextBtn.addEventListener('click', () => {
-        if (currentPage < totalPages && !isLoading) loadCourses(currentPage + 1);
-    });
+    if (prevBtn) {
+        prevBtn.addEventListener('click', () => {
+            if (currentPage > 1 && !isLoading) loadCourses(currentPage - 1);
+        });
+    }
+    if (nextBtn) {
+        nextBtn.addEventListener('click', () => {
+            if (currentPage < totalPages && !isLoading) loadCourses(currentPage + 1);
+        });
+    }
 
-    loadCourses(1);
+    async function init() {
+        const hasAccess = await checkUserRole();
+        if (hasAccess) {
+            loadCourses(1);
+        }
+    }
+
+    init();
 
     window.addEventListener('resize', () => {
         scheduleIconAdjustment();

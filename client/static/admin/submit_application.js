@@ -58,11 +58,7 @@
             patronymic: patronymicInput.value.trim()
         };
 
-        submitBtn.disabled = true;
-        submitBtn.innerHTML = 'Отправка...';
-
-        try {
-            // Используем secret_link в пути
+        const sendRequest = async () => {
             const url = `${API_BASE}/users/submit-professor-application/${SECRET_LINK}`;
             const response = await fetch(url, {
                 method: 'POST',
@@ -70,13 +66,11 @@
                 credentials: 'include',
                 body: JSON.stringify(payload)
             });
-
             if (response.status === 201) {
                 formBlock.style.display = 'none';
                 successBlock.style.display = 'block';
                 return;
             }
-
             let errorMessage = 'Произошла ошибка при отправке заявки.';
             if (response.status === 403) {
                 errorMessage = 'Вы уже являетесь преподавателем. Подача повторной заявки невозможна.';
@@ -84,10 +78,7 @@
                 const errorData = await response.json().catch(() => ({}));
                 errorMessage = errorData.detail || 'Вы уже подали заявку на роль преподавателя. Ожидайте рассмотрения.';
             } else if (response.status === 401) {
-                errorMessage = 'Вы не авторизованы. Пожалуйста, войдите в аккаунт.';
-                if (window.AuthModal && typeof window.AuthModal.open === 'function') {
-                    window.AuthModal.open();
-                }
+                throw new Error('unauthorized');
             } else if (response.status === 404) {
                 errorMessage = 'Неверная ссылка для подачи заявки. Обратитесь к администратору.';
             } else {
@@ -95,9 +86,19 @@
                 errorMessage = errorData.detail || errorMessage;
             }
             window.showToast(errorMessage, 'danger');
-        } catch (error) {
-            console.error('Ошибка сети:', error);
-            window.showToast('Не удалось соединиться с сервером. Проверьте, запущен ли бэкенд.', 'danger');
+        };
+
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = 'Отправка...';
+
+        try {
+            await sendRequest();
+        } catch (err) {
+            if (err.message === 'unauthorized') {
+                window.Auth.retryAfterLogin(sendRequest);
+            } else {
+                window.showToast(err.message, 'danger');
+            }
         } finally {
             submitBtn.disabled = false;
             submitBtn.innerHTML = 'Отправить заявку';

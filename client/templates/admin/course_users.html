@@ -2,18 +2,15 @@
 {% block title %}Управление пользователями курса{% endblock %}
 
 {% block content %}
-<div class="container-fluid py-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h2>Пользователи курса: <span id="courseName">Загрузка...</span></h2>
-            <p class="text-muted mb-0" id="professorInfo"></p>
-        </div>
-        <button class="btn btn-outline-secondary" id="backBtn">← Назад к курсам</button>
-    </div>
+<div class="mb-3">
+    <h4>Пользователи курса: <span id="courseName">Загрузка...</span> <span id="professorInfo"></span></h4>
+    <a href="/admin/courses" id="backBtn" class="btn btn-outline-secondary">← Назад к курсам</a>
+</div>
 
-    <div class="row">
+<div class="row">
+        <div id="errorMessageContainer" class="col-12" style="display: none;"></div>
         <!-- Левая колонка: не записаны -->
-        <div class="col-md-6">
+        <div class="col-md-6" id="notEnrolledColumn">
             <div class="card bg-secondary border-0 shadow-sm h-100">
                 <div class="card-header bg-transparent border-bottom border-secondary">
                     <h5 class="mb-0">Не записаны на курс</h5>
@@ -33,7 +30,7 @@
         </div>
 
         <!-- Правая колонка: записаны -->
-        <div class="col-md-6">
+        <div class="col-md-6" id="enrolledColumn">
             <div class="card bg-secondary border-0 shadow-sm h-100">
                 <div class="card-header bg-transparent border-bottom border-secondary">
                     <h5 class="mb-0">Записаны на курс</h5>
@@ -52,7 +49,6 @@
             </div>
         </div>
     </div>
-</div>
 {% endblock %}
 
 {% block scripts %}

@@ -31,28 +31,6 @@
         if (paginationDiv) paginationDiv.style.display = 'flex';
     }
 
-    function handleAccessDenied(message = 'Доступ запрещён.') {
-        container.innerHTML = `
-            <div class="col-12 text-center py-5">
-                <p class="text-danger">${message}</p>
-                <button class="btn btn-accent" id="accessDeniedLoginBtn">Войти</button>
-                <button class="btn btn-outline-accent ms-2" onclick="window.location.href='/'">На главную</button>
-            </div>
-        `;
-        hidePagination();
-        const loginBtn = document.getElementById('accessDeniedLoginBtn');
-        if (loginBtn) {
-            loginBtn.addEventListener('click', () => {
-                const headerLoginBtn = document.getElementById('loginBtn');
-                if (headerLoginBtn) headerLoginBtn.click();
-                else window.location.href = '/';
-            });
-        }
-        if (refreshBtn) refreshBtn.disabled = true;
-        if (prevPageBtn) prevPageBtn.disabled = true;
-        if (nextPageBtn) nextPageBtn.disabled = true;
-    }
-
     function getStatusText(status) {
         const map = {
             'pending': 'На рассмотрении',
@@ -97,10 +75,10 @@
         isLoading = true;
         container.innerHTML = `<div class="col-12 text-center py-5"><div class="spinner-border text-accent" role="status"></div></div>`;
         try {
-            const url = `${window.API_BASE_URL}users/get-active-applications?page=${page}&size=${PAGE_SIZE}`;
+            const url = `${window.API_BASE_URL}users/get-active-applications?page=${page}&records_per_page=${PAGE_SIZE}`;
             const response = await fetch(url, { credentials: 'include' });
             if (response.status === 401 || response.status === 403) {
-                handleAccessDenied('Вы не авторизованы или недостаточно прав.');
+                window.showAccessDenied(container, 'Вы не авторизованы или недостаточно прав.');
                 isLoading = false;
                 return;
             }
@@ -213,7 +191,7 @@
                 statusModal.hide();
                 loadPage(currentPage);
             } else if (response.status === 401 || response.status === 403) {
-                handleAccessDenied();
+                window.showAccessDenied(container);
                 statusModal.hide();
             } else if (response.status === 404) {
                 window.showToast('Заявка или пользователь не найдены.', 'danger');
@@ -324,7 +302,7 @@
                     }
                     window.showToast('Ссылка для подачи заявок успешно обновлена');
                 } else if (response.status === 401 || response.status === 403) {
-                    handleAccessDenied();
+                    window.showAccessDenied(container);
                     resultDiv.className = 'alert alert-danger mt-3';
                     resultDiv.innerHTML = 'Недостаточно прав для выполнения операции.';
                     resultDiv.style.display = 'block';
@@ -378,7 +356,6 @@
 
     document.addEventListener('DOMContentLoaded', addSecretLinkControls);
 
-    // Изначально скрываем пагинацию, пока не загрузим данные
     hidePagination();
     loadPage(1);
 })();
