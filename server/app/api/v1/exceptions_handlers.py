@@ -43,7 +43,6 @@ def create_exception_handler(status_code: int):
 
 async def compilation_error_handler(request: Request, exc: Exception) -> JSONResponse:
     if isinstance(exc, CompilationError):
-        print(exc.content_error.model_dump())
         return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
             content={"detail": exc.content_error.model_dump()},

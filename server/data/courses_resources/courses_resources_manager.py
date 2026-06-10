@@ -28,71 +28,67 @@ class CoursesResourcesManager:
         self.compilation_manager = compilation_manager
 
     @staticmethod
-    def get_course_directory_path(course_id: UUID) -> Path:
+    def get_relative_course_directory_path(course_id: UUID) -> Path:
         return Path(str(course_id))
 
-    async def get_section_directory_path(
+    async def get_relative_section_directory_path(
             self, section_id: UUID, course_id: UUID | None = None
     ) -> Path:
         if course_id is None:
             section = await self.sections_manager.get_section_by_id(section_id)
             course_id = section.course_id
-        return self.get_course_directory_path(course_id) / str(section_id)
-
-    def get_full_topic_directory_path(self, topic_directory_path: str | Path) -> Path:
-        return self.storage.get_absolute_path(Path(topic_directory_path))
+        return self.get_relative_course_directory_path(course_id) / str(section_id)
 
     def create_course_directory(self, course_id: UUID) -> None:
-        self.storage.create_directory(self.get_course_directory_path(course_id))
+        self.storage.create_directory(self.get_relative_course_directory_path(course_id))
 
     def delete_course_directory(self, course_id: UUID) -> None:
-        self.storage.delete_directory(self.get_course_directory_path(course_id))
+        self.storage.delete_directory(self.get_relative_course_directory_path(course_id))
 
     async def create_section_directory(
             self, section_id: UUID, course_id: UUID | None = None
     ) -> None:
-        path = await self.get_section_directory_path(section_id, course_id)
+        path = await self.get_relative_section_directory_path(section_id, course_id)
         self.storage.create_directory(path)
 
     async def delete_section_directory(
             self, section_id: UUID, course_id: UUID | None = None
     ) -> None:
-        path = await self.get_section_directory_path(section_id, course_id)
+        path = await self.get_relative_section_directory_path(section_id, course_id)
         self.storage.delete_directory(path)
 
-    def create_topic_directory(self, topic_directory_path: str) -> None:
-        self.storage.create_directory(self.get_full_topic_directory_path(topic_directory_path))
+    def create_topic_directory(self, topic_directory_path: Path) -> None:
+        self.storage.create_directory(topic_directory_path)
 
-    def delete_topic_directory(self, topic_directory_path: str | Path) -> None:
-        self.storage.delete_directory(self.get_full_topic_directory_path(topic_directory_path))
+    def delete_topic_directory(self, topic_directory_path: Path) -> None:
+        self.storage.delete_directory(topic_directory_path)
 
     async def upload_topic_resource(
-            self, topic_directory_path: str, server_filename: str, resource: UploadFile
+            self, topic_directory_path: Path, server_filename: str, resource: UploadFile
     ) -> None:
-        filepath = self.get_full_topic_directory_path(topic_directory_path) / server_filename
+        filepath = topic_directory_path / server_filename
         content = await resource.read()
         self.storage.save_file(filepath, content)
 
-    def delete_topic_resource(self, topic_directory_path: str, server_filename: str) -> None:
-        filepath = self.get_full_topic_directory_path(topic_directory_path) / server_filename
+    def delete_topic_resource(self, topic_directory_path: Path, server_filename: str) -> None:
+        filepath = topic_directory_path / server_filename
         self.storage.delete_file(filepath)
 
     async def render_topic(
-            self, topic_directory_path: str, raw_content: TopicContent
+            self, topic_directory_path: Path, raw_content: TopicContent
     ) -> TopicContent:
-        full_path = self.get_full_topic_directory_path(topic_directory_path)
-        return await self.compilation_manager.compile_topic(full_path, raw_content)
+        return await self.compilation_manager.compile_topic(topic_directory_path, raw_content)
 
     async def get_topic_resource(
-            self, topic_directory_path: str, resource_filename: str
+            self, topic_directory_path: Path, resource_filename: str
     ) -> Path:
-        filepath = self.get_full_topic_directory_path(topic_directory_path) / resource_filename
+        filepath = topic_directory_path / resource_filename
         if not self.storage.file_exists(filepath):
             raise ObjectMissingError("Запрашиваемый ресурс не найден в файловой системе сервера!")
-        return filepath
+        return self.storage.get_absolute_path(filepath)
 
     def delete_course_icon(self, course_id: UUID) -> None:
-        self.storage.delete_files_by_pattern(self.get_course_directory_path(course_id), "icon")
+        self.storage.delete_files_by_pattern(self.get_relative_course_directory_path(course_id), "icon")
 
     async def set_course_icon(
             self, course_id: UUID, icon_upload_file: UploadFile
@@ -104,14 +100,14 @@ class CoursesResourcesManager:
             raise ValueError("Имя файла иконки не может быть пустым")
 
         icon_filename = f"icon{Path(filename).suffix}"
-        icon_path = self.get_course_directory_path(course_id) / icon_filename
+        icon_path = self.get_relative_course_directory_path(course_id) / icon_filename
 
         content = await icon_upload_file.read()
         self.storage.save_file(icon_path, content)
 
     def get_course_icon_path(self, course_id: UUID) -> Path:
         icon_path = self.storage.find_file_by_pattern(
-            self.get_course_directory_path(course_id), "icon"
+            self.get_relative_course_directory_path(course_id), "icon"
         )
         if icon_path is None:
             raise ObjectMissingError("Иконка курса не найдена!")

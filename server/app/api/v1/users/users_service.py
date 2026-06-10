@@ -112,15 +112,15 @@ class UsersService:
         if course.is_content_public:
             return AccessPermissions.CONTENT_ACCESS
 
-        if course.is_public:
-            return AccessPermissions.HEADER_ACCESS
-
         if user is not None:
             if await self.courses_manager.check_is_user_enrolled_on_course(
                     user.id,
                     course_id,
             ):
                 return AccessPermissions.CONTENT_ACCESS
+
+        if course.is_public:
+            return AccessPermissions.HEADER_ACCESS
 
         return AccessPermissions.NO_ACCESS
 

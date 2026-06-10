@@ -19,11 +19,11 @@ class UsersResourcesManager:
         self.icons_generator = icons_generator
 
     @staticmethod
-    def get_user_directory_path(user_id: UUID) -> Path:
+    def get_relative_user_directory_path(user_id: UUID) -> Path:
         return Path(str(user_id))
 
     def get_absolute_user_directory_path(self, user_id: UUID) -> Path:
-        return self.storage.get_absolute_path(self.get_user_directory_path(user_id))
+        return self.storage.get_absolute_path(self.get_relative_user_directory_path(user_id))
 
     def create_user(self, created_user_info: CreatedUserInfo) -> None:
         user_dir = self.get_absolute_user_directory_path(created_user_info.id)
@@ -35,7 +35,7 @@ class UsersResourcesManager:
         self.icons_generator.generate_icon(created_user_info, user_dir)
 
     def get_user_icon_path(self, user_id: UUID) -> Path:
-        user_dir = self.get_user_directory_path(user_id)
+        user_dir = self.get_absolute_user_directory_path(user_id)
         if not self.storage.file_exists(user_dir):
             raise ObjectMissingError("Пользователя с таким id не существует!")
 
@@ -45,10 +45,10 @@ class UsersResourcesManager:
         return icon_path
 
     def delete_user_icon(self, user_id: UUID) -> None:
-        self.storage.delete_files_by_pattern(self.get_user_directory_path(user_id), "icon")
+        self.storage.delete_files_by_pattern(self.get_absolute_user_directory_path(user_id), "icon")
 
     async def set_user_icon(self, user_id: UUID, icon_upload_file: UploadFile) -> None:
-        user_dir = self.get_user_directory_path(user_id)
+        user_dir = self.get_absolute_user_directory_path(user_id)
         if not self.storage.file_exists(user_dir):
             raise ObjectMissingError("Пользователя с таким id не существует!")
 

@@ -1,3 +1,4 @@
+from pathlib import Path
 from uuid import UUID
 
 from fastapi import Depends
@@ -34,7 +35,7 @@ class TopicsManager:
             tags: list[str],
             raw_content: TopicContent,
             rendered_content: TopicContent,
-            topic_directory_path: str,
+            topic_directory_path: Path,
     ) -> TopicIDMixin:
         async with self.db.db_session() as session:
             topic = Topics(
@@ -46,9 +47,7 @@ class TopicsManager:
                 tags=tags,
                 raw_content=[block.model_dump() for block in raw_content.root],
                 rendered_content=[block.model_dump() for block in rendered_content.root],
-                topic_directory_path=str(
-                    topic_directory_path,
-                ),
+                topic_directory_path=topic_directory_path,
             )
 
             session.add(

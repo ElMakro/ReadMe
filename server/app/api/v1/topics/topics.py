@@ -1,7 +1,8 @@
 import uuid
+from pathlib import Path
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, RootModel, model_validator
+from pydantic import BaseModel, ConfigDict, Field, RootModel, field_serializer, model_validator
 
 from server.app.api.v1.common_schemas import TimestampsMixin
 from server.app.api.v1.sections.sections import SectionIDMixin
@@ -180,11 +181,15 @@ class TopicResponse(
         default_factory=list,
         description="Представление готового к отображению контента темы",
     )
-    topic_directory_path: str = Field(
+    topic_directory_path: Path = Field(
         ...,
         description="Расположение директории темы на сервере",
-        examples=["/"],
+        examples=["..."],
     )
+
+    @field_serializer("topic_directory_path")
+    def serialize_path(self, path: Path) -> str:
+        return str(path)
 
 
 class TopicsFullListResponse(

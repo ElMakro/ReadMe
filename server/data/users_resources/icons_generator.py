@@ -20,12 +20,12 @@ class IconsGenerator:
 
         self.generator = Generator(5, 5, digest=sha1, background=background, foreground=foreground)
 
-    def generate_icon(self, created_user_info: CreatedUserInfo, user_directory_path: Path) -> None:
+    def generate_icon(self, created_user_info: CreatedUserInfo, absolute_user_directory_path: Path) -> None:
         icon_bytes = self.generator.generate(
             f"{created_user_info.id}-{created_user_info.nickname}-"
             f"{created_user_info.created_at}-{created_user_info.updated_at}",
             240, 240
         )
 
-        icon_path = user_directory_path / "icon.png"
+        icon_path = absolute_user_directory_path / "icon.png"
         self.storage.save_file(icon_path, icon_bytes)

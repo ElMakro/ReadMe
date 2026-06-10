@@ -172,16 +172,12 @@ class TopicsService:
         )
 
         self.courses_resources_manager.create_topic_directory(
-            str(
                 topic_directory_path,
-            ),
         )
 
         try:
             rendered_content = await self.courses_resources_manager.render_topic(
-                str(
                     topic_directory_path,
-                ),
                 raw_content,
             )
         except CompilationError:
@@ -197,9 +193,7 @@ class TopicsService:
             tags,
             raw_content,
             rendered_content,
-            str(
-                topic_directory_path,
-            ),
+            topic_directory_path,
         )
 
         return topic
