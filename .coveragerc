@@ -1,29 +1,32 @@
 [run]
-source = app/service
+source = server
 branch = True
-
 omit =
     */__init__.py
-    venv
-    .venv
     */tests/*
     */test_*.py
-    */__init__.py
-
+    server/database/*
+    server/enums/*
+    server/config/*
+    */openapi_docs.py
 
 [report]
 fail_under = 0
 precision = 2
-
 exclude_lines =
     if __name__ == .__main__.:
-
+    pragma: no cover
+    def __repr__
+    raise AssertionError
+    raise NotImplementedError
+    if 0:
+    if False:
+    if TYPE_CHECKING:
 show_missing = True
-
 sort = Cover
 
 [html]
-directory = tests/reports/coverage/html
+directory = reports/coverage/html
 
 [xml]
-output = tests/reports/coverage/xml/coverage.xml
+output = reports/coverage/xml/coverage.xml
