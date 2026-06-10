@@ -225,7 +225,7 @@ class UsersService:
             return False
         return self.secret_link_handler.verify_link(entered_link=link, encoded_true_link=true_link.secret_part)
 
-    async def self_enroll_on_course(
+    async def enroll(
             self,
             user: UserVerification,
             target_user_id: UUID | None,
@@ -262,12 +262,12 @@ class UsersService:
         ):
             raise ConflictError("Пользователь уже записан на данный курс!")
 
-        await self.users_manager.self_enroll_on_course(
+        await self.users_manager.enroll(
             target_user_id,
             course_id,
         )
 
-    async def self_unenroll_from_course(
+    async def unenroll(
             self,
             user: UserVerification,
             target_user_id: UUID | None,
@@ -300,7 +300,7 @@ class UsersService:
         ):
             raise ConflictError("Пользователь не записан на данный курс!")
 
-        await self.users_manager.self_unenroll_from_course(
+        await self.users_manager.unenroll(
             target_user_id,
             course_id,
         )
@@ -312,7 +312,7 @@ class UsersService:
     ) -> UsersList:
         course = await self.courses_manager.get_course_by_id(course_id)
 
-        if await self.check_course_access(user, course=course) < AccessPermissions.HEADER_ACCESS:
+        if await self.check_course_access(user, course=course) < AccessPermissions.EDIT_ACCESS:
             raise OperationPermissionError("Пользователь не имеет прав доступа к данному курсу!")
 
         return await self.users_manager.get_enrolled_users(course_id)

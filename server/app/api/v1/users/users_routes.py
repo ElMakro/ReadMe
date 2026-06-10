@@ -499,7 +499,7 @@ async def enroll(
         ),
 ) -> None:
     """Записать текущего пользователя на курс"""
-    await users_service.self_enroll_on_course(
+    await users_service.enroll(
         user,
         user_id,
         course_id,
@@ -539,7 +539,7 @@ async def unenroll(
         ),
 ):
     """Отписать текущего пользователя от курса"""
-    await users_service.self_unenroll_from_course(
+    await users_service.unenroll(
         user,
         user_id,
         course_id,

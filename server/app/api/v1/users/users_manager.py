@@ -361,7 +361,7 @@ class UsersManager:
             link = result.scalar_one()
             return SecretApplicationLink.model_validate(link)
 
-    async def self_enroll_on_course(
+    async def enroll(
             self,
             user_id: uuid.UUID,
             course_id: uuid.UUID,
@@ -376,7 +376,7 @@ class UsersManager:
             )
             await session.commit()
 
-    async def self_unenroll_from_course(
+    async def unenroll(
             self,
             user_id: uuid.UUID,
             course_id: uuid.UUID,
