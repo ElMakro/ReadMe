@@ -23,25 +23,6 @@
         if (nextBtn) nextBtn.disabled = currentPage >= totalPages;
     }
 
-    function handleAccessDenied(message = 'Вы не авторизованы.') {
-        container.innerHTML = `
-            <div class="col-12 text-center py-5">
-                <p class="text-danger">${message}</p>
-                <button class="btn btn-accent" id="accessDeniedLoginBtn">Войти</button>
-                <button class="btn btn-outline-accent ms-2" onclick="window.location.href='/'">На главную</button>
-            </div>
-        `;
-        hidePagination();
-        const loginBtn = document.getElementById('accessDeniedLoginBtn');
-        if (loginBtn) {
-            loginBtn.addEventListener('click', () => {
-                const headerLoginBtn = document.getElementById('loginBtn');
-                if (headerLoginBtn) headerLoginBtn.click();
-                else window.location.href = '/';
-            });
-        }
-    }
-
     function formatDate(dateStr) {
         if (!dateStr) return '—';
         try { return new Date(dateStr).toLocaleString('ru-RU'); } catch(e) { return dateStr; }
@@ -79,10 +60,10 @@
         isLoading = true;
         container.innerHTML = `<div class="col-12 text-center py-5"><div class="spinner-border text-accent" role="status"></div></div>`;
         try {
-            const url = `${window.API_BASE_URL}users/get-my-applications?page=${page}&size=${PAGE_SIZE}`;
+            const url = `${window.API_BASE_URL}users/get-my-applications?page=${page}&records_per_page=${PAGE_SIZE}`;
             const response = await fetch(url, { credentials: 'include' });
             if (response.status === 401 || response.status === 403) {
-                handleAccessDenied('Вы не авторизованы или недостаточно прав.');
+                window.showAccessDenied(container, 'Вы не авторизованы или недостаточно прав.');
                 isLoading = false;
                 return;
             }

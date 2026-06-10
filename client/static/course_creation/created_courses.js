@@ -9,23 +9,40 @@
     let selectedIconFile = null;
     let currentEditingCourseId = null;
 
-    function handleAccessDenied(message = 'Доступ запрещён.') {
-        container.innerHTML = `
-            <div class="text-center py-4">
-                <p class="text-danger">${message}</p>
-                <button class="btn btn-accent" id="accessDeniedLoginBtn">Войти</button>
-                <button class="btn btn-outline-accent ms-2" onclick="window.location.href='/'">На главную</button>
-            </div>
-        `;
-        if (addBtn) addBtn.disabled = true;
-        const loginBtn = document.getElementById('accessDeniedLoginBtn');
-        if (loginBtn) {
-            loginBtn.addEventListener('click', () => {
-                const headerLoginBtn = document.getElementById('loginBtn');
-                if (headerLoginBtn) headerLoginBtn.click();
-                else window.location.href = '/';
-            });
+    let hasUnsavedChanges = false;
+    let originalEditingData = null;
+
+    function markUnsaved(unsaved) {
+        if (unsaved === hasUnsavedChanges) return;
+        hasUnsavedChanges = unsaved;
+        const titleEl = document.querySelector('title');
+        if (titleEl) {
+            let baseTitle = titleEl.textContent.replace(/^\*\s*/, '');
+            titleEl.textContent = unsaved ? `* ${baseTitle}` : baseTitle;
         }
+    }
+
+    function setupNavigationGuard() {
+        window.addEventListener('beforeunload', (e) => {
+            if (hasUnsavedChanges) {
+                e.preventDefault();
+                e.returnValue = 'Есть несохранённые изменения. Вы уверены, что хотите покинуть страницу?';
+                return e.returnValue;
+            }
+        });
+        document.body.addEventListener('click', async (e) => {
+            let target = e.target.closest('a');
+            if (!target) return;
+            const href = target.getAttribute('href');
+            if (!href || href.startsWith('#') || href.startsWith('javascript:') || href.startsWith('mailto:')) return;
+            if (hasUnsavedChanges) {
+                e.preventDefault();
+                if (confirm('Есть несохранённые изменения. Вы действительно хотите покинуть страницу? Все несохранённые изменения будут потеряны.')) {
+                    markUnsaved(false);
+                    window.location.href = href;
+                }
+            }
+        });
     }
 
     function autosize(textarea) {
@@ -56,7 +73,7 @@
                 credentials: 'include'
             });
             if (res.status === 401 || res.status === 403) {
-                handleAccessDenied('Доступ запрещён. Только для преподавателей и администраторов.');
+                window.showAccessDenied(container, 'Доступ запрещён. Только для преподавателей и администраторов.');
                 return;
             }
             if (!res.ok) {
@@ -138,8 +155,20 @@
     }
 
     function openEditMode(course) {
-        selectedIconFile = null;
+        if (currentEditingCourseId && currentEditingCourseId !== course.id && hasUnsavedChanges) {
+            if (!confirm('Есть несохранённые изменения. Закрыть без сохранения?')) return;
+        }
         currentEditingCourseId = course.id;
+        originalEditingData = {
+            name: course.name,
+            description: course.description,
+            tags: [...course.tags],
+            is_public: course.is_public,
+            is_content_public: course.is_content_public
+        };
+        markUnsaved(false);
+
+        selectedIconFile = null;
         const card = container.querySelector(`.list-group-item[data-course-id="${course.id}"]`);
         if (!card) return;
 
@@ -202,8 +231,29 @@
 
         const placeholderId = `tagsManagerPlaceholder-${course.id || 'new'}`;
         const placeholder = card.querySelector(`#${placeholderId}`);
+        let tagManager = null;
         if (placeholder) {
-            window.initTagManager(placeholder, course.tags);
+            tagManager = window.initTagManager(placeholder, course.tags);
+            const interval = setInterval(() => {
+                if (tagManager && currentEditingCourseId === course.id) {
+                    const currentTags = tagManager.tags;
+                    if (JSON.stringify(currentTags) !== JSON.stringify(originalEditingData.tags)) {
+                        markUnsaved(true);
+                    } else {
+                        const nameChanged = card.querySelector('.course-name-edit').value.trim() !== originalEditingData.name;
+                        const descChanged = card.querySelector('.course-description-edit').value.trim() !== originalEditingData.description;
+                        const isPublicChanged = card.querySelector('.course-is-public-edit').value === 'true' !== originalEditingData.is_public;
+                        const isContentPublicChanged = card.querySelector('.course-is-content-public-edit').value === 'true' !== originalEditingData.is_content_public;
+                        if (!nameChanged && !descChanged && !isPublicChanged && !isContentPublicChanged && !selectedIconFile) {
+                            markUnsaved(false);
+                        } else {
+                            markUnsaved(true);
+                        }
+                    }
+                } else {
+                    clearInterval(interval);
+                }
+            }, 500);
         }
 
         const nameInput = card.querySelector('.course-name-edit');
@@ -219,6 +269,29 @@
         const filenameSpan = card.querySelector('.icon-filename');
         const previewImg = card.querySelector('.current-course-icon');
 
+        function checkChanges() {
+            if (currentEditingCourseId !== course.id) return;
+            const nameChanged = nameInput.value.trim() !== originalEditingData.name;
+            const descChanged = descTextarea.value.trim() !== originalEditingData.description;
+            const isPublicChanged = isPublicSelect.value === 'true' !== originalEditingData.is_public;
+            const isContentPublicChanged = isContentPublicSelect.value === 'true' !== originalEditingData.is_content_public;
+            let tagsChanged = false;
+            if (tagManager) {
+                tagsChanged = JSON.stringify(tagManager.tags) !== JSON.stringify(originalEditingData.tags);
+            }
+            const iconChanged = selectedIconFile !== null;
+            if (nameChanged || descChanged || isPublicChanged || isContentPublicChanged || tagsChanged || iconChanged) {
+                markUnsaved(true);
+            } else {
+                markUnsaved(false);
+            }
+        }
+
+        nameInput.addEventListener('input', checkChanges);
+        descTextarea.addEventListener('input', checkChanges);
+        isPublicSelect.addEventListener('change', checkChanges);
+        isContentPublicSelect.addEventListener('change', checkChanges);
+
         selectIconBtn.addEventListener('click', () => {
             fileInput.click();
         });
@@ -232,9 +305,11 @@
                     if (previewImg) previewImg.src = e.target.result;
                 };
                 reader.readAsDataURL(selectedIconFile);
+                checkChanges();
             } else {
                 selectedIconFile = null;
                 filenameSpan.textContent = '';
+                checkChanges();
             }
         });
 
@@ -243,109 +318,114 @@
             autosize(descTextarea);
         }
 
-        saveBtn.addEventListener('click', async (e) => {
-            e.stopPropagation();
+        async function performSave() {
             const newName = nameInput.value.trim();
-            if (!newName) {
-                window.showToast('Название курса не может быть пустым', 'danger');
-                return;
-            }
+            if (!newName) throw new Error('Название курса не может быть пустым');
             const newDesc = descTextarea.value.trim();
             const newIsPublic = isPublicSelect.value === 'true';
             const newIsContentPublic = isContentPublicSelect.value === 'true';
-            const newTags = [...course.tags];
+            const newTags = tagManager ? tagManager.tags : [...course.tags];
 
+            if (course.id) {
+                const res = await fetch(`${window.API_BASE_URL}courses/${course.id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        name: newName,
+                        description: newDesc,
+                        tags: newTags,
+                        is_public: newIsPublic,
+                        is_content_public: newIsContentPublic
+                    })
+                });
+                if (res.status === 401 || res.status === 403) throw new Error('unauthorized');
+                if (!res.ok) {
+                    if (res.status === 404) throw new Error('Курс не найден');
+                    if (res.status === 409) throw new Error('Конфликт уровней публичности курса');
+                    if (res.status === 422) throw new Error('Ошибка валидации данных');
+                    throw new Error('Ошибка обновления курса');
+                }
+                course.name = newName;
+                course.description = newDesc;
+                course.tags = newTags;
+                course.is_public = newIsPublic;
+                course.is_content_public = newIsContentPublic;
+                const orig = originalCourses.find(c => c.id === course.id);
+                if (orig) Object.assign(orig, course);
+            } else {
+                const res = await fetch(`${window.API_BASE_URL}courses/create-course`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        name: newName,
+                        description: newDesc,
+                        tags: newTags,
+                        is_public: newIsPublic,
+                        is_content_public: newIsContentPublic
+                    })
+                });
+                if (res.status === 401 || res.status === 403) throw new Error('unauthorized');
+                if (!res.ok) {
+                    if (res.status === 409) throw new Error('Конфликт уровней публичности');
+                    if (res.status === 422) throw new Error('Ошибка валидации данных');
+                    throw new Error('Ошибка создания курса');
+                }
+                const data = await res.json();
+                course.id = data.id;
+                course.name = newName;
+                course.description = newDesc;
+                course.tags = newTags;
+                course.is_public = newIsPublic;
+                course.is_content_public = newIsContentPublic;
+                originalCourses.push({ ...course });
+            }
+
+            if (selectedIconFile) {
+                const formData = new FormData();
+                formData.append('icon_file', selectedIconFile);
+                const iconRes = await fetch(`${window.API_BASE_URL}courses/${course.id}/icon`, {
+                    method: 'POST',
+                    credentials: 'include',
+                    body: formData
+                });
+                if (iconRes.status === 401 || iconRes.status === 403) throw new Error('unauthorized');
+                if (!iconRes.ok) {
+                    if (iconRes.status === 404) throw new Error('Курс не найден');
+                    if (iconRes.status === 415) throw new Error('Некорректный тип файла');
+                    throw new Error('Не удалось загрузить иконку курса');
+                }
+                selectedIconFile = null;
+            }
+
+            renderCourses();
+            window.showToast(course.id ? 'Курс обновлён' : 'Курс создан');
+            markUnsaved(false);
+            currentEditingCourseId = null;
+        }
+
+        saveBtn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            saveBtn.disabled = true;
+            saveBtn.textContent = 'Сохранение...';
             try {
-                if (course.id) {
-                    const res = await fetch(`${window.API_BASE_URL}courses/${course.id}`, {
-                        method: 'PUT',
-                        headers: { 'Content-Type': 'application/json' },
-                        credentials: 'include',
-                        body: JSON.stringify({
-                            name: newName,
-                            description: newDesc,
-                            tags: newTags,
-                            is_public: newIsPublic,
-                            is_content_public: newIsContentPublic
-                        })
-                    });
-                    if (res.status === 401 || res.status === 403) {
-                        handleAccessDenied();
-                        return;
-                    }
-                    if (!res.ok) {
-                        if (res.status === 404) throw new Error('Курс не найден');
-                        if (res.status === 409) throw new Error('Конфликт уровней публичности курса');
-                        if (res.status === 422) throw new Error('Ошибка валидации данных');
-                        throw new Error('Ошибка обновления курса');
-                    }
-                    course.name = newName;
-                    course.description = newDesc;
-                    course.tags = newTags;
-                    course.is_public = newIsPublic;
-                    course.is_content_public = newIsContentPublic;
-                    const orig = originalCourses.find(c => c.id === course.id);
-                    if (orig) Object.assign(orig, course);
-                } else {
-                    const res = await fetch(`${window.API_BASE_URL}courses/create-course`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        credentials: 'include',
-                        body: JSON.stringify({
-                            name: newName,
-                            description: newDesc,
-                            tags: newTags,
-                            is_public: newIsPublic,
-                            is_content_public: newIsContentPublic
-                        })
-                    });
-                    if (res.status === 401 || res.status === 403) {
-                        handleAccessDenied();
-                        return;
-                    }
-                    if (!res.ok) {
-                        if (res.status === 409) throw new Error('Конфликт уровней публичности');
-                        if (res.status === 422) throw new Error('Ошибка валидации данных');
-                        throw new Error('Ошибка создания курса');
-                    }
-                    const data = await res.json();
-                    course.id = data.id;
-                    course.name = newName;
-                    course.description = newDesc;
-                    course.tags = newTags;
-                    course.is_public = newIsPublic;
-                    course.is_content_public = newIsContentPublic;
-                    originalCourses.push({ ...course });
-                }
-
-                if (selectedIconFile) {
-                    const formData = new FormData();
-                    formData.append('icon_file', selectedIconFile);
-                    const iconRes = await fetch(`${window.API_BASE_URL}courses/${course.id}/icon`, {
-                        method: 'POST',
-                        credentials: 'include',
-                        body: formData
-                    });
-                    if (iconRes.status === 401 || iconRes.status === 403) {
-                        handleAccessDenied();
-                        return;
-                    }
-                    if (!iconRes.ok) {
-                        if (iconRes.status === 404) throw new Error('Курс не найден');
-                        if (iconRes.status === 415) throw new Error('Некорректный тип файла');
-                        throw new Error('Не удалось загрузить иконку курса');
-                    }
-                }
-
-                renderCourses();
-                window.showToast(course.id ? 'Курс обновлён' : 'Курс создан');
+                await performSave();
             } catch (err) {
-                window.showToast(err.message, 'danger');
+                if (err.message === 'unauthorized') {
+                    window.Auth.retryAfterLogin(performSave);
+                } else {
+                    window.showToast(err.message, 'danger');
+                }
+            } finally {
+                saveBtn.disabled = false;
+                saveBtn.textContent = 'Сохранить курс';
             }
         });
 
         cancelBtn.addEventListener('click', (e) => {
             e.stopPropagation();
+            if (hasUnsavedChanges && !confirm('Есть несохранённые изменения. Отменить без сохранения?')) return;
             if (course.id) {
                 const orig = originalCourses.find(c => c.id === course.id);
                 if (orig) Object.assign(course, orig);
@@ -355,6 +435,8 @@
                 if (idx !== -1) courses.splice(idx, 1);
                 renderCourses();
             }
+            currentEditingCourseId = null;
+            markUnsaved(false);
         });
 
         delBtn.addEventListener('click', async (e) => {
@@ -363,18 +445,18 @@
                 const idx = courses.findIndex(c => c.id === null && c === course);
                 if (idx !== -1) courses.splice(idx, 1);
                 renderCourses();
+                currentEditingCourseId = null;
+                markUnsaved(false);
                 return;
             }
             if (!confirm('Удалить курс? Все разделы и материалы будут удалены.')) return;
-            try {
+
+            const performDelete = async () => {
                 const res = await fetch(`${window.API_BASE_URL}courses/${course.id}`, {
                     method: 'DELETE',
                     credentials: 'include'
                 });
-                if (res.status === 401 || res.status === 403) {
-                    handleAccessDenied();
-                    return;
-                }
+                if (res.status === 401 || res.status === 403) throw new Error('unauthorized');
                 if (!res.ok) {
                     if (res.status === 404) throw new Error('Курс не найден');
                     throw new Error('Ошибка удаления');
@@ -384,13 +466,26 @@
                 originalCourses = originalCourses.filter(c => c.id !== course.id);
                 renderCourses();
                 window.showToast('Курс удалён');
+                currentEditingCourseId = null;
+                markUnsaved(false);
+            };
+
+            try {
+                await performDelete();
             } catch (err) {
-                window.showToast(err.message, 'danger');
+                if (err.message === 'unauthorized') {
+                    window.Auth.retryAfterLogin(performDelete);
+                } else {
+                    window.showToast(err.message, 'danger');
+                }
             }
         });
     }
 
     function addCourse() {
+        if (currentEditingCourseId && hasUnsavedChanges) {
+            if (!confirm('Есть несохранённые изменения. Закрыть без сохранения?')) return;
+        }
         const newCourse = {
             id: null,
             name: '',
@@ -410,4 +505,5 @@
 
     addBtn.addEventListener('click', addCourse);
     loadCourses();
+    setupNavigationGuard();
 })();

@@ -53,7 +53,7 @@
                     const isEnrolled = followedCourses.some(c => c.id === window.COURSE_ID);
                     if (isEnrolled) return 'enrolled';
                 } else if (followedResp.status === 401) {
-                    // Не авторизован – глобальный обработчик
+                    // Не авторизован – обработаем позже
                 } else if (followedResp.status === 403) {
                     // Недостаточно прав
                 }
@@ -115,12 +115,13 @@
                     window.showToast('Вы успешно записались на курс!');
                     await updateEnrollButton();
                     if (currentCourse) showCourseDescription();
-                    await buildSidebar();         // <-- обновляем боковую панель
+                    await buildSidebar();
                 } else if (resp.status === 409) {
                     window.showToast('Вы уже записаны на этот курс', 'danger');
                     await updateEnrollButton();
                 } else if (resp.status === 401 || resp.status === 403) {
-                    // глобальный обработчик
+                    window.showAccessDenied(topicContent, 'Необходимо войти в систему для записи на курс.', true);
+                    window.showToast('Доступ запрещён. Пожалуйста, войдите заново.', 'danger');
                 } else if (resp.status === 404) {
                     window.showToast('Курс не найден', 'danger');
                 } else if (resp.status === 422) {
@@ -146,7 +147,7 @@
                     window.showToast('Вы отписались от курса');
                     await updateEnrollButton();
                     if (currentCourse) showCourseDescription();
-                    await buildSidebar();         // <-- обновляем боковую панель
+                    await buildSidebar();
                 } else if (resp.status === 404) {
                     window.showToast('Курс не найден', 'danger');
                 } else if (resp.status === 422) {
@@ -230,10 +231,10 @@
             const sections = await fetchSectionsWithTopics();
 
             let html = `
-        <div class="course-description-card mb-4">
-            <p>${escapeHtml(currentCourse.description || 'Описание отсутствует')}</p>
-        </div>
-    `;
+                <div class="course-description-card mb-4">
+                    <p>${escapeHtml(currentCourse.description || 'Описание отсутствует')}</p>
+                </div>
+            `;
 
             if (!sections.length) {
                 html += '<div class="alert alert-secondary bg-transparent border-0 text-secondary">В курсе пока нет разделов.</div>';
@@ -247,12 +248,12 @@
                         topicsHtml = '<ul class="topics-list-simple list-unstyled mt-2 mb-0">';
                         for (const topic of section.topics) {
                             topicsHtml += `
-                        <li>
-                            <a href="#" class="topic-link-main" data-topic-id="${topic.id}">
-                                ${escapeHtml(topic.name)}
-                            </a>
-                        </li>
-                    `;
+                                <li>
+                                    <a href="#" class="topic-link-main" data-topic-id="${topic.id}">
+                                        ${escapeHtml(topic.name)}
+                                    </a>
+                                </li>
+                            `;
                         }
                         topicsHtml += '</ul>';
                     } else {
@@ -260,19 +261,19 @@
                     }
 
                     html += `
-                <div class="section-card" data-section-id="${sectionId}">
-                    <div class="d-flex align-items-center p-3 section-header-clickable" style="cursor: pointer;">
-                        <span class="toggle-icon me-2" style="font-size: 1rem;">▼</span>
-                        <h3 class="section-title mb-0">${sectionName}</h3>
-                    </div>
-                    <div class="section-body">
-                        <div class="section-description">${sectionDesc || '<em class="text-secondary">Описание отсутствует</em>'}</div>
-                        <div class="section-topics-wrapper">
-                            ${topicsHtml}
+                        <div class="section-card" data-section-id="${sectionId}">
+                            <div class="d-flex align-items-center p-3 section-header-clickable" style="cursor: pointer;">
+                                <span class="toggle-icon me-2" style="font-size: 1rem;">▼</span>
+                                <h3 class="section-title mb-0">${sectionName}</h3>
+                            </div>
+                            <div class="section-body">
+                                <div class="section-description">${sectionDesc || '<em class="text-secondary">Описание отсутствует</em>'}</div>
+                                <div class="section-topics-wrapper">
+                                    ${topicsHtml}
+                                </div>
+                            </div>
                         </div>
-                    </div>
-                </div>
-            `;
+                    `;
                 }
             }
 
@@ -329,7 +330,8 @@
                 const resp = await fetch(url, {credentials: 'include'});
                 if (!resp.ok) {
                     if (resp.status === 401 || resp.status === 403) {
-                        topicContent.innerHTML = '<p class="text-danger">Для просмотра этой темы необходимо <a href="/">войти</a>.</p>';
+                        window.showAccessDenied(topicContent, 'Для просмотра этой темы необходимо войти.', true);
+                        window.showToast('Доступ запрещён. Пожалуйста, войдите заново.', 'danger');
                         return;
                     }
                     if (resp.status === 404) {
@@ -424,7 +426,9 @@
                 const resp = await fetch(url, {credentials: 'include'});
                 if (!resp.ok) {
                     if (resp.status === 401 || resp.status === 403) {
+                        // Не показываем в боковой панели сообщение, просто очищаем
                         sectionList.innerHTML = '<li class="section-item text-muted">Войдите, чтобы увидеть содержимое курса.</li>';
+                        window.showToast('Доступ запрещён. Пожалуйста, войдите заново.', 'danger');
                         return;
                     }
                     if (resp.status === 404) {
@@ -525,7 +529,8 @@
             } catch (err) {
                 console.error(err);
                 courseTitleHeader.textContent = 'Курс не найден';
-                topicContent.innerHTML = `<p class="text-muted">${err.message}</p>`;
+                window.showAccessDenied(topicContent, err.message, false);
+                window.showToast(err.message, 'danger');
             }
         }
 
@@ -574,7 +579,7 @@
     });
 })();
 
-// Плавающее окно конспекта (без изменений – нет fetch)
+// Плавающее окно конспекта (без изменений, но для полноты привожу)
 (function () {
     document.addEventListener('DOMContentLoaded', function () {
         const win = document.getElementById('floatingWindow');

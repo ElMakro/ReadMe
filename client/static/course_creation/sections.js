@@ -7,23 +7,41 @@
     let sections = [];
     let originalSections = [];
 
-    function handleAccessDenied(message = 'Доступ запрещён.') {
-        container.innerHTML = `
-            <div class="text-center py-4">
-                <p class="text-danger">${message}</p>
-                <button class="btn btn-accent" id="accessDeniedLoginBtn">Войти</button>
-                <button class="btn btn-outline-accent ms-2" onclick="window.location.href='/'">На главную</button>
-            </div>
-        `;
-        if (addBtn) addBtn.disabled = true;
-        const loginBtn = document.getElementById('accessDeniedLoginBtn');
-        if (loginBtn) {
-            loginBtn.addEventListener('click', () => {
-                const headerLoginBtn = document.getElementById('loginBtn');
-                if (headerLoginBtn) headerLoginBtn.click();
-                else window.location.href = '/';
-            });
+    let hasUnsavedChanges = false;
+    let currentEditingSectionId = null;
+    let originalEditingData = null;
+
+    function markUnsaved(unsaved) {
+        if (unsaved === hasUnsavedChanges) return;
+        hasUnsavedChanges = unsaved;
+        const titleEl = document.querySelector('title');
+        if (titleEl) {
+            let baseTitle = titleEl.textContent.replace(/^\*\s*/, '');
+            titleEl.textContent = unsaved ? `* ${baseTitle}` : baseTitle;
         }
+    }
+
+    function setupNavigationGuard() {
+        window.addEventListener('beforeunload', (e) => {
+            if (hasUnsavedChanges) {
+                e.preventDefault();
+                e.returnValue = 'Есть несохранённые изменения. Вы уверены, что хотите покинуть страницу?';
+                return e.returnValue;
+            }
+        });
+        document.body.addEventListener('click', async (e) => {
+            let target = e.target.closest('a');
+            if (!target) return;
+            const href = target.getAttribute('href');
+            if (!href || href.startsWith('#') || href.startsWith('javascript:') || href.startsWith('mailto:')) return;
+            if (hasUnsavedChanges) {
+                e.preventDefault();
+                if (confirm('Есть несохранённые изменения. Вы действительно хотите покинуть страницу? Все несохранённые изменения будут потеряны.')) {
+                    markUnsaved(false);
+                    window.location.href = href;
+                }
+            }
+        });
     }
 
     function autosize(textarea) {
@@ -47,7 +65,7 @@
                 credentials: 'include'
             });
             if (res.status === 401 || res.status === 403) {
-                handleAccessDenied('Вы не авторизованы или недостаточно прав для редактирования курса.');
+                window.showAccessDenied(container, 'Вы не авторизованы или недостаточно прав для редактирования курса.');
                 return;
             }
             if (!res.ok) {
@@ -79,6 +97,11 @@
     }
 
     function renderSections() {
+        if (currentEditingSectionId) {
+            currentEditingSectionId = null;
+            originalEditingData = null;
+            markUnsaved(false);
+        }
         container.innerHTML = '';
         sections.forEach((sec) => {
             const card = document.createElement('div');
@@ -102,6 +125,9 @@
             const editTrigger = card.querySelector('.edit-section-trigger');
             editTrigger.addEventListener('click', (e) => {
                 e.stopPropagation();
+                if (currentEditingSectionId && currentEditingSectionId !== sec.id && hasUnsavedChanges) {
+                    if (!confirm('Есть несохранённые изменения. Закрыть без сохранения?')) return;
+                }
                 openEditMode(sec);
             });
 
@@ -118,6 +144,14 @@
     }
 
     function openEditMode(sec) {
+        currentEditingSectionId = sec.id;
+        originalEditingData = {
+            name: sec.name,
+            description: sec.description,
+            tags: [...sec.tags]
+        };
+        markUnsaved(false);
+
         const card = container.querySelector(`.list-group-item[data-section-id="${sec.id}"]`);
         if (!card) return;
 
@@ -148,8 +182,9 @@
         `;
 
         const placeholder = card.querySelector(`#${placeholderId}`);
+        let tagManager = null;
         if (placeholder) {
-            window.initTagManager(placeholder, sec.tags);
+            tagManager = window.initTagManager(placeholder, sec.tags);
         }
 
         const nameInput = card.querySelector('.section-name-edit');
@@ -158,92 +193,124 @@
         const cancelBtn = card.querySelector('.cancel-edit');
         const delBtn = card.querySelector('.delete-section');
 
+        function checkChanges() {
+            if (currentEditingSectionId !== sec.id) return;
+            const nameChanged = nameInput.value.trim() !== originalEditingData.name;
+            const descChanged = descTextarea.value.trim() !== originalEditingData.description;
+            let tagsChanged = false;
+            if (tagManager) {
+                tagsChanged = JSON.stringify(tagManager.tags) !== JSON.stringify(originalEditingData.tags);
+            }
+            if (nameChanged || descChanged || tagsChanged) {
+                markUnsaved(true);
+            } else {
+                markUnsaved(false);
+            }
+        }
+
+        nameInput.addEventListener('input', checkChanges);
+        descTextarea.addEventListener('input', checkChanges);
+        if (tagManager) {
+            const interval = setInterval(() => {
+                if (tagManager && currentEditingSectionId === sec.id) {
+                    checkChanges();
+                } else {
+                    clearInterval(interval);
+                }
+            }, 500);
+        }
+
         if (descTextarea) {
             descTextarea.addEventListener('input', function() { autosize(this); });
             autosize(descTextarea);
         }
 
-        saveBtn.addEventListener('click', async (e) => {
-            e.stopPropagation();
+        const performUpdate = async () => {
             const newName = nameInput.value.trim();
-            if (!newName) {
-                window.showToast('Название раздела не может быть пустым', 'danger');
-                return;
-            }
+            if (!newName) throw new Error('Название раздела не может быть пустым');
             const newDesc = descTextarea.value.trim();
-            const newTags = [...sec.tags];
+            const newTags = tagManager ? tagManager.tags : sec.tags;
 
             if (sec.id) {
-                try {
-                    const res = await fetch(`${window.API_BASE_URL}sections/${sec.id}`, {
-                        method: 'PUT',
-                        headers: { 'Content-Type': 'application/json' },
-                        credentials: 'include',
-                        body: JSON.stringify({ name: newName, description: newDesc, tags: newTags })
-                    });
-                    if (res.status === 401 || res.status === 403) {
-                        handleAccessDenied();
-                        return;
-                    }
-                    if (!res.ok) {
-                        if (res.status === 404) throw new Error('Раздел не найден');
-                        if (res.status === 422) throw new Error('Ошибка валидации данных');
-                        throw new Error('Ошибка обновления');
-                    }
-                    sec.name = newName;
-                    sec.description = newDesc;
-                    sec.tags = newTags;
-                    const orig = originalSections.find(s => s.id === sec.id);
-                    if (orig) {
-                        orig.name = newName;
-                        orig.description = newDesc;
-                        orig.tags = newTags;
-                    }
-                    renderSections();
-                    window.showToast('Раздел обновлён');
-                } catch (err) {
-                    window.showToast(err.message, 'danger');
+                const res = await fetch(`${window.API_BASE_URL}sections/${sec.id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ name: newName, description: newDesc, tags: newTags })
+                });
+                if (res.status === 401 || res.status === 403) throw new Error('unauthorized');
+                if (!res.ok) {
+                    if (res.status === 404) throw new Error('Раздел не найден');
+                    if (res.status === 422) throw new Error('Ошибка валидации данных');
+                    throw new Error('Ошибка обновления');
                 }
+                sec.name = newName;
+                sec.description = newDesc;
+                sec.tags = newTags;
+                const orig = originalSections.find(s => s.id === sec.id);
+                if (orig) {
+                    orig.name = newName;
+                    orig.description = newDesc;
+                    orig.tags = newTags;
+                }
+                renderSections();
+                window.showToast('Раздел обновлён');
+                currentEditingSectionId = null;
+                markUnsaved(false);
             } else {
-                try {
-                    const res = await fetch(`${window.API_BASE_URL}sections/create-section`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        credentials: 'include',
-                        body: JSON.stringify({
-                            name: newName,
-                            description: newDesc,
-                            order_number: sec.order_number,
-                            course_id: courseId,
-                            tags: newTags
-                        })
-                    });
-                    if (res.status === 401 || res.status === 403) {
-                        handleAccessDenied();
-                        return;
-                    }
-                    if (!res.ok) {
-                        if (res.status === 404) throw new Error('Курс не найден');
-                        if (res.status === 409) throw new Error('Раздел с таким порядковым номером уже существует');
-                        if (res.status === 422) throw new Error('Ошибка валидации');
-                        throw new Error('Ошибка создания раздела');
-                    }
-                    const data = await res.json();
-                    sec.id = data.id;
-                    sec.name = newName;
-                    sec.description = newDesc;
-                    sec.tags = newTags;
-                    originalSections.push({ ...sec });
-                    renderSections();
-                    window.showToast('Раздел создан');
-                } catch (err) {
+                const res = await fetch(`${window.API_BASE_URL}sections/create-section`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        name: newName,
+                        description: newDesc,
+                        order_number: sec.order_number,
+                        course_id: courseId,
+                        tags: newTags
+                    })
+                });
+                if (res.status === 401 || res.status === 403) throw new Error('unauthorized');
+                if (!res.ok) {
+                    if (res.status === 404) throw new Error('Курс не найден');
+                    if (res.status === 409) throw new Error('Раздел с таким порядковым номером уже существует');
+                    if (res.status === 422) throw new Error('Ошибка валидации');
+                    throw new Error('Ошибка создания раздела');
+                }
+                const data = await res.json();
+                sec.id = data.id;
+                sec.name = newName;
+                sec.description = newDesc;
+                sec.tags = newTags;
+                originalSections.push({ ...sec });
+                renderSections();
+                window.showToast('Раздел создан');
+                currentEditingSectionId = null;
+                markUnsaved(false);
+            }
+        };
+
+        saveBtn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            saveBtn.disabled = true;
+            saveBtn.textContent = 'Сохранение...';
+            try {
+                await performUpdate();
+            } catch (err) {
+                if (err.message === 'unauthorized') {
+                    window.Auth.retryAfterLogin(performUpdate);
+                } else {
                     window.showToast(err.message, 'danger');
                 }
+            } finally {
+                saveBtn.disabled = false;
+                saveBtn.textContent = 'Сохранить раздел';
             }
         });
 
         cancelBtn.addEventListener('click', (e) => {
             e.stopPropagation();
+            if (hasUnsavedChanges && !confirm('Есть несохранённые изменения. Отменить без сохранения?')) return;
             if (sec.id) {
                 const orig = originalSections.find(s => s.id === sec.id);
                 if (orig) {
@@ -257,42 +324,56 @@
                 if (idx !== -1) sections.splice(idx, 1);
                 renderSections();
             }
+            currentEditingSectionId = null;
+            markUnsaved(false);
         });
+
+        const performDelete = async () => {
+            const res = await fetch(`${window.API_BASE_URL}sections/${sec.id}`, {
+                method: 'DELETE',
+                credentials: 'include'
+            });
+            if (res.status === 401 || res.status === 403) throw new Error('unauthorized');
+            if (!res.ok) {
+                if (res.status === 404) throw new Error('Раздел не найден');
+                throw new Error('Ошибка удаления');
+            }
+            const index = sections.findIndex(s => s.id === sec.id);
+            if (index !== -1) sections.splice(index, 1);
+            originalSections = originalSections.filter(s => s.id !== sec.id);
+            renderSections();
+            window.showToast('Раздел удалён');
+            currentEditingSectionId = null;
+            markUnsaved(false);
+        };
 
         delBtn.addEventListener('click', async (e) => {
             e.stopPropagation();
             if (sec.id) {
                 if (!confirm('Удалить раздел? Все темы внутри будут также удалены.')) return;
                 try {
-                    const res = await fetch(`${window.API_BASE_URL}sections/${sec.id}`, {
-                        method: 'DELETE',
-                        credentials: 'include'
-                    });
-                    if (res.status === 401 || res.status === 403) {
-                        handleAccessDenied();
-                        return;
-                    }
-                    if (!res.ok) {
-                        if (res.status === 404) throw new Error('Раздел не найден');
-                        throw new Error('Ошибка удаления');
-                    }
-                    const index = sections.findIndex(s => s.id === sec.id);
-                    if (index !== -1) sections.splice(index, 1);
-                    originalSections = originalSections.filter(s => s.id !== sec.id);
-                    renderSections();
-                    window.showToast('Раздел удалён');
+                    await performDelete();
                 } catch (err) {
-                    window.showToast(err.message, 'danger');
+                    if (err.message === 'unauthorized') {
+                        window.Auth.retryAfterLogin(performDelete);
+                    } else {
+                        window.showToast(err.message, 'danger');
+                    }
                 }
             } else {
                 const index = sections.findIndex(s => s.id === null && s === sec);
                 if (index !== -1) sections.splice(index, 1);
                 renderSections();
+                currentEditingSectionId = null;
+                markUnsaved(false);
             }
         });
     }
 
     function addSection() {
+        if (currentEditingSectionId && hasUnsavedChanges) {
+            if (!confirm('Есть несохранённые изменения. Закрыть без сохранения?')) return;
+        }
         const newOrder = sections.length + 1;
         const newSection = {
             id: null,
@@ -320,5 +401,6 @@
     }
 
     loadSections();
+    setupNavigationGuard();
     if (typeof window.updateCourseBreadcrumb === 'function') window.updateCourseBreadcrumb(window.COURSE_ID);
 })();

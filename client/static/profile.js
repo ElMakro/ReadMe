@@ -3,7 +3,7 @@
     const profileContainer = document.getElementById('profileContainer');
     if (!profileContainer) return;
 
-    let selectedAvatarFile = null; // временное хранилище выбранного файла
+    let selectedAvatarFile = null;
 
     function escapeHtml(str) {
         if (!str) return '';
@@ -39,9 +39,9 @@
                 const user = await response.json();
                 renderProfile(user);
             } else if (response.status === 401) {
-                renderNotLoggedIn();
+                window.showAccessDenied(profileContainer, 'Вы не авторизованы.', true);
             } else if (response.status === 403) {
-                renderNotLoggedIn('Доступ запрещён.');
+                window.showAccessDenied(profileContainer, 'Доступ запрещён.', true);
             } else {
                 throw new Error('Ошибка загрузки профиля');
             }
@@ -147,7 +147,6 @@
                                     </div>
                                 </div>
 
-                                <!-- Блок выбора фото профиля -->
                                 <div class="mb-3 mt-3">
                                     <label class="form-label fw-bold">Фото профиля</label>
                                     <div class="d-flex align-items-center gap-3">
@@ -257,27 +256,6 @@
         });
 
         cancelBtn.addEventListener('click', () => loadProfile());
-    }
-
-    function renderNotLoggedIn(message = 'Вы не авторизованы.') {
-        profileContainer.innerHTML = `
-            <div class="row justify-content-center">
-                <div class="col-lg-8">
-                    <div class="card border-0 shadow-sm text-center p-4" style="background: var(--bg-secondary);">
-                        <p class="mb-3">${message}</p>
-                        <button class="btn btn-accent" id="loginFromProfileBtn">Войти</button>
-                    </div>
-                </div>
-            </div>
-        `;
-        const loginBtn = document.getElementById('loginFromProfileBtn');
-        if (loginBtn) {
-            loginBtn.addEventListener('click', () => {
-                if (window.AuthModal && typeof window.AuthModal.open === 'function') {
-                    window.AuthModal.open();
-                }
-            });
-        }
     }
 
     loadProfile();

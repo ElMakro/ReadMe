@@ -33,28 +33,6 @@
         if (paginationDiv) paginationDiv.style.display = 'flex';
     }
 
-    function handleAccessDenied(message = 'Доступ запрещён.') {
-        container.innerHTML = `
-            <div class="col-12 text-center py-5">
-                <p class="text-danger">${message}</p>
-                <button class="btn btn-accent" id="accessDeniedLoginBtn">Войти</button>
-                <button class="btn btn-outline-accent ms-2" onclick="window.location.href='/'">На главную</button>
-            </div>
-        `;
-        hidePagination();
-        const loginBtn = document.getElementById('accessDeniedLoginBtn');
-        if (loginBtn) {
-            loginBtn.addEventListener('click', () => {
-                const headerLoginBtn = document.getElementById('loginBtn');
-                if (headerLoginBtn) headerLoginBtn.click();
-                else window.location.href = '/';
-            });
-        }
-        if (refreshBtn) refreshBtn.disabled = true;
-        if (prevPageBtn) prevPageBtn.disabled = true;
-        if (nextPageBtn) nextPageBtn.disabled = true;
-    }
-
     function escapeHtml(str) {
         if (!str) return '';
         return String(str).replace(/[&<>]/g, function(m) {
@@ -78,10 +56,10 @@
         isLoading = true;
         container.innerHTML = `<div class="col-12 text-center py-5"><div class="spinner-border text-accent" role="status"></div></div>`;
         try {
-            const url = `${window.API_BASE_URL}users/all?page=${page}&size=${PAGE_SIZE}`;
+            const url = `${window.API_BASE_URL}users/all?page=${page}&records_per_page=${PAGE_SIZE}`;
             const response = await fetch(url, { credentials: 'include' });
             if (response.status === 401 || response.status === 403) {
-                handleAccessDenied('Доступ запрещён. Только для администраторов.');
+                window.showAccessDenied(container, 'Доступ запрещён. Только для администраторов.');
                 isLoading = false;
                 return;
             }
@@ -205,7 +183,7 @@
                 window.showToast(`Роль пользователя ${selectedUserName} изменена на ${getRoleName(newRole)}.`);
                 loadUsers(currentPage);
             } else if (response.status === 401 || response.status === 403) {
-                handleAccessDenied();
+                window.showAccessDenied(container);
                 if (roleModal) roleModal.hide();
             } else if (response.status === 404) {
                 window.showToast('Пользователь не найден.', 'danger');
@@ -259,7 +237,7 @@
                 window.showToast(`Пользователь ${userName} удалён.`);
                 loadUsers(currentPage);
             } else if (response.status === 401 || response.status === 403) {
-                handleAccessDenied();
+                window.showAccessDenied(container);
                 if (deleteModal) deleteModal.hide();
             } else if (response.status === 404) {
                 window.showToast('Пользователь не найден.', 'danger');

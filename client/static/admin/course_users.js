@@ -1,5 +1,5 @@
 // static/admin/course_users.js
-(function() {
+(function () {
     const courseId = window.COURSE_ID;
     const notEnrolledContainer = document.getElementById('notEnrolledList');
     const enrolledContainer = document.getElementById('enrolledList');
@@ -9,14 +9,17 @@
     const courseNameSpan = document.getElementById('courseName');
     const professorInfoSpan = document.getElementById('professorInfo');
 
-    // Элементы пагинации для левого списка
     const notEnrolledPrev = document.getElementById('notEnrolledPrevBtn');
     const notEnrolledNext = document.getElementById('notEnrolledNextBtn');
     const notEnrolledPageInfo = document.getElementById('notEnrolledPageInfo');
-    // Для правого списка
     const enrolledPrev = document.getElementById('enrolledPrevBtn');
     const enrolledNext = document.getElementById('enrolledNextBtn');
     const enrolledPageInfo = document.getElementById('enrolledPageInfo');
+
+    // Колонки и контейнер для ошибки
+    const leftColumn = document.getElementById('notEnrolledColumn');
+    const rightColumn = document.getElementById('enrolledColumn');
+    const errorContainer = document.getElementById('errorMessageContainer');
 
     const PAGE_SIZE = 9;
 
@@ -32,6 +35,7 @@
     let enrolledTotalPages = 1;
 
     let isLoading = false;
+    let currentUserRole = null;
 
     function escapeHtml(str) {
         if (!str) return '';
@@ -40,41 +44,117 @@
         return div.innerHTML;
     }
 
-    // Загрузка информации о курсе (название и преподаватель)
+    // Отключает все кнопки управления на странице
+    function disableAllControls() {
+        if (enrollSelectedBtn) enrollSelectedBtn.disabled = true;
+        if (unenrollSelectedBtn) unenrollSelectedBtn.disabled = true;
+        if (notEnrolledPrev) notEnrolledPrev.disabled = true;
+        if (notEnrolledNext) notEnrolledNext.disabled = true;
+        if (enrolledPrev) enrolledPrev.disabled = true;
+        if (enrolledNext) enrolledNext.disabled = true;
+    }
+
+    // Показывает сообщение об ошибке ВМЕСТО колонок, используя глобальную функцию showAccessDenied
+    function showAccessDeniedForCourseUsers(message, showLoginLink = true) {
+        // Скрываем колонки со списками
+        if (leftColumn) leftColumn.style.display = 'none';
+        if (rightColumn) rightColumn.style.display = 'none';
+
+        // Показываем контейнер для ошибки и заполняем его
+        if (errorContainer) {
+            errorContainer.style.display = 'block';
+            // Вызываем универсальную функцию из access-denied.js
+            if (typeof window.showAccessDenied === 'function') {
+                window.showAccessDenied(errorContainer, message, showLoginLink, true);
+            } else {
+                // fallback, если функция не загрузилась
+                errorContainer.innerHTML = `
+                    <div class="text-center py-5">
+                        <p class="text-danger">${escapeHtml(message)}</p>
+                        ${showLoginLink ? '<button class="btn btn-accent" id="fallbackLoginBtn">Войти</button>' : ''}
+                        <button class="btn btn-outline-accent ms-2" onclick="window.location.href='/'">На главную</button>
+                    </div>
+                `;
+                if (showLoginLink) {
+                    const loginBtn = document.getElementById('fallbackLoginBtn');
+                    if (loginBtn) {
+                        loginBtn.addEventListener('click', () => {
+                            if (window.AuthModal && typeof window.AuthModal.open === 'function') {
+                                window.AuthModal.open();
+                            } else {
+                                window.location.href = '/';
+                            }
+                        });
+                    }
+                }
+            }
+        }
+
+        disableAllControls();
+        window.showToast(message, 'danger');
+    }
+
+    // Проверка роли пользователя
+    async function checkUserRole() {
+        try {
+            const resp = await fetch(`${window.API_BASE_URL}users/profile`, {credentials: 'include'});
+            if (resp.ok) {
+                const profile = await resp.json();
+                currentUserRole = profile.role;
+                if (currentUserRole === 'student') {
+                    showAccessDeniedForCourseUsers('Управление пользователями курса доступно только администраторам и преподавателям.', false);
+                    return false;
+                }
+                return true;
+            } else if (resp.status === 401) {
+                showAccessDeniedForCourseUsers('Необходимо войти в систему для управления пользователями курса.', true);
+                return false;
+            } else {
+                throw new Error('Не удалось получить профиль');
+            }
+        } catch (err) {
+            showAccessDeniedForCourseUsers(`Ошибка авторизации: ${err.message}.`, true);
+            return false;
+        }
+    }
+
+    // Загрузка информации о курсе
     async function loadCourseInfo() {
         try {
-            const resp = await fetch(`${window.API_BASE_URL}courses/${courseId}`, { credentials: 'include' });
+            const resp = await fetch(`${window.API_BASE_URL}courses/${courseId}`, {credentials: 'include'});
             if (resp.ok) {
                 const course = await resp.json();
-                courseNameSpan.textContent = course.name;
+                if (courseNameSpan) courseNameSpan.textContent = course.name;
                 courseProfessorId = course.professor_id;
                 const professorFullName = `${course.professor_surname} ${course.professor_name} ${course.professor_patronymic || ''}`.trim();
                 courseProfessorName = professorFullName || course.professor_id;
-                professorInfoSpan.innerHTML = `<small>Преподаватель курса: <strong>${escapeHtml(courseProfessorName)}</strong></small>`;
+                if (professorInfoSpan) {
+                    professorInfoSpan.innerHTML = `<small class="text-muted">Преподаватель курса: <strong>${escapeHtml(courseProfessorName)}</strong></small>`;
+                }
+                return true;
             } else {
                 if (resp.status === 401 || resp.status === 403) throw new Error('Доступ запрещён');
                 if (resp.status === 404) throw new Error('Курс не найден');
                 throw new Error(`HTTP ${resp.status}`);
             }
-        } catch(e) {
+        } catch (e) {
             console.error(e);
-            courseNameSpan.textContent = 'Курс';
+            if (courseNameSpan) courseNameSpan.textContent = 'Курс';
+            showAccessDeniedForCourseUsers(e.message, e.message.includes('Доступ запрещён') || e.message.includes('авторизации'));
+            return false;
         }
     }
 
-    // Загрузка всех пользователей (кроме преподавателя курса)
+    // Загрузка всех пользователей
     async function loadAllUsers() {
         try {
-            const resp = await fetch(`${window.API_BASE_URL}users/all?page=1&records_per_page=30`, {
-                credentials: 'include'
-            });
+            const resp = await fetch(`${window.API_BASE_URL}users/all?page=1&records_per_page=30`, {credentials: 'include'});
             if (!resp.ok) {
                 if (resp.status === 401 || resp.status === 403) throw new Error('Доступ запрещён');
                 throw new Error(`HTTP ${resp.status}`);
             }
             let users = await resp.json();
             users = Array.isArray(users) ? users : [];
-            // Исключаем преподавателя курса из общего списка (чтобы он не попал в "Не записаны")
             if (courseProfessorId) {
                 users = users.filter(u => u.id !== courseProfessorId);
             }
@@ -82,16 +162,15 @@
         } catch (err) {
             console.error('Ошибка загрузки пользователей:', err);
             allUsers = [];
-            notEnrolledContainer.innerHTML = `<div class="alert alert-danger">Ошибка загрузки пользователей: ${err.message}</div>`;
+            showAccessDeniedForCourseUsers(`Ошибка загрузки пользователей: ${err.message}`, err.message.includes('Доступ запрещён'));
+            throw err;
         }
     }
 
-    // Загрузка списка записанных на курс пользователей (исключая преподавателя)
+    // Загрузка записанных пользователей
     async function loadEnrolledUsers() {
         try {
-            const resp = await fetch(`${window.API_BASE_URL}users/enrolled-users/${courseId}`, {
-                credentials: 'include'
-            });
+            const resp = await fetch(`${window.API_BASE_URL}users/enrolled-users/${courseId}`, {credentials: 'include'});
             if (!resp.ok) {
                 if (resp.status === 401 || resp.status === 403) throw new Error('Доступ запрещён');
                 if (resp.status === 404) throw new Error('Курс не найден');
@@ -99,7 +178,6 @@
             }
             let users = await resp.json();
             users = Array.isArray(users) ? users : [];
-            // Исключаем преподавателя из списка записанных (он там не должен быть, но на всякий случай)
             if (courseProfessorId) {
                 users = users.filter(u => u.id !== courseProfessorId);
             }
@@ -107,11 +185,15 @@
         } catch (err) {
             console.error('Ошибка загрузки записанных пользователей:', err);
             enrolledUsers = [];
-            enrolledContainer.innerHTML = `<div class="alert alert-danger">Ошибка загрузки записанных: ${err.message}</div>`;
+            showAccessDeniedForCourseUsers(`Ошибка загрузки данных: ${err.message}`, err.message.includes('Доступ запрещён'));
+            throw err;
         }
     }
 
-    // Вычисление разности: все пользователи (исключая преподавателя) минус записанные
+    // ... остальные функции (computeNotEnrolled, renderNotEnrolledList, renderEnrolledList,
+    // updatePagination, goPrev/Next, performAction, performBulk, loadDataAndRender, bindEvents, init)
+    // остаются без изменений (кроме того, что в performBulk тоже нужно вызывать showAccessDeniedForCourseUsers при 401/403)
+    // Ниже они приведены полностью для удобства копирования.
     function computeNotEnrolled() {
         const enrolledIds = new Set(enrolledUsers.map(u => u.id));
         notEnrolledUsers = allUsers.filter(user => !enrolledIds.has(user.id));
@@ -127,7 +209,7 @@
         const pageUsers = notEnrolledUsers.slice(start, start + PAGE_SIZE);
 
         if (pageUsers.length === 0 && notEnrolledUsers.length === 0) {
-            notEnrolledContainer.innerHTML = '<div class="text-muted p-3">Нет пользователей для записи</div>';
+            notEnrolledContainer.innerHTML = '<div class="text-muted text-center p-3">Нет пользователей для записи</div>';
             return;
         }
         if (pageUsers.length === 0 && notEnrolledUsers.length > 0) {
@@ -162,7 +244,7 @@
         const pageUsers = enrolledUsers.slice(start, start + PAGE_SIZE);
 
         if (pageUsers.length === 0 && enrolledUsers.length === 0) {
-            enrolledContainer.innerHTML = '<div class="text-muted p-3">Нет записанных пользователей</div>';
+            enrolledContainer.innerHTML = '<div class="text-muted text-center p-3">Нет записанных пользователей</div>';
             return;
         }
         if (pageUsers.length === 0 && enrolledUsers.length > 0) {
@@ -214,6 +296,7 @@
             updateNotEnrolledPagination();
         }
     }
+
     function goNotEnrolledNext() {
         if (notEnrolledPage < notEnrolledTotalPages) {
             notEnrolledPage++;
@@ -221,6 +304,7 @@
             updateNotEnrolledPagination();
         }
     }
+
     function goEnrolledPrev() {
         if (enrolledPage > 1) {
             enrolledPage--;
@@ -228,6 +312,7 @@
             updateEnrolledPagination();
         }
     }
+
     function goEnrolledNext() {
         if (enrolledPage < enrolledTotalPages) {
             enrolledPage++;
@@ -243,10 +328,10 @@
             : `${window.API_BASE_URL}users/unenroll?user_id=${userId}&course_id=${courseId}`;
         const method = isEnroll ? 'POST' : 'DELETE';
 
-        try {
+        const requestFn = async () => {
             const res = await fetch(url, {
-                method: method,
-                headers: { 'Content-Type': 'application/json' },
+                method,
+                headers: {'Content-Type': 'application/json'},
                 credentials: 'include'
             });
             if (res.ok) {
@@ -254,13 +339,22 @@
                 await loadDataAndRender();
             } else if (res.status === 409) {
                 window.showToast(isEnroll ? 'Пользователь уже записан на курс' : 'Пользователь не был записан', 'warning');
+            } else if (res.status === 401 || res.status === 403) {
+                throw new Error('unauthorized');
             } else {
                 const text = await res.text();
                 window.showToast(`Ошибка: ${text}`, 'danger');
             }
+        };
+
+        try {
+            await requestFn();
         } catch (err) {
-            console.error(err);
-            window.showToast(`Ошибка сети: ${err.message}`, 'danger');
+            if (err.message === 'unauthorized') {
+                showAccessDeniedForCourseUsers('Сессия истекла. Пожалуйста, войдите заново.', true);
+            } else {
+                window.showToast(`Ошибка: ${err.message}`, 'danger');
+            }
         }
     }
 
@@ -280,15 +374,18 @@
                 : `${window.API_BASE_URL}users/unenroll?user_id=${userId}&course_id=${courseId}`;
             const method = isEnroll ? 'POST' : 'DELETE';
             try {
-                const res = await fetch(url, { method, credentials: 'include' });
+                const res = await fetch(url, {method, credentials: 'include'});
                 if (res.ok) successCount++;
-                else if (res.status !== 409) console.warn(`Failed for ${userId}`);
-            } catch(e) { console.warn(e); }
+                else if (res.status === 401 || res.status === 403) {
+                    showAccessDeniedForCourseUsers('Доступ запрещён. Пожалуйста, войдите заново.', true);
+                    return;
+                }
+            } catch (e) {
+                console.warn(e);
+            }
         }
         window.showToast(`Выполнено: ${successCount} из ${userIds.length}`, successCount === userIds.length ? 'success' : 'warning');
-        if (successCount > 0) {
-            await loadDataAndRender();
-        }
+        if (successCount > 0) await loadDataAndRender();
     }
 
     async function loadDataAndRender() {
@@ -296,6 +393,11 @@
         isLoading = true;
         try {
             await Promise.all([loadAllUsers(), loadEnrolledUsers()]);
+            // Если дошли сюда, значит ошибок не было — показываем колонки и скрываем контейнер ошибки
+            if (leftColumn) leftColumn.style.display = '';
+            if (rightColumn) rightColumn.style.display = '';
+            if (errorContainer) errorContainer.style.display = 'none';
+
             computeNotEnrolled();
             enrolledTotalPages = Math.ceil(enrolledUsers.length / PAGE_SIZE) || 1;
             if (enrolledPage > enrolledTotalPages) enrolledPage = enrolledTotalPages;
@@ -320,7 +422,10 @@
 
     async function init() {
         bindEvents();
-        await loadCourseInfo();
+        const hasAccess = await checkUserRole();
+        if (!hasAccess) return;
+        const courseLoaded = await loadCourseInfo();
+        if (!courseLoaded) return;
         await loadDataAndRender();
     }
 

@@ -38,19 +38,7 @@
                 credentials: 'include'
             });
             if (response.status === 401 || response.status === 403) {
-                grid.innerHTML = `
-                    <div class="col-12 text-center py-5">
-                        <p class="text-danger">Вы не авторизованы или доступ запрещён.</p>
-                        <button class="btn btn-accent" id="loginFromMyCoursesBtn">Войти</button>
-                        <button class="btn btn-outline-accent ms-2" onclick="window.location.href='/'">На главную</button>
-                    </div>
-                `;
-                const loginBtn = document.getElementById('loginFromMyCoursesBtn');
-                if (loginBtn) {
-                    loginBtn.addEventListener('click', () => {
-                        if (window.AuthModal) window.AuthModal.open();
-                    });
-                }
+                window.showAccessDenied(grid, 'Вы не авторизованы или доступ запрещён.', true);
                 isLoading = false;
                 return;
             }

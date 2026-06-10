@@ -1,9 +1,11 @@
-// auth.js
+// static/auth.js
 (function() {
     window.AppState = window.AppState || {};
     window.AppState.currentUser = null;
 
     let authCheckPending = false;
+    let pendingActions = [];
+
     async function checkAuth() {
         if (authCheckPending) return null;
         authCheckPending = true;
@@ -53,14 +55,47 @@
         return window.AppState.currentUser;
     }
 
+    /**
+     * Выполняет действие после успешного входа.
+     * Если пользователь уже авторизован, действие выполняется немедленно.
+     * Если нет – открывается модальное окно входа, и действие сохраняется в очередь.
+     * @param {Function} action - асинхронная функция, которую нужно выполнить после входа.
+     * @param {boolean} showModalImmediately - сразу показать модалку, если не авторизован.
+     */
+    function retryAfterLogin(action, showModalImmediately = true) {
+        if (isAuthenticated()) {
+            action();
+            return;
+        }
+        pendingActions.push(action);
+        if (showModalImmediately && window.AuthModal && typeof window.AuthModal.open === 'function') {
+            window.AuthModal.open();
+        }
+    }
+
+    function onAuthChanged(event) {
+        const user = event.detail?.user;
+        if (user && pendingActions.length) {
+            const actions = [...pendingActions];
+            pendingActions = [];
+            actions.forEach(action => {
+                try {
+                    action();
+                } catch (err) {
+                    console.error('Error in retry action:', err);
+                }
+            });
+        }
+    }
+
     window.Auth = {
         check: checkAuth,
         logout: logout,
         isAuthenticated: isAuthenticated,
-        getUser: getUser
+        getUser: getUser,
+        retryAfterLogin: retryAfterLogin
     };
 
-    // Глобальная обработка 401
     window.handleUnauthorized = function(message = 'Сессия истекла. Пожалуйста, войдите снова.') {
         window.AppState.currentUser = null;
         window.dispatchEvent(new CustomEvent('auth-changed', { detail: { user: null } }));
@@ -75,7 +110,6 @@
         }
     };
 
-    // Глобальная обработка 403
     window.handleForbidden = function(message = 'У вас недостаточно прав для выполнения этого действия.') {
         if (window.showToast) {
             window.showToast(message, 'danger');
@@ -84,13 +118,11 @@
         }
     };
 
-    // Глобальный перехватчик fetch для обработки 401 и 403
     const originalFetch = window.fetch;
     window.fetch = function(...args) {
         return originalFetch.apply(this, args).then(async response => {
             if (response.status === 401) {
                 const url = typeof args[0] === 'string' ? args[0] : args[0].url;
-                // Не перехватываем запросы к login/reg/profile, чтобы избежать цикла
                 if (!url.includes('/auth/login') && !url.includes('/auth/reg') && !url.includes('/users/profile')) {
                     window.handleUnauthorized('Сессия истекла. Пожалуйста, войдите снова.');
                 }
@@ -104,7 +136,6 @@
         });
     };
 
-    // Автоматическая проверка при загрузке
     document.addEventListener('DOMContentLoaded', () => {
         window.Auth.check().then(user => {
             if (user) {
@@ -113,4 +144,6 @@
             document.dispatchEvent(new CustomEvent('auth-loaded'));
         });
     });
+
+    window.addEventListener('auth-changed', onAuthChanged);
 })();

@@ -1,5 +1,5 @@
 // static/course_creation/topics.js
-(function() {
+(function () {
     const courseId = window.COURSE_ID;
     const sectionId = window.SECTION_ID;
     const container = document.getElementById('topicsList');
@@ -9,32 +9,11 @@
     let topics = [];
     let originalTopics = [];
 
-    // ---------- Управление несохранёнными изменениями ----------
     let currentEditingTopicId = null;
     let currentEditingOriginalData = null;
     let hasUnsavedChanges = false;
 
     if (!window.tagManagerInstances) window.tagManagerInstances = new Map();
-
-    function handleAccessDenied(message = 'Доступ запрещён.') {
-        container.innerHTML = `
-            <div class="text-center py-4">
-                <p class="text-danger">${message}</p>
-                <button class="btn btn-accent" id="accessDeniedLoginBtn">Войти</button>
-                <button class="btn btn-outline-accent ms-2" onclick="window.location.href='/'">На главную</button>
-            </div>
-        `;
-        if (addBtn) addBtn.disabled = true;
-        if (saveAllBtn) saveAllBtn.disabled = true;
-        const loginBtn = document.getElementById('accessDeniedLoginBtn');
-        if (loginBtn) {
-            loginBtn.addEventListener('click', () => {
-                const headerLoginBtn = document.getElementById('loginBtn');
-                if (headerLoginBtn) headerLoginBtn.click();
-                else window.location.href = '/';
-            });
-        }
-    }
 
     function updateUnsavedFlag(unsaved) {
         hasUnsavedChanges = unsaved;
@@ -124,7 +103,7 @@
         if (!window.MathJax) return true;
         if (!latexString || latexString.trim() === '') return true;
         try {
-            await window.MathJax.tex2chtmlPromise(latexString, { display: true });
+            await window.MathJax.tex2chtmlPromise(latexString, {display: true});
             return true;
         } catch (err) {
             let errorMsg = err.message || err.toString();
@@ -145,7 +124,7 @@
         let inString = false;
         for (let i = 0; i < umlCode.length; i++) {
             const ch = umlCode[i];
-            if (ch === '"' && (i === 0 || umlCode[i-1] !== '\\')) {
+            if (ch === '"' && (i === 0 || umlCode[i - 1] !== '\\')) {
                 inString = !inString;
                 continue;
             }
@@ -218,7 +197,7 @@
                 credentials: 'include'
             });
             if (res.status === 401 || res.status === 403) {
-                handleAccessDenied('Вы не авторизованы или недостаточно прав для редактирования тем.');
+                window.showAccessDenied(container, 'Вы не авторизованы или недостаточно прав для редактирования тем.');
                 return;
             }
             if (!res.ok) {
@@ -235,7 +214,7 @@
                 tags: t.tags || [],
                 raw_content: t.raw_content || []
             }));
-            topics.sort((a,b) => a.order_number - b.order_number);
+            topics.sort((a, b) => a.order_number - b.order_number);
             originalTopics = JSON.parse(JSON.stringify(topics));
             renderTopics();
             if (addBtn) addBtn.disabled = false;
@@ -360,10 +339,10 @@
             let blocksChanged = false;
             if (blocks) {
                 const blocksToCompare = blocks.map(b => {
-                    if (b.type === 'files') return { type: 'files', content: b.content || [] };
+                    if (b.type === 'files') return {type: 'files', content: b.content || []};
                     else {
                         let content = Array.isArray(b.content) ? b.content : [b.content || ''];
-                        return { type: b.type, content };
+                        return {type: b.type, content};
                     }
                 });
                 blocksChanged = JSON.stringify(blocksToCompare) !== JSON.stringify(currentEditingOriginalData.raw_content);
@@ -580,7 +559,9 @@
                         const deleteBtn = blockCard.querySelector('.delete-block-btn');
 
                         if (contentTextarea) {
-                            contentTextarea.addEventListener('input', function() { autosize(this, 800); });
+                            contentTextarea.addEventListener('input', function () {
+                                autosize(this, 800);
+                            });
                             setTimeout(() => autosize(contentTextarea, 800), 20);
                         }
 
@@ -683,34 +664,25 @@
                 return;
             }
             const newTags = tagManager ? tagManager.tags : topic.tags;
-
             const rawContentForFirstPut = blocks.map(b => {
                 if (b.type === 'files') {
-                    return { type: 'files', content: b.content || [] };
+                    return {type: 'files', content: b.content || []};
                 } else {
                     let arr = Array.isArray(b.content) ? b.content : [b.content || ''];
-                    return { type: b.type, content: arr };
+                    return {type: b.type, content: arr};
                 }
             });
 
-            saveBtn.disabled = true;
-            saveBtn.textContent = 'Сохранение...';
-
-            try {
+            const performSave = async () => {
                 let savedTopicId = topic.id;
-
                 if (topic.id) {
-                    const updateBody = { name: newName, tags: newTags, raw_content: rawContentForFirstPut };
                     const res = await fetch(`${window.API_BASE_URL}topics/${topic.id}`, {
                         method: 'PUT',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: {'Content-Type': 'application/json'},
                         credentials: 'include',
-                        body: JSON.stringify(updateBody)
+                        body: JSON.stringify({name: newName, tags: newTags, raw_content: rawContentForFirstPut})
                     });
-                    if (res.status === 401 || res.status === 403) {
-                        handleAccessDenied();
-                        return;
-                    }
+                    if (res.status === 401 || res.status === 403) throw new Error('unauthorized');
                     if (!res.ok) {
                         let errorMsg = 'Ошибка обновления темы';
                         if (res.status === 404) errorMsg = 'Тема не найдена';
@@ -723,23 +695,19 @@
                     }
                     savedTopicId = topic.id;
                 } else {
-                    const createBody = {
-                        name: newName,
-                        order_number: topic.order_number,
-                        section_id: sectionId,
-                        tags: newTags,
-                        raw_content: rawContentForFirstPut
-                    };
                     const res = await fetch(`${window.API_BASE_URL}topics/create-topic`, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: {'Content-Type': 'application/json'},
                         credentials: 'include',
-                        body: JSON.stringify(createBody)
+                        body: JSON.stringify({
+                            name: newName,
+                            order_number: topic.order_number,
+                            section_id: sectionId,
+                            tags: newTags,
+                            raw_content: rawContentForFirstPut
+                        })
                     });
-                    if (res.status === 401 || res.status === 403) {
-                        handleAccessDenied();
-                        return;
-                    }
+                    if (res.status === 401 || res.status === 403) throw new Error('unauthorized');
                     if (!res.ok) {
                         let errorMsg = 'Ошибка создания темы';
                         if (res.status === 404) errorMsg = 'Раздел не найден';
@@ -755,10 +723,9 @@
                     topic.id = savedTopicId;
                 }
 
-                // Загружаем файлы, если есть
                 let filesUploaded = false;
-                const blocksWithFiles = blocks.map((b, idx) => ({ block: b, blockIdx: idx }));
-                for (const { block, blockIdx } of blocksWithFiles) {
+                const blocksWithFiles = blocks.map((b, idx) => ({block: b, blockIdx: idx}));
+                for (const {block, blockIdx} of blocksWithFiles) {
                     if (block.type === 'files' && block.content) {
                         for (let fileIdx = 0; fileIdx < block.content.length; fileIdx++) {
                             const fileItem = block.content[fileIdx];
@@ -779,25 +746,25 @@
 
                 if (filesUploaded) {
                     const finalRawContent = blocks.map(b => {
-                        if (b.type === 'files') return { type: 'files', content: b.content || [] };
+                        if (b.type === 'files') return {type: 'files', content: b.content || []};
                         else {
                             let arr = Array.isArray(b.content) ? b.content : [b.content || ''];
-                            return { type: b.type, content: arr };
+                            return {type: b.type, content: arr};
                         }
                     });
                     await fetch(`${window.API_BASE_URL}topics/${savedTopicId}`, {
                         method: 'PUT',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: {'Content-Type': 'application/json'},
                         credentials: 'include',
-                        body: JSON.stringify({ raw_content: finalRawContent })
+                        body: JSON.stringify({raw_content: finalRawContent})
                     });
                 }
 
                 topic.name = newName;
                 topic.tags = newTags;
                 topic.raw_content = filesUploaded ? blocks.map(b => {
-                    if (b.type === 'files') return { type: 'files', content: b.content };
-                    else return { type: b.type, content: Array.isArray(b.content) ? b.content : [b.content || ''] };
+                    if (b.type === 'files') return {type: 'files', content: b.content};
+                    else return {type: b.type, content: Array.isArray(b.content) ? b.content : [b.content || '']};
                 }) : rawContentForFirstPut;
 
                 const origIndex = originalTopics.findIndex(t => t.id === topic.id);
@@ -809,8 +776,19 @@
                 updateUnsavedFlag(false);
                 renderTopics();
                 window.showToast(topic.id ? 'Тема обновлена' : 'Тема создана');
+            };
+
+            saveBtn.disabled = true;
+            saveBtn.textContent = 'Сохранение...';
+
+            try {
+                await performSave();
             } catch (err) {
-                window.showToast(err.message, 'danger');
+                if (err.message === 'unauthorized') {
+                    window.Auth.retryAfterLogin(performSave);
+                } else {
+                    window.showToast(err.message, 'danger');
+                }
             } finally {
                 saveBtn.disabled = false;
                 saveBtn.textContent = 'Сохранить тему';
@@ -833,15 +811,13 @@
                 return;
             }
             if (!confirm('Удалить тему? Все блоки и загруженные файлы будут удалены.')) return;
-            try {
+
+            const performDelete = async () => {
                 const res = await fetch(`${window.API_BASE_URL}topics/${topic.id}`, {
                     method: 'DELETE',
                     credentials: 'include'
                 });
-                if (res.status === 401 || res.status === 403) {
-                    handleAccessDenied();
-                    return;
-                }
+                if (res.status === 401 || res.status === 403) throw new Error('unauthorized');
                 if (!res.ok) {
                     if (res.status === 404) throw new Error('Тема не найдена');
                     throw new Error('Ошибка удаления');
@@ -851,8 +827,16 @@
                 originalTopics = originalTopics.filter(t => t.id !== topic.id);
                 renderTopics();
                 window.showToast('Тема удалена');
+            };
+
+            try {
+                await performDelete();
             } catch (err) {
-                window.showToast(err.message, 'danger');
+                if (err.message === 'unauthorized') {
+                    window.Auth.retryAfterLogin(performDelete);
+                } else {
+                    window.showToast(err.message, 'danger');
+                }
             }
         });
     }

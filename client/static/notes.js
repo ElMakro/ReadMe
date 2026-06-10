@@ -154,19 +154,7 @@
             } catch (err) {
                 console.error(err);
                 if (err.message === 'Доступ запрещён') {
-                    container.innerHTML = `
-                        <div class="text-center py-4">
-                            <p class="text-danger">${err.message}</p>
-                            <button class="btn btn-accent" id="loginFromNotesBtn">Войти</button>
-                            <button class="btn btn-outline-accent ms-2" onclick="window.location.href='/'">На главную</button>
-                        </div>
-                    `;
-                    const loginBtn = document.getElementById('loginFromNotesBtn');
-                    if (loginBtn) {
-                        loginBtn.addEventListener('click', () => {
-                            if (window.AuthModal) window.AuthModal.open();
-                        });
-                    }
+                    window.showAccessDenied(container, err.message, true);
                 } else {
                     container.innerHTML = `<div class="text-danger text-center py-4">${err.message}</div>`;
                 }
