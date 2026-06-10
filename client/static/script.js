@@ -47,6 +47,9 @@
                     else window.location.reload();
                     return;
                 }
+                if (response.status === 403) throw new Error('Доступ запрещён');
+                if (response.status === 400) throw new Error('Неправильный критерий поиска');
+                if (response.status === 422) throw new Error('Ошибка валидации параметров');
                 throw new Error('Ошибка загрузки курсов');
             }
             const courses = await response.json();
@@ -66,7 +69,7 @@
             totalPages = total;
         } catch (error) {
             console.error(error);
-            coursesGrid.innerHTML = '<p class="text-center text-danger">Не удалось загрузить курсы.</p>';
+            coursesGrid.innerHTML = `<p class="text-center text-danger">${error.message}</p>`;
             updatePagination(page, page);
         } finally {
             isLoading = false;

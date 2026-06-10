@@ -68,7 +68,11 @@
                 isLoading = false;
                 return;
             }
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            if (!response.ok) {
+                if (response.status === 403) throw new Error('Доступ запрещён');
+                if (response.status === 422) throw new Error('Ошибка валидации параметров');
+                throw new Error(`HTTP ${response.status}`);
+            }
             const applications = await response.json();
             if (!Array.isArray(applications)) throw new Error('Неверный формат ответа');
             renderApplications(applications);

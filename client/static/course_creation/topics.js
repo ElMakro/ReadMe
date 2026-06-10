@@ -178,10 +178,14 @@
             if (resp.status === 400) {
                 const errData = await resp.json().catch(() => null);
                 errorMsg = errData?.detail || 'Тип блока не поддерживает файлы';
+            } else if (resp.status === 401 || resp.status === 403) {
+                errorMsg = 'Доступ запрещён';
             } else if (resp.status === 404) {
                 errorMsg = 'Блок или позиция файла не найдены';
             } else if (resp.status === 409) {
                 errorMsg = 'Имя файла не совпадает с заявленным в теме';
+            } else if (resp.status === 422) {
+                errorMsg = 'Ошибка валидации';
             }
             throw new Error(errorMsg);
         }
@@ -193,7 +197,12 @@
             const res = await fetch(`${window.API_BASE_URL}topics/by-section/${sectionId}`, {
                 credentials: 'include'
             });
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            if (!res.ok) {
+                if (res.status === 401 || res.status === 403) throw new Error('Доступ запрещён');
+                if (res.status === 404) throw new Error('Раздел не найден');
+                if (res.status === 422) throw new Error('Ошибка валидации');
+                throw new Error(`HTTP ${res.status}`);
+            }
             const data = await res.json();
             let topicsArray = (data && Array.isArray(data.topics)) ? data.topics : (Array.isArray(data) ? data : []);
             topics = topicsArray.map(t => ({
@@ -640,6 +649,8 @@
         const cancelBtn = card.querySelector('.cancel-edit');
         const delBtn = card.querySelector('.delete-topic');
 
+        // В обработчике saveBtn заменяем существующий код на:
+
         saveBtn.addEventListener('click', async (e) => {
             e.stopPropagation();
             const newName = nameInput.value.trim();
@@ -648,14 +659,43 @@
                 return;
             }
             const newTags = tagManager ? tagManager.tags : topic.tags;
-            const rawContent = blocks.map(b => {
+
+            // 1. Сначала загружаем все файлы, помеченные _file, и получаем server_filename
+            const blocksCopy = JSON.parse(JSON.stringify(blocks)); // копируем для обработки
+            let hasFilesUploaded = false;
+            for (let blockIdx = 0; blockIdx < blocksCopy.length; blockIdx++) {
+                const block = blocksCopy[blockIdx];
+                if (block.type === 'files' && block.content) {
+                    for (let fileIdx = 0; fileIdx < block.content.length; fileIdx++) {
+                        const fileItem = block.content[fileIdx];
+                        if (fileItem._file) {
+                            hasFilesUploaded = true;
+                            try {
+                                // Временно сохраняем topic.id? Но для новой темы его ещё нет.
+                                // Если тема новая, сначала нужно создать тему (без файлов), потом загрузить файлы, потом обновить.
+                                // Упростим: для существующей темы загружаем сразу, для новой — создаём тему, потом загружаем, потом обновляем.
+                                // Но сейчас у нас уже есть savedTopicId после первого PUT? Нет, мы хотим один PUT.
+                                // Значит, нужно разделить логику: если тема новая — сначала создаём, получаем ID, потом загружаем файлы, потом обновляем.
+                                // Это сложно. Лучше оставить два PUT для нового курса? Но для существующего можно один.
+                                // Оптимальное решение: для существующей темы загружаем файлы до PUT, для новой — создаём пустую тему, загружаем файлы, потом обновляем.
+                                // Но это уже много изменений. Предлагаю более простой вариант: оставить два PUT, но второй делать только если были загружены файлы.
+                                // Это решит проблему двойного запроса для тем без файлов.
+                            } catch(e) {}
+                        }
+                    }
+                }
+            }
+
+            // Если тема существует и нет новых файлов — можно обойтись одним PUT.
+            // Реализуем просто: второй PUT только если были загружены файлы.
+
+            // Формируем raw_content для отправки (с _file, если ещё не загружены)
+            const rawContentForFirstPut = blocks.map(b => {
                 if (b.type === 'files') {
                     return { type: 'files', content: b.content || [] };
                 } else {
-                    let rawArray = [];
-                    if (Array.isArray(b.content)) rawArray = b.content;
-                    else rawArray = [b.content || ''];
-                    return { type: b.type, content: rawArray };
+                    let arr = Array.isArray(b.content) ? b.content : [b.content || ''];
+                    return { type: b.type, content: arr };
                 }
             });
 
@@ -664,10 +704,11 @@
 
             try {
                 let savedTopicId = topic.id;
+                let needsSecondPut = false;
 
                 if (topic.id) {
                     // Обновляем существующую тему
-                    const updateBody = { name: newName, tags: newTags, raw_content: rawContent };
+                    const updateBody = { name: newName, tags: newTags, raw_content: rawContentForFirstPut };
                     const res = await fetch(`${window.API_BASE_URL}topics/${topic.id}`, {
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json' },
@@ -676,12 +717,16 @@
                     });
                     if (!res.ok) {
                         let errorMsg = 'Ошибка обновления темы';
-                        if (res.status === 400) {
+                        if (res.status === 401 || res.status === 403) errorMsg = 'Доступ запрещён';
+                        else if (res.status === 404) errorMsg = 'Тема не найдена';
+                        else if (res.status === 409) errorMsg = 'Тема с таким порядковым номером уже существует';
+                        else if (res.status === 400) {
                             const errData = await res.json().catch(() => null);
                             errorMsg = errData?.detail || 'Ошибка компиляции контента';
-                        }
+                        } else if (res.status === 422) errorMsg = 'Ошибка валидации данных';
                         throw new Error(errorMsg);
                     }
+                    savedTopicId = topic.id;
                 } else {
                     // Создаём новую тему
                     const createBody = {
@@ -689,7 +734,7 @@
                         order_number: topic.order_number,
                         section_id: sectionId,
                         tags: newTags,
-                        raw_content: rawContent
+                        raw_content: rawContentForFirstPut
                     };
                     const res = await fetch(`${window.API_BASE_URL}topics/create-topic`, {
                         method: 'POST',
@@ -699,10 +744,13 @@
                     });
                     if (!res.ok) {
                         let errorMsg = 'Ошибка создания темы';
-                        if (res.status === 400) {
+                        if (res.status === 401 || res.status === 403) errorMsg = 'Доступ запрещён';
+                        else if (res.status === 404) errorMsg = 'Раздел не найден';
+                        else if (res.status === 409) errorMsg = 'Тема с таким порядковым номером уже существует';
+                        else if (res.status === 400) {
                             const errData = await res.json().catch(() => null);
                             errorMsg = errData?.detail || 'Ошибка компиляции контента';
-                        }
+                        } else if (res.status === 422) errorMsg = 'Ошибка валидации данных';
                         throw new Error(errorMsg);
                     }
                     const data = await res.json();
@@ -710,13 +758,15 @@
                     topic.id = savedTopicId;
                 }
 
-                // Теперь загружаем файлы, которые были добавлены в файловые блоки (с _file)
+                // Загружаем файлы, если есть
+                let filesUploaded = false;
                 const blocksWithFiles = blocks.map((b, idx) => ({ block: b, blockIdx: idx }));
                 for (const { block, blockIdx } of blocksWithFiles) {
                     if (block.type === 'files' && block.content) {
                         for (let fileIdx = 0; fileIdx < block.content.length; fileIdx++) {
                             const fileItem = block.content[fileIdx];
                             if (fileItem._file) {
+                                filesUploaded = true;
                                 try {
                                     const uploaded = await uploadFileToServer(savedTopicId, blockIdx + 1, fileIdx + 1, fileItem._file);
                                     block.content[fileIdx] = uploaded;
@@ -730,25 +780,31 @@
                     }
                 }
 
-                // Финальное обновление raw_content с корректными server_filename
-                const finalRawContent = blocks.map(b => {
-                    if (b.type === 'files') return { type: 'files', content: b.content || [] };
-                    else {
-                        let arr = Array.isArray(b.content) ? b.content : [b.content || ''];
-                        return { type: b.type, content: arr };
-                    }
-                });
-                await fetch(`${window.API_BASE_URL}topics/${savedTopicId}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify({ raw_content: finalRawContent })
-                });
+                // Если были загружены файлы — обновляем raw_content финальной версией
+                if (filesUploaded) {
+                    const finalRawContent = blocks.map(b => {
+                        if (b.type === 'files') return { type: 'files', content: b.content || [] };
+                        else {
+                            let arr = Array.isArray(b.content) ? b.content : [b.content || ''];
+                            return { type: b.type, content: arr };
+                        }
+                    });
+                    await fetch(`${window.API_BASE_URL}topics/${savedTopicId}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
+                        body: JSON.stringify({ raw_content: finalRawContent })
+                    });
+                }
 
                 // Обновляем локальные данные
                 topic.name = newName;
                 topic.tags = newTags;
-                topic.raw_content = finalRawContent;
+                topic.raw_content = filesUploaded ? blocks.map(b => {
+                    if (b.type === 'files') return { type: 'files', content: b.content };
+                    else return { type: b.type, content: Array.isArray(b.content) ? b.content : [b.content || ''] };
+                }) : rawContentForFirstPut;
+
                 const origIndex = originalTopics.findIndex(t => t.id === topic.id);
                 if (origIndex !== -1) originalTopics[origIndex] = JSON.parse(JSON.stringify(topic));
                 else originalTopics.push(JSON.parse(JSON.stringify(topic)));
@@ -787,7 +843,11 @@
                     method: 'DELETE',
                     credentials: 'include'
                 });
-                if (!res.ok) throw new Error('Ошибка удаления');
+                if (!res.ok) {
+                    if (res.status === 401 || res.status === 403) throw new Error('Доступ запрещён');
+                    if (res.status === 404) throw new Error('Тема не найдена');
+                    throw new Error('Ошибка удаления');
+                }
                 const idx = topics.findIndex(t => t.id === topic.id);
                 if (idx !== -1) topics.splice(idx, 1);
                 originalTopics = originalTopics.filter(t => t.id !== topic.id);

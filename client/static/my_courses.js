@@ -39,6 +39,8 @@
                     });
                     return;
                 }
+                if (response.status === 403) throw new Error('Доступ запрещён');
+                if (response.status === 422) throw new Error('Ошибка валидации параметров');
                 throw new Error('Ошибка загрузки курсов');
             }
             const data = await response.json();
@@ -49,7 +51,7 @@
             currentPage = page;
         } catch (error) {
             console.error(error);
-            grid.innerHTML = '<div class="col-12 text-center text-danger">Не удалось загрузить курсы</div>';
+            grid.innerHTML = `<div class="col-12 text-center text-danger">${error.message}</div>`;
             updatePagination(1, false);
         } finally {
             isLoading = false;
@@ -58,7 +60,6 @@
 
     function renderCourses(courses) {
         if (!courses.length) {
-            // Текст строго в одну строку без переноса (даже на мобилках)
             grid.innerHTML = `
                 <div class="col-12 text-center py-4">
                     <div class="empty-message">

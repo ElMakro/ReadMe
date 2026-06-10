@@ -95,7 +95,15 @@
                 isLoading = false;
                 return;
             }
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            if (!response.ok) {
+                if (response.status === 404) {
+                    throw new Error('Ресурс не найден. Проверьте правильность запроса.');
+                } else if (response.status === 422) {
+                    throw new Error('Ошибка валидации параметров запроса.');
+                } else {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+            }
             const applications = await response.json();
             if (!Array.isArray(applications)) throw new Error('Неверный формат ответа');
             renderApplications(applications);
@@ -198,9 +206,19 @@
                 statusModal.hide();
                 loadPage(currentPage);
             } else if (response.status === 401 || response.status === 403) {
-                window.showToast('Недостаточно прав для изменения статуса.', 'danger');
+                // Глобальный обработчик уже покажет сообщение, не дублируем
                 statusModal.hide();
                 loadPage(currentPage);
+            } else if (response.status === 404) {
+                window.showToast('Заявка или пользователь не найдены.', 'danger');
+                statusModal.hide();
+            } else if (response.status === 409) {
+                window.showToast('Несоответствие идентификатора заявки и пользователя.', 'danger');
+                statusModal.hide();
+            } else if (response.status === 422) {
+                const errorData = await response.json().catch(() => ({}));
+                window.showToast(errorData.detail || 'Ошибка валидации данных.', 'danger');
+                statusModal.hide();
             } else {
                 const errorData = await response.json().catch(() => ({}));
                 window.showToast(errorData.detail || 'Ошибка при изменении статуса.', 'danger');
@@ -305,6 +323,11 @@
                     }
 
                     window.showToast('Ссылка для подачи заявок успешно обновлена');
+                } else if (response.status === 401 || response.status === 403) {
+                    // Глобальный обработчик
+                    resultDiv.className = 'alert alert-danger mt-3';
+                    resultDiv.innerHTML = 'Недостаточно прав для выполнения операции.';
+                    resultDiv.style.display = 'block';
                 } else if (response.status === 422) {
                     const err = await response.json().catch(() => ({}));
                     resultDiv.className = 'alert alert-danger mt-3';

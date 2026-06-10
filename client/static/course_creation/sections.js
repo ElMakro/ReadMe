@@ -27,7 +27,12 @@
             const res = await fetch(`${window.API_BASE_URL}sections/by_course/${courseId}`, {
                 credentials: 'include'
             });
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            if (!res.ok) {
+                if (res.status === 401 || res.status === 403) throw new Error('Доступ запрещён');
+                if (res.status === 404) throw new Error('Курс не найден');
+                if (res.status === 422) throw new Error('Ошибка валидации');
+                throw new Error(`HTTP ${res.status}`);
+            }
             const data = await res.json();
             let sectionsArray = Array.isArray(data) ? data : (data.items || data.sections || []);
             sections = sectionsArray.map(s => ({
@@ -152,7 +157,12 @@
                         credentials: 'include',
                         body: JSON.stringify({ name: newName, description: newDesc, tags: newTags })
                     });
-                    if (!res.ok) throw new Error('Ошибка обновления');
+                    if (!res.ok) {
+                        if (res.status === 401 || res.status === 403) throw new Error('Доступ запрещён');
+                        if (res.status === 404) throw new Error('Раздел не найден');
+                        if (res.status === 422) throw new Error('Ошибка валидации данных');
+                        throw new Error('Ошибка обновления');
+                    }
                     sec.name = newName;
                     sec.description = newDesc;
                     sec.tags = newTags;
@@ -181,7 +191,13 @@
                             tags: newTags
                         })
                     });
-                    if (!res.ok) throw new Error('Ошибка создания раздела');
+                    if (!res.ok) {
+                        if (res.status === 401 || res.status === 403) throw new Error('Доступ запрещён');
+                        if (res.status === 404) throw new Error('Курс не найден');
+                        if (res.status === 409) throw new Error('Раздел с таким порядковым номером уже существует');
+                        if (res.status === 422) throw new Error('Ошибка валидации');
+                        throw new Error('Ошибка создания раздела');
+                    }
                     const data = await res.json();
                     sec.id = data.id;
                     sec.name = newName;
@@ -222,7 +238,11 @@
                         method: 'DELETE',
                         credentials: 'include'
                     });
-                    if (!res.ok) throw new Error('Ошибка удаления');
+                    if (!res.ok) {
+                        if (res.status === 401 || res.status === 403) throw new Error('Доступ запрещён');
+                        if (res.status === 404) throw new Error('Раздел не найден');
+                        throw new Error('Ошибка удаления');
+                    }
                     const index = sections.findIndex(s => s.id === sec.id);
                     if (index !== -1) sections.splice(index, 1);
                     originalSections = originalSections.filter(s => s.id !== sec.id);
