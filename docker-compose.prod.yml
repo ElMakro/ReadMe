@@ -132,9 +132,7 @@ services:
                 max-file: 3
 
     database-manager:
-        build:
-            context: .
-            dockerfile: database_manager/Dockerfile
+        image: readmeivtyarsu/readme-database-manager:1.0.0
         container_name: readme-database-manager
         environment:
             - DB_NAME=${DB_NAME}
@@ -188,9 +186,7 @@ services:
                 max-file: 3
 
     auto-migrations:
-        build:
-            context: .
-            dockerfile: database_manager/Dockerfile
+        image: readmeivtyarsu/readme-database-manager:1.0.0
         container_name: readme-auto-migrations
         environment:
             - DB_NAME=${DB_NAME}
@@ -232,9 +228,7 @@ services:
                 max-file: 3
 
     client:
-        build:
-            context: client
-            dockerfile: Dockerfile
+        image: readmeivtyarsu/readme-client:1.0.0
         container_name: readme-client
         environment:
             - CLIENT_HOST=${CLIENT_HOST}
@@ -259,9 +253,7 @@ services:
                 max-file: 3
 
     server:
-        build:
-            context: server
-            dockerfile: Dockerfile
+        image: readmeivtyarsu/readme-server:1.0.0
         container_name: readme-server
         environment:
             - DB_NAME=${DB_NAME}
