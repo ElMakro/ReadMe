@@ -3,8 +3,9 @@ from uuid import UUID
 from fastapi import Depends
 from sqlalchemy import and_, select
 
-from server.app.api.v1.exceptions import ObjectMissingError
+from server.app.api.v1.exceptions import BadRequestError, ObjectMissingError
 from server.app.api.v1.sections.sections import SectionIDMixin, SectionResponse, SectionsFullListResponse
+from server.config.constants import MAX_SECTION_DESCRIPTION_LENGTH
 from server.config.db_dependency import DBDependency
 from server.database.models import Sections
 
@@ -33,13 +34,17 @@ class SectionsManager:
             tags: list[str],
     ) -> SectionIDMixin:
         async with self.db.db_session() as session:
-            new_section = Sections(
-                course_id=course_id,
-                name=name,
-                description=description,
-                order_number=order_number,
-                tags=tags,
-            )
+            try:
+                new_section = Sections(
+                    course_id=course_id,
+                    name=name,
+                    description=description,
+                    order_number=order_number,
+                    tags=tags,
+                )
+            except ValueError:
+                raise BadRequestError(f"Описание раздела не может превышать {MAX_SECTION_DESCRIPTION_LENGTH} символов!")
+
             session.add(
                 new_section,
             )
@@ -81,7 +86,7 @@ class SectionsManager:
                 Sections,
             ).where(
                 Sections.course_id == course_id,
-            )
+            ).order_by(Sections.order_number)
 
             result = await session.execute(
                 query,
@@ -123,6 +128,9 @@ class SectionsManager:
                 with_for_update=True,
             )
 
+            if section is None:
+                raise ObjectMissingError("Раздела с таким идентификатором не найдено!")
+
             await session.delete(
                 section,
             )
@@ -143,7 +151,12 @@ class SectionsManager:
             )
 
             section.name = name
-            section.description = description
+
+            try:
+                section.description = description
+            except ValueError:
+                raise BadRequestError(f"Описание раздела не может превышать {MAX_SECTION_DESCRIPTION_LENGTH} символов!")
+
             section.tags = tags
 
             await session.commit()

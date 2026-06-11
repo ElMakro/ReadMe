@@ -2,16 +2,26 @@ import os
 import socket
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
+from pathlib import Path
 from uuid import uuid4
 
 import pytest
 import pytest_asyncio
 from redis.asyncio import ConnectionPool, Redis
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     async_sessionmaker,
     create_async_engine,
 )
+
+from server.app.api.v1.auth.auth_manager import AuthManager
+from server.app.api.v1.courses.courses_manager import CoursesManager
+from server.app.api.v1.sections.sections_manager import SectionsManager
+from server.app.api.v1.topics.topics import TopicContent, TopicContentBlock
+from server.app.api.v1.topics.topics_manager import TopicsManager
+from server.app.api.v1.users.users_manager import UsersManager
+from server.database.models import Courses, CoursesForStudents, Sections, Topics
 
 TEST_DB_USER = os.environ.get("DB_USER", "test")
 TEST_DB_PASSWORD = os.environ.get("DB_PASSWORD", "test")
@@ -150,8 +160,6 @@ async def student_factory(db_engine: AsyncEngine):
 
 @pytest_asyncio.fixture(scope="function")
 async def course_factory(db_engine: AsyncEngine, professor_factory):
-    from server.database.models import Courses
-
     async_session = async_sessionmaker(db_engine, expire_on_commit=False)
 
     async def _create(
@@ -184,9 +192,105 @@ async def course_factory(db_engine: AsyncEngine, professor_factory):
 
 
 @pytest_asyncio.fixture(scope="function")
-async def enrollment_factory(db_engine: AsyncEngine, student_factory, course_factory):
-    from server.database.models import CoursesForStudents
+async def section_factory(db_engine, course_factory):
+    async_session = async_sessionmaker(db_engine, expire_on_commit=False)
 
+    async def _create(
+            course_id=None,
+            name="Тестовый раздел",
+            description="Описание тестового раздела",
+            order_number=None,
+            tags=None,
+    ):
+        async with async_session() as session, session.begin():
+            if course_id is None:
+                course = await course_factory()
+                course_id = course.id
+
+            if order_number is None:
+                result = await session.execute(
+                    select(func.max(Sections.order_number)).where(Sections.course_id == course_id)
+                )
+                max_order = result.scalar() or 0
+                order_number = max_order + 1
+
+            section = Sections(
+                id=uuid4(),
+                course_id=course_id,
+                name=name,
+                description=description,
+                order_number=order_number,
+                tags=tags or [],
+            )
+            session.add(section)
+            await session.flush()
+            await session.refresh(section)
+            return section
+
+    return _create
+
+
+@pytest_asyncio.fixture(scope="function")
+async def topic_factory(db_engine, section_factory):
+    async_session = async_sessionmaker(db_engine, expire_on_commit=False)
+
+    async def _create(
+            section_id=None,
+            name="Тестовая тема",
+            order_number=None,
+            course_id=None,
+            tags=None,
+            raw_content=None,
+            topic_directory_path=None,
+    ):
+        async with async_session() as session, session.begin():
+            if section_id is None:
+                section = await section_factory()
+                section_id = section.id
+                course_id = section.course_id
+            else:
+                if course_id is None:
+                    result = await session.execute(
+                        select(Sections.course_id).where(Sections.id == section_id)
+                    )
+                    course_id = result.scalar_one()
+
+            if order_number is None:
+                result = await session.execute(
+                    select(func.max(Topics.order_number)).where(Topics.section_id == section_id)
+                )
+                max_order = result.scalar() or 0
+                order_number = max_order + 1
+
+            if raw_content is None:
+                raw_content = TopicContent(root=[
+                    TopicContentBlock(type="markdown", content=["# Заголовок темы"])
+                ])
+
+            if topic_directory_path is None:
+                topic_directory_path = Path(f"/tmp/test_topic_{uuid4().hex[:8]}")
+
+            topic = Topics(
+                id=uuid4(),
+                section_id=section_id,
+                name=name,
+                order_number=order_number,
+                course_id=course_id,  # <-- теперь course_id всегда будет задан
+                tags=tags or [],
+                raw_content=[block.model_dump() for block in raw_content.root],
+                rendered_content=[block.model_dump() for block in raw_content.root],
+                topic_directory_path=topic_directory_path,
+            )
+            session.add(topic)
+            await session.flush()
+            await session.refresh(topic)
+            return topic
+
+    return _create
+
+
+@pytest_asyncio.fixture(scope="function")
+async def enrollment_factory(db_engine: AsyncEngine, student_factory, course_factory):
     async_session = async_sessionmaker(db_engine, expire_on_commit=False)
 
     async def _create(student_id=None, course_id=None):
@@ -210,44 +314,6 @@ async def enrollment_factory(db_engine: AsyncEngine, student_factory, course_fac
     return _create
 
 
-class MockCoursesResourcesManager:
-    def create_course_directory(self, course_id):
-        pass
-
-    def delete_course_directory(self, course_id):
-        pass
-
-    def create_section_directory(self, section_id, course_id):
-        pass
-
-    def delete_section_directory(self, section_id, course_id):
-        pass
-
-    def create_topic_directory(self, topic_directory_path):
-        pass
-
-    def delete_topic_directory(self, topic_directory_path):
-        pass
-
-    async def set_course_icon(self, course_id, icon_upload_file):
-        pass
-
-    def get_course_icon_path(self, course_id):
-        return "/fake/path"
-
-    async def upload_topic_resource(self, topic_directory_path, server_filename, resource):
-        pass
-
-    async def get_topic_resource(self, topic_directory_path, resource_filename):
-        return "/fake/path"
-
-    async def render_topic(self, topic_directory_path, raw_content):
-        return raw_content
-
-    def create_course(self, course_id):
-        pass
-
-
 @pytest.fixture(scope="function")
 def db_dependency(db_engine: AsyncEngine):
     class MockDBDependency:
@@ -269,6 +335,7 @@ def db_dependency(db_engine: AsyncEngine):
             return self._session_factory()
 
     return MockDBDependency(db_engine)
+
 
 @pytest.fixture(scope="function")
 def redis_dependency(redis_service):
@@ -299,66 +366,30 @@ async def redis_client(redis_dependency) -> AsyncGenerator[Redis]:
     async with redis_dependency.get_client() as client:
         yield client
 
+
 @pytest.fixture(scope="function")
 def courses_manager(db_dependency):
-    from server.app.api.v1.courses.courses_manager import CoursesManager
     return CoursesManager(db=db_dependency)
 
 
 @pytest.fixture(scope="function")
 def users_manager(db_dependency):
-    from server.app.api.v1.users.users_manager import UsersManager
     return UsersManager(db=db_dependency)
 
 
 @pytest.fixture(scope="function")
 def auth_manager(db_dependency, redis_dependency):
-    from server.app.api.v1.auth.auth_manager import AuthManager
     return AuthManager(db=db_dependency, redis=redis_dependency)
 
 
 @pytest.fixture(scope="function")
-def users_service(users_manager, auth_manager, db_engine):
-    from server.app.api.v1.courses.courses_manager import CoursesManager
-    from server.app.api.v1.users.secret_application_link_handler import SecretApplicationLinkHandler
-    from server.app.api.v1.users.users_service import UsersService
-    from server.data.users_resources.users_resources_manager import UsersResourcesManager
-
-    courses_manager = CoursesManager(db=users_manager.db)
-    users_resources_manager = UsersResourcesManager()
-    secret_link_handler = SecretApplicationLinkHandler()
-
-    return UsersService(
-        auth_manager=auth_manager,
-        users_manager=users_manager,
-        courses_manager=courses_manager,
-        users_resources_manager=users_resources_manager,
-        secret_link_handler=secret_link_handler,
-    )
+def sections_manager(db_dependency):
+    return SectionsManager(db=db_dependency)
 
 
 @pytest.fixture(scope="function")
-def courses_resources_manager():
-    return MockCoursesResourcesManager()
-
-
-@pytest.fixture(scope="function")
-def courses_service(
-        courses_manager,
-        users_manager,
-        users_service,
-        courses_resources_manager,
-        auth_manager,
-):
-    from server.app.api.v1.courses.courses_service import CoursesService
-
-    return CoursesService(
-        courses_manager=courses_manager,
-        auth_manager=auth_manager,
-        users_manager=users_manager,
-        users_service=users_service,
-        courses_resources_manager=courses_resources_manager,
-    )
+def topics_manager(db_dependency):
+    return TopicsManager(db=db_dependency)
 
 
 @pytest_asyncio.fixture(scope="function")

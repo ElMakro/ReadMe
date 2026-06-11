@@ -255,7 +255,7 @@ class TopicsService:
                 "Пользователь не имеет доступа к темам данного раздела!",
             )
 
-        return await self.topics_manager.get_sections_by_course_id(
+        return await self.topics_manager.get_topics_by_course_id(
             course_id,
         )
 

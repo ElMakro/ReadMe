@@ -4,73 +4,7 @@ on:
     push:
 
 jobs:
-    server-check:
-        runs-on: ubuntu-latest
-        steps:
-            -   name: Checkout repository
-                uses: actions/checkout@v6
-
-            -   name: Set up Python 3.13
-                uses: actions/setup-python@v6
-                with:
-                    python-version: '3.13'
-
-            -   name: Install dependencies
-                run: |
-                    pip install -r server/requirements.txt
-
-            -   name: Lint with Ruff
-                run: |
-                    ruff check server
-
-            -   name: Run tests with coverage
-                run: |
-                    pytest server/tests/ \
-                      -c pytest.ini \
-                      --cov=server \
-                      --cov-report=html:reports/server/coverage \
-                      --junitxml=reports/server/test-results.xml
-
-            -   name: Upload server reports
-                uses: actions/upload-artifact@v6
-                with:
-                    name: server-reports
-                    path: reports/server/
-
-    client-check:
-        runs-on: ubuntu-latest
-        steps:
-            -   name: Checkout repository
-                uses: actions/checkout@v6
-
-            -   name: Set up Python 3.13
-                uses: actions/setup-python@v6
-                with:
-                    python-version: '3.13'
-
-            -   name: Install dependencies
-                run: |
-                    pip install -r client/requirements.txt
-
-            -   name: Lint with Ruff
-                run: |
-                    ruff check client
-
-            -   name: Run tests with coverage
-                run: |
-                    pytest client/tests/ \
-                      -c pytest.ini \
-                      --cov=client \
-                      --cov-report=html:reports/client/coverage \
-                      --junitxml=reports/client/test-results.xml
-
-            -   name: Upload client reports
-                uses: actions/upload-artifact@v6
-                with:
-                    name: client-reports
-                    path: reports/client/
-
-    combined-check-coverage:
+    combined-check:
         runs-on: ubuntu-latest
         steps:
             -   name: Checkout repository
@@ -86,6 +20,10 @@ jobs:
                     pip install -r server/requirements.txt
                     pip install -r client/requirements.txt
 
+            -   name: Lint with Ruff
+                run: |
+                    ruff check
+
             -   name: Run all tests with combined coverage
                 run: |
                     pytest server/tests/ client/tests/ \
@@ -93,7 +31,7 @@ jobs:
                       --cov=server \
                       --cov=client \
                       --cov-report=html:reports/combined/coverage \
-                      --cov-fail-under=0 \
+                      --cov-fail-under=60 \
                       --junitxml=reports/combined/test-results.xml
 
             -   name: Upload combined reports
