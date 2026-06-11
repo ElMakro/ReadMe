@@ -13,6 +13,7 @@ from server.app.api.v1.users.users import (
     UserVerification,
 )
 from server.app.api.v1.users.users_service import UsersService
+from server.enums.access_permissions import AccessPermissions
 from server.enums.role import Role
 
 pytestmark = pytest.mark.asyncio
@@ -119,3 +120,74 @@ class TestUpdateUserProfile:
 
         with pytest.raises(UserNotFoundError):
             await users_service.update_user_profile(user_id, updated_info)
+
+
+class TestCheckCourseAccess:
+    async def test_admin_gets_edit_access(self, users_service, mock_courses_manager):
+        user = UserVerification(id=uuid.uuid4(), role=Role.ADMIN, session_id="s", nickname="admin")
+        result = await users_service.check_course_access(user)
+        assert result == AccessPermissions.EDIT_ACCESS
+
+    async def test_professor_gets_edit_access_for_own_course(self, users_service, mock_courses_manager):
+        user = UserVerification(id=uuid.uuid4(), role=Role.PROFESSOR, session_id="s", nickname="prof")
+        course_id = uuid.uuid4()
+        course = MagicMock(professor_id=user.id, is_content_public=False, is_public=False)
+        mock_courses_manager.get_course_by_id.return_value = course
+        result = await users_service.check_course_access(user, course_id=course_id)
+        assert result == AccessPermissions.EDIT_ACCESS
+        mock_courses_manager.get_course_by_id.assert_awaited_once_with(course_id)
+
+    async def test_content_access_when_course_content_public(self, users_service, mock_courses_manager):
+        user = UserVerification(id=uuid.uuid4(), role=Role.STUDENT, session_id="s", nickname="student")
+        course = MagicMock(
+            id=uuid.uuid4(),
+            is_content_public=True,
+            professor_id=uuid.uuid4(),
+            is_public=False,
+        )
+        result = await users_service.check_course_access(user, course=course)
+        assert result == AccessPermissions.CONTENT_ACCESS
+        mock_courses_manager.get_course_by_id.assert_not_called()
+
+    async def test_content_access_when_user_enrolled(self, users_service, mock_courses_manager):
+        user = UserVerification(id=uuid.uuid4(), role=Role.STUDENT, session_id="s", nickname="student")
+        course_id = uuid.uuid4()
+        course = MagicMock(
+            id=course_id,
+            is_content_public=False,
+            is_public=False,
+            professor_id=uuid.uuid4()
+        )
+        mock_courses_manager.get_course_by_id.return_value = course
+        mock_courses_manager.check_is_user_enrolled_on_course.return_value = True
+        result = await users_service.check_course_access(user, course_id=course_id)
+        assert result == AccessPermissions.CONTENT_ACCESS
+        mock_courses_manager.check_is_user_enrolled_on_course.assert_awaited_once_with(user.id, course_id)
+
+    async def test_header_access_when_course_public(self, users_service, mock_courses_manager):
+        user = UserVerification(id=uuid.uuid4(), role=Role.STUDENT, session_id="s", nickname="student")
+        course = MagicMock(
+            id=uuid.uuid4(),
+            is_content_public=False,
+            is_public=True,
+            professor_id=uuid.uuid4(),
+        )
+        mock_courses_manager.check_is_user_enrolled_on_course.return_value = False
+        result = await users_service.check_course_access(user, course=course)
+        assert result == AccessPermissions.HEADER_ACCESS
+
+    async def test_no_access_for_anonymous_on_private_course(self, users_service, mock_courses_manager):
+        course_id = uuid.uuid4()
+        course = MagicMock(
+            id=course_id,
+            is_content_public=False,
+            is_public=False,
+            professor_id=uuid.uuid4()
+        )
+        mock_courses_manager.get_course_by_id.return_value = course
+        result = await users_service.check_course_access(None, course_id=course_id)
+        assert result == AccessPermissions.NO_ACCESS
+
+    async def test_raises_value_error_when_no_course_and_no_id(self, users_service):
+        with pytest.raises(ValueError, match="Либо курс, либо его идентификатор должны быть переданы!"):
+            await users_service.check_course_access(None)
