@@ -1,6 +1,18 @@
 (function () {
     const PREFIX = 'auth-modal-';
 
+    // Вспомогательная функция для извлечения понятного сообщения об ошибке
+    function getErrorMessage(data, defaultMsg) {
+        if (!data) return defaultMsg;
+        if (typeof data.detail === 'string') return data.detail;
+        if (Array.isArray(data.detail) && data.detail[0]?.msg) {
+            return data.detail.map(e => e.msg).join(', ');
+        }
+        if (data.message) return data.message;
+        if (data.error) return data.error;
+        return defaultMsg;
+    }
+
     const template = `
     <div class="modal-overlay" id="${PREFIX}overlay">
       <div class="modal-container">
@@ -212,10 +224,27 @@
                 });
 
                 if (!loginResponse.ok) {
-                    const errorData = await loginResponse.json().catch(() => null);
-                    const errorMessage = errorData?.detail
-                        ? (Array.isArray(errorData.detail) ? errorData.detail.map(e => e.msg).join(', ') : errorData.detail)
-                        : `Ошибка сервера (${loginResponse.status})`;
+                    let errorData = null;
+                    try { errorData = await loginResponse.json(); } catch(e) {}
+                    let errorMessage;
+                    switch (loginResponse.status) {
+                        case 401:
+                            errorMessage = 'Неверный никнейм или пароль.';
+                            break;
+                        case 403:
+                            errorMessage = 'Доступ запрещён. Проверьте данные.';
+                            break;
+                        case 500:
+                            errorMessage = 'Ошибка на сервере. Попробуйте позже.';
+                            break;
+                        case 502:
+                        case 503:
+                        case 504:
+                            errorMessage = 'Сервер временно недоступен. Повторите попытку.';
+                            break;
+                        default:
+                            errorMessage = getErrorMessage(errorData, `Ошибка входа (${loginResponse.status})`);
+                    }
                     throw new Error(errorMessage);
                 }
 
@@ -254,10 +283,38 @@
                 });
 
                 if (!regResponse.ok) {
-                    const errorData = await regResponse.json().catch(() => null);
-                    const errorMessage = errorData?.detail
-                        ? (Array.isArray(errorData.detail) ? errorData.detail.map(e => e.msg).join(', ') : errorData.detail)
-                        : `Ошибка сервера (${regResponse.status})`;
+                    let errorData = null;
+                    try { errorData = await regResponse.json(); } catch(e) {}
+                    let errorMessage;
+                    switch (regResponse.status) {
+                        case 400:
+                            errorMessage = getErrorMessage(errorData, 'Некорректные данные. Проверьте никнейм (4–32 символа), email и пароль (минимум 8 символов).');
+                            // Уточнения
+                            if (errorMessage.toLowerCase().includes('nickname')) {
+                                errorMessage = 'Никнейм должен быть длиной 4–32 символа и содержать только латиницу, цифры и разрешённые спецсимволы.';
+                            } else if (errorMessage.toLowerCase().includes('email')) {
+                                errorMessage = 'Введите корректный email (например, user@example.com).';
+                            } else if (errorMessage.toLowerCase().includes('password')) {
+                                errorMessage = 'Пароль должен быть не менее 8 символов.';
+                            }
+                            break;
+                        case 409:
+                            errorMessage = 'Пользователь с таким никнеймом или email уже существует.';
+                            break;
+                        case 422:
+                            errorMessage = getErrorMessage(errorData, 'Ошибка валидации. Проверьте все поля.');
+                            break;
+                        case 500:
+                            errorMessage = 'Ошибка на сервере. Попробуйте позже.';
+                            break;
+                        case 502:
+                        case 503:
+                        case 504:
+                            errorMessage = 'Сервер временно недоступен. Повторите попытку.';
+                            break;
+                        default:
+                            errorMessage = getErrorMessage(errorData, `Ошибка регистрации (${regResponse.status})`);
+                    }
                     throw new Error(errorMessage);
                 }
 
@@ -282,7 +339,14 @@
             }
         } catch (error) {
             console.error('Ошибка:', error);
-            showError(error.message);
+            let userMessage = error.message;
+            // Обработка сетевых ошибок
+            if (error.name === 'TypeError' && (error.message.includes('fetch') || error.message.includes('network'))) {
+                userMessage = 'Нет соединения с сервером. Проверьте интернет.';
+            } else if (error.name === 'AbortError') {
+                userMessage = 'Запрос прерван. Повторите попытку.';
+            }
+            showError(userMessage);
         } finally {
             submitBtn.disabled = false;
         }
