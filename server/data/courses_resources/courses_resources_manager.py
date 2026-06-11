@@ -9,8 +9,8 @@ from server.app.api.v1.sections.sections_manager import SectionsManager
 from server.app.api.v1.topics.topics import TopicContent
 from server.app.api.v1.topics.topics_manager import TopicsManager
 from server.data.courses_resources.compilation_manager import CompilationManager
+from server.data.icons_generator import IconsGenerator
 from server.data.resource_storage import IResourceStorage, get_courses_resource_storage
-from server.data.users_resources.icons_generator import IconsGenerator
 
 
 class CoursesResourcesManager:

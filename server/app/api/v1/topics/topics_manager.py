@@ -110,7 +110,7 @@ class TopicsManager:
                 Topics,
             ).where(
                 Topics.section_id == section_id,
-            )
+            ).order_by(Topics.order_number)
 
             result = await session.execute(
                 query,
@@ -122,7 +122,7 @@ class TopicsManager:
             topics,
         )
 
-    async def get_sections_by_course_id(
+    async def get_topics_by_course_id(
             self,
             course_id: UUID,
     ) -> TopicsFullListResponse:
@@ -131,6 +131,8 @@ class TopicsManager:
                 Topics,
             ).where(
                 Topics.course_id == course_id,
+            ).order_by(
+                Topics.order_number,
             )
 
             result = await session.execute(
@@ -153,6 +155,9 @@ class TopicsManager:
                 topic_id,
                 with_for_update=True,
             )
+
+            if topic is None:
+                raise ObjectMissingError("Тема с таким ID не найдена!")
 
             await session.delete(
                 topic,
@@ -191,6 +196,7 @@ class TopicsManager:
         )
 
         if topic is None:
+            await session.close()
             raise ObjectMissingError(
                 "Темы с таким id не существует!",
             )
@@ -205,5 +211,3 @@ class TopicsManager:
 
         await session.commit()
         await session.close()
-
-

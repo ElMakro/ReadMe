@@ -5,8 +5,8 @@ from fastapi import Depends, UploadFile
 
 from server.app.api.v1.exceptions import ObjectMissingError
 from server.app.api.v1.users.users import CreatedUserInfo
+from server.data.icons_generator import IconsGenerator
 from server.data.resource_storage import IResourceStorage, get_users_resource_storage
-from server.data.users_resources.icons_generator import IconsGenerator
 
 
 class UsersResourcesManager:

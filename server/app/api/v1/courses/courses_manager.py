@@ -5,7 +5,8 @@ from fastapi import Depends
 from sqlalchemy import select
 
 from server.app.api.v1.courses.courses import CourseFullListResponse, CourseIDMixin, CourseResponse
-from server.app.api.v1.exceptions import ObjectMissingError
+from server.app.api.v1.exceptions import BadRequestError, ObjectMissingError
+from server.config.constants import MAX_COURSE_DESCRIPTION_LENGTH
 from server.config.db_dependency import DBDependency
 from server.database.models import Courses, CoursesForStudents, ProfessorsDetails
 
@@ -117,14 +118,17 @@ class CoursesManager:
             tags: list[str],
     ) -> CourseIDMixin:
         async with self.db.db_session() as session:
-            course = Courses(
-                name=name,
-                description=description,
-                professor_id=professor_id,
-                is_public=is_public,
-                is_content_public=is_content_public,
-                tags=tags,
-            )
+            try:
+                course = Courses(
+                    name=name,
+                    description=description,
+                    professor_id=professor_id,
+                    is_public=is_public,
+                    is_content_public=is_content_public,
+                    tags=tags,
+                )
+            except ValueError:
+                raise BadRequestError(f"Описание курса не может превышать {MAX_COURSE_DESCRIPTION_LENGTH} символов!")
 
             session.add(
                 course,
@@ -211,7 +215,12 @@ class CoursesManager:
             )
 
             course.name = name
-            course.description = description
+
+            try:
+                course.description = description
+            except ValueError:
+                raise BadRequestError(f"Описание курса не может превышать {MAX_COURSE_DESCRIPTION_LENGTH} символов!")
+
             course.is_public = is_public
             course.is_content_public = is_content_public
             course.tags = tags
@@ -228,6 +237,9 @@ class CoursesManager:
                 course_id,
                 with_for_update=True,
             )
+
+            if course is None:
+                raise ObjectMissingError("Курса с таким идентификатором не найдено!")
 
             await session.delete(
                 course,
