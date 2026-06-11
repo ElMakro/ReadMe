@@ -900,3 +900,22 @@ input[type="file"]::file-selector-button:hover {
     border-radius: var(--radius-md) !important;
     border-width: var(--border-width) !important;
 }
+/* Контейнер иконки блока со светлым фоном */
+.block-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.5rem;
+    height: 1.5rem;
+    padding: 2px;
+    background-color: #FFFFFF;
+    border-radius: var(--radius-sm);
+}
+
+/* Сама картинка (SVG) внутри контейнера */
+.block-icon-img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+}

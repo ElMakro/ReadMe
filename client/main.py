@@ -9,6 +9,7 @@ client_app = FastAPI()
 client_app.mount("/static", StaticFiles(directory=STATIC_PATH), name="static")
 templates = Jinja2Templates(directory="templates")
 
+
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8080/api/v1/")
 
 @client_app.get("/client_healthcheck")
