@@ -1,44 +1,26 @@
 // static/my_courses.js
 (function() {
     const grid = document.getElementById('myCoursesGrid');
-    let currentPage = 1;
-    const limit = 9;
+    let pagination = null;
     let isLoading = false;
-    const paginationContainer = document.getElementById('paginationControls');
+    const limit = 9;
 
-    function hidePagination() {
-        if (paginationContainer) paginationContainer.style.display = 'none';
+    function escapeHtml(str) {
+        if (!str) return '';
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
     }
 
-    function showPagination() {
-        if (paginationContainer) paginationContainer.style.display = 'flex';
-    }
-
-    function createPagination() {
-        if (!paginationContainer || paginationContainer.children.length > 0) return;
-        paginationContainer.innerHTML = `
-            <button class="pagination-btn" id="prevPageBtn" disabled>← Предыдущий</button>
-            <span id="pageInfo" class="text-muted">Страница 1</span>
-            <button class="pagination-btn" id="nextPageBtn">Следующий →</button>
-        `;
-    }
-
-    async function fetchMyCourses(page = 1) {
+    async function fetchMyCourses(page) {
         if (isLoading) return;
         isLoading = true;
         grid.innerHTML = '<div class="col-12 text-center py-5"><div class="spinner-border text-accent" role="status"></div></div>';
-        hidePagination();
-
-        const params = new URLSearchParams();
-        params.append('page', page);
-        params.append('records_per_page', limit);
-
+        const params = new URLSearchParams({ page, records_per_page: limit });
         try {
-            const response = await fetch(`${window.API_BASE_URL}courses/followed-courses?${params.toString()}`, {
-                credentials: 'include'
-            });
+            const response = await fetch(`${window.API_BASE_URL}courses/followed-courses?${params}`, { credentials: 'include' });
             if (response.status === 401 || response.status === 403) {
-                window.showAccessDenied(grid, 'Вы не авторизованы или доступ запрещён.', true);
+                window.showAccessDenied(grid, 'Вы не авторизованы или доступ запрещён.', true, pagination);
                 isLoading = false;
                 return;
             }
@@ -48,15 +30,16 @@
             }
             const data = await response.json();
             const courses = Array.isArray(data) ? data : (data.courses || []);
-            const hasNext = courses.length === limit;
             renderCourses(courses);
-            updatePagination(page, hasNext);
-            currentPage = page;
-            showPagination();
+            const hasNext = courses.length === limit;
+            const total = hasNext ? page + 1 : page;
+            if (pagination) {
+                pagination.setTotalPages(total);
+                pagination.setPage(page, true);
+            }
         } catch (error) {
-            console.error(error);
             grid.innerHTML = `<div class="col-12 text-center text-danger">${error.message}</div>`;
-            updatePagination(1, false);
+            if (pagination) pagination.hide();
         } finally {
             isLoading = false;
         }
@@ -100,30 +83,12 @@
         });
     }
 
-    function updatePagination(page, hasNext) {
-        const prevBtn = document.getElementById('prevPageBtn');
-        const nextBtn = document.getElementById('nextPageBtn');
-        const pageInfo = document.getElementById('pageInfo');
-        if (prevBtn) prevBtn.disabled = page <= 1;
-        if (nextBtn) nextBtn.disabled = !hasNext;
-        if (pageInfo) pageInfo.textContent = `Страница ${page}`;
-    }
-
-    function escapeHtml(str) {
-        if (!str) return '';
-        const div = document.createElement('div');
-        div.textContent = str;
-        return div.innerHTML;
-    }
-
     function init() {
-        createPagination();
-        const prevBtn = document.getElementById('prevPageBtn');
-        const nextBtn = document.getElementById('nextPageBtn');
-        if (prevBtn) prevBtn.addEventListener('click', () => { if (currentPage > 1 && !isLoading) fetchMyCourses(currentPage - 1); });
-        if (nextBtn) nextBtn.addEventListener('click', () => { if (!nextBtn.disabled && !isLoading) fetchMyCourses(currentPage + 1); });
+        const paginationContainer = document.getElementById('paginationContainer');
+        if (paginationContainer) {
+            pagination = new Pagination(paginationContainer, (page) => fetchMyCourses(page), { pageSize: limit });
+        }
         fetchMyCourses(1);
     }
-
     init();
 })();

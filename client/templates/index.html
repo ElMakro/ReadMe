@@ -10,16 +10,12 @@
         <button class="filters-btn" id="manageCoursesBtn" style="display: none;">Мастерская курсов</button>
         <button class="filters-btn" id="filtersBtn">Фильтры</button>
     </div>
-    <div class="courses-grid row g-5 row-cols-1 row-cols-md-2 row-cols-lg-4 mb-5" id="coursesGrid">
+    <div class="courses-grid row g-5 row-cols-1 row-cols-md-2 row-cols-lg-3 mb-5" id="coursesGrid">
         <!-- Заполняется через JavaScript -->
     </div>
 
     <!-- Пагинация в едином стиле -->
-    <div class="pagination d-flex justify-content-center gap-2 mt-4">
-        <button class="btn btn-outline-secondary" id="prevPageBtn">← Пред.</button>
-        <span id="pageInfo" class="mx-3 align-self-center">Страница 1</span>
-        <button class="btn btn-outline-secondary" id="nextPageBtn">След. →</button>
-    </div>
+    <div id="paginationContainer" class="mt-4"></div>
 </div>
 {% endblock %}
 

@@ -1,11 +1,8 @@
 // static/script.js
 (function() {
     const coursesGrid = document.getElementById('coursesGrid');
-    const prevBtn = document.getElementById('prevPageBtn');
-    const nextBtn = document.getElementById('nextPageBtn');
     const searchInput = document.getElementById('searchInput');
     const filtersBtn = document.getElementById('filtersBtn');
-    const pageInfoSpan = document.getElementById('pageInfo');
     const myCoursesBtn = document.getElementById('myCoursesBtn');
     const manageCoursesBtn = document.getElementById('manageCoursesBtn');
 
@@ -13,7 +10,7 @@
     let currentSearch = '';
     const limit = 9;
     let isLoading = false;
-    let totalPages = 1;
+    let pagination = null;
 
     function updateButtonsByAuthAndRole() {
         const isLoggedIn = window.Auth && window.Auth.isAuthenticated();
@@ -30,46 +27,30 @@
         if (isLoading) return;
         isLoading = true;
         coursesGrid.innerHTML = '<div class="col-12 text-center py-5"><div class="spinner-border text-accent" role="status"></div></div>';
-
-        const searchTerm = search.trim();
-        const params = new URLSearchParams();
-        params.append('page', page);
-        params.append('records_per_page', limit);
-        params.append('criteria', 'name_prefix');
-        params.append('value', searchTerm);
-
-        const url = `${window.API_BASE_URL}courses/search?${params.toString()}`;
+        const params = new URLSearchParams({
+            page, records_per_page: limit,
+            criteria: 'name_prefix', value: search.trim()
+        });
         try {
-            const response = await fetch(url, { credentials: 'include' });
+            const response = await fetch(`${window.API_BASE_URL}courses/search?${params}`, { credentials: 'include' });
             if (!response.ok) {
                 if (response.status === 401 || response.status === 403) {
-                    window.showAccessDenied(coursesGrid, 'Для просмотра курсов необходимо войти.', true);
+                    window.showAccessDenied(coursesGrid, 'Для просмотра курсов необходимо войти.', true, pagination);
                     isLoading = false;
                     return;
                 }
-                if (response.status === 400) throw new Error('Неправильный критерий поиска');
-                if (response.status === 422) throw new Error('Ошибка валидации параметров');
                 throw new Error('Ошибка загрузки курсов');
             }
             const courses = await response.json();
-            const fetchedCount = courses.length;
-
-            if (fetchedCount === 0 && page > 1) {
-                currentPage = page - 1;
-                renderCourses([]);
-                updatePagination(currentPage, false);
-                return;
-            }
             renderCourses(courses);
-            const hasNext = fetchedCount === limit;
+            const hasNext = courses.length === limit;
             const total = hasNext ? page + 1 : page;
-            updatePagination(page, total);
+            pagination.setTotalPages(total);
+            pagination.setPage(page, true);
             currentPage = page;
-            totalPages = total;
         } catch (error) {
-            console.error(error);
             coursesGrid.innerHTML = `<p class="text-center text-danger">${error.message}</p>`;
-            updatePagination(page, page);
+            pagination.hide();
         } finally {
             isLoading = false;
         }
@@ -115,14 +96,10 @@
         return div.innerHTML;
     }
 
-    function updatePagination(page, total) {
-        if (prevBtn) prevBtn.disabled = page <= 1;
-        if (nextBtn) nextBtn.disabled = page >= total;
-        if (pageInfoSpan) pageInfoSpan.textContent = `Страница ${page} из ${total}`;
+    const paginationContainer = document.getElementById('paginationContainer');
+    if (paginationContainer) {
+        pagination = new Pagination(paginationContainer, (page) => fetchCourses(page, currentSearch), { pageSize: limit });
     }
-
-    if (prevBtn) prevBtn.addEventListener('click', () => { if (currentPage > 1 && !isLoading) fetchCourses(currentPage - 1, currentSearch); });
-    if (nextBtn) nextBtn.addEventListener('click', () => { if (currentPage < totalPages && !isLoading) fetchCourses(currentPage + 1, currentSearch); });
 
     let searchTimeout;
     if (searchInput) {

@@ -1,16 +1,12 @@
 // static/admin/admin_applications.js
-(function() {
+(function () {
     const PAGE_SIZE = 9;
-    let currentPage = 1;
     let isLoading = false;
-    let totalPages = 1;
+    let pagination = null;
+    let currentPage = 1;
 
     const container = document.getElementById('applicationsList');
-    const prevPageBtn = document.getElementById('prevPageBtn');
-    const nextPageBtn = document.getElementById('nextPageBtn');
     const refreshBtn = document.getElementById('refreshBtn');
-    const pageInfoSpan = document.getElementById('pageInfo');
-    const paginationDiv = document.querySelector('.pagination');
 
     // Модальное окно изменения статуса
     const modalElement = document.getElementById('statusModal');
@@ -22,14 +18,6 @@
     const currentApplicationIdInput = document.getElementById('currentApplicationId');
     const currentUserIdInput = document.getElementById('currentUserId');
     const currentNewStatusInput = document.getElementById('currentNewStatus');
-
-    function hidePagination() {
-        if (paginationDiv) paginationDiv.style.display = 'none';
-    }
-
-    function showPagination() {
-        if (paginationDiv) paginationDiv.style.display = 'flex';
-    }
 
     function getStatusText(status) {
         const map = {
@@ -49,12 +37,16 @@
 
     function formatDate(dateStr) {
         if (!dateStr) return '—';
-        try { return new Date(dateStr).toLocaleString('ru-RU'); } catch(e) { return dateStr; }
+        try {
+            return new Date(dateStr).toLocaleString('ru-RU');
+        } catch (e) {
+            return dateStr;
+        }
     }
 
     function escapeHtml(str) {
         if (!str) return '';
-        return String(str).replace(/[&<>]/g, function(m) {
+        return String(str).replace(/[&<>]/g, function (m) {
             if (m === '&') return '&amp;';
             if (m === '<') return '&lt;';
             if (m === '>') return '&gt;';
@@ -62,23 +54,16 @@
         });
     }
 
-    function updatePagination(page, total) {
-        if (prevPageBtn) prevPageBtn.disabled = page <= 1;
-        if (nextPageBtn) nextPageBtn.disabled = page >= total;
-        if (pageInfoSpan) pageInfoSpan.textContent = `Страница ${page} из ${total}`;
-        currentPage = page;
-        totalPages = total;
-    }
-
     async function loadPage(page) {
         if (isLoading) return;
         isLoading = true;
+        currentPage = page;
         container.innerHTML = `<div class="col-12 text-center py-5"><div class="spinner-border text-accent" role="status"></div></div>`;
         try {
             const url = `${window.API_BASE_URL}users/get-active-applications?page=${page}&records_per_page=${PAGE_SIZE}`;
             const response = await fetch(url, { credentials: 'include' });
             if (response.status === 401 || response.status === 403) {
-                window.showAccessDenied(container, 'Вы не авторизованы или недостаточно прав.');
+                window.showAccessDenied(container, 'Вы не авторизованы или недостаточно прав.', true, pagination);
                 isLoading = false;
                 return;
             }
@@ -92,8 +77,8 @@
             renderApplications(applications);
             const hasNext = applications.length === PAGE_SIZE;
             const total = hasNext ? page + 1 : page;
-            updatePagination(page, total);
-            showPagination();
+            pagination.setTotalPages(total);
+            pagination.setPage(page, true);
             if (refreshBtn) refreshBtn.disabled = false;
         } catch (err) {
             console.error(err);
@@ -103,8 +88,7 @@
                     <button class="btn btn-outline-accent" onclick="location.reload()">Повторить</button>
                 </div>
             `;
-            hidePagination();
-            updatePagination(page, page);
+            pagination.hide();
         } finally {
             isLoading = false;
         }
@@ -146,14 +130,8 @@
         );
     }
 
-    function goPrevPage() {
-        if (currentPage > 1 && !isLoading) loadPage(currentPage - 1);
-    }
-    function goNextPage() {
-        if (currentPage < totalPages && !isLoading) loadPage(currentPage + 1);
-    }
-
     let currentAppId, currentUserId, currentNewStatus, currentUserName;
+
     function openStatusModal(appId, userId, userName, newStatus) {
         currentAppId = appId;
         currentUserId = userId;
@@ -182,7 +160,7 @@
         try {
             const response = await fetch(`${window.API_BASE_URL}users/change-application-status`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {'Content-Type': 'application/json'},
                 credentials: 'include',
                 body: JSON.stringify(payload)
             });
@@ -268,12 +246,12 @@
         };
 
         const setLink = async (type, content = null) => {
-            const payload = { type };
+            const payload = {type};
             if (content !== null) payload.content = content;
             try {
                 const response = await fetch(`${window.API_BASE_URL}users/set-application-link`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {'Content-Type': 'application/json'},
                     credentials: 'include',
                     body: JSON.stringify(payload)
                 });
@@ -349,13 +327,17 @@
         modalObj.show();
     }
 
-    if (prevPageBtn) prevPageBtn.addEventListener('click', (e) => { e.preventDefault(); goPrevPage(); });
-    if (nextPageBtn) nextPageBtn.addEventListener('click', (e) => { e.preventDefault(); goNextPage(); });
-    if (refreshBtn) refreshBtn.addEventListener('click', () => loadPage(currentPage));
+    const paginationContainer = document.getElementById('paginationContainer');
+    if (paginationContainer) {
+        pagination = new Pagination(paginationContainer, (page) => loadPage(page), {
+            pageSize: PAGE_SIZE,
+            autoHide: true
+        });
+    }
+
+    if (refreshBtn) refreshBtn.addEventListener('click', () => loadPage(pagination.currentPage));
     if (confirmStatusBtn) confirmStatusBtn.addEventListener('click', confirmStatusChange);
 
     document.addEventListener('DOMContentLoaded', addSecretLinkControls);
-
-    hidePagination();
     loadPage(1);
 })();

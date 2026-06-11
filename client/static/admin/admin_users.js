@@ -1,16 +1,12 @@
 // static/admin/admin_users.js
 (function() {
     const PAGE_SIZE = 9;
-    let currentPage = 1;
     let isLoading = false;
-    let totalPages = 1;
+    let pagination = null;
+    let currentPage = 1; // добавлено
 
     const container = document.getElementById('usersList');
-    const prevPageBtn = document.getElementById('prevPageBtn');
-    const nextPageBtn = document.getElementById('nextPageBtn');
     const refreshBtn = document.getElementById('refreshBtn');
-    const pageInfoSpan = document.getElementById('pageInfo');
-    const paginationDiv = document.querySelector('.pagination');
 
     const roleModalEl = document.getElementById('roleModal');
     let roleModal;
@@ -25,14 +21,6 @@
     const deleteUserIdInput = document.getElementById('deleteUserId');
     const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
 
-    function hidePagination() {
-        if (paginationDiv) paginationDiv.style.display = 'none';
-    }
-
-    function showPagination() {
-        if (paginationDiv) paginationDiv.style.display = 'flex';
-    }
-
     function escapeHtml(str) {
         if (!str) return '';
         return String(str).replace(/[&<>]/g, function(m) {
@@ -43,23 +31,16 @@
         });
     }
 
-    function updatePagination(page, total) {
-        if (prevPageBtn) prevPageBtn.disabled = page <= 1;
-        if (nextPageBtn) nextPageBtn.disabled = page >= total;
-        if (pageInfoSpan) pageInfoSpan.textContent = `Страница ${page} из ${total}`;
-        currentPage = page;
-        totalPages = total;
-    }
-
     async function loadUsers(page = 1) {
         if (isLoading) return;
         isLoading = true;
+        currentPage = page; // сохраняем текущую страницу
         container.innerHTML = `<div class="col-12 text-center py-5"><div class="spinner-border text-accent" role="status"></div></div>`;
         try {
             const url = `${window.API_BASE_URL}users/all?page=${page}&records_per_page=${PAGE_SIZE}`;
             const response = await fetch(url, { credentials: 'include' });
             if (response.status === 401 || response.status === 403) {
-                window.showAccessDenied(container, 'Доступ запрещён. Только для администраторов.');
+                window.showAccessDenied(container, 'Доступ запрещён. Только для администраторов.', true, pagination);
                 isLoading = false;
                 return;
             }
@@ -73,8 +54,8 @@
             renderUsers(users);
             const hasNext = users.length === PAGE_SIZE;
             const total = hasNext ? page + 1 : page;
-            updatePagination(page, total);
-            showPagination();
+            pagination.setTotalPages(total);
+            pagination.setPage(page, true);
             if (refreshBtn) refreshBtn.disabled = false;
         } catch (err) {
             console.error(err);
@@ -84,8 +65,7 @@
                     <button class="btn btn-outline-accent" onclick="location.reload()">Повторить</button>
                 </div>
             `;
-            hidePagination();
-            updatePagination(page, page);
+            pagination.hide();
         } finally {
             isLoading = false;
         }
@@ -137,13 +117,6 @@
         return 'bg-secondary';
     }
 
-    function goPrevPage() {
-        if (currentPage > 1 && !isLoading) loadUsers(currentPage - 1);
-    }
-    function goNextPage() {
-        if (currentPage < totalPages && !isLoading) loadUsers(currentPage + 1);
-    }
-
     let selectedUserId, selectedUserName, currentRole;
 
     function openRoleModal(userId, userName, role) {
@@ -181,7 +154,7 @@
             });
             if (response.status === 204) {
                 window.showToast(`Роль пользователя ${selectedUserName} изменена на ${getRoleName(newRole)}.`);
-                loadUsers(currentPage);
+                loadUsers(currentPage); // теперь currentPage определена
             } else if (response.status === 401 || response.status === 403) {
                 window.showAccessDenied(container);
                 if (roleModal) roleModal.hide();
@@ -235,7 +208,7 @@
             });
             if (response.status === 204) {
                 window.showToast(`Пользователь ${userName} удалён.`);
-                loadUsers(currentPage);
+                loadUsers(currentPage); // теперь currentPage определена
             } else if (response.status === 401 || response.status === 403) {
                 window.showAccessDenied(container);
                 if (deleteModal) deleteModal.hide();
@@ -263,12 +236,15 @@
         }
     }
 
-    if (prevPageBtn) prevPageBtn.addEventListener('click', (e) => { e.preventDefault(); goPrevPage(); });
-    if (nextPageBtn) nextPageBtn.addEventListener('click', (e) => { e.preventDefault(); goNextPage(); });
-    if (refreshBtn) refreshBtn.addEventListener('click', () => loadUsers(currentPage));
+    const paginationContainer = document.getElementById('paginationContainer');
+    if (paginationContainer) {
+        pagination = new Pagination(paginationContainer, (page) => loadUsers(page), {
+            pageSize: PAGE_SIZE,
+            autoHide: true
+        });
+    }
     if (confirmRoleBtn) confirmRoleBtn.addEventListener('click', confirmRoleChange);
     if (confirmDeleteBtn) confirmDeleteBtn.addEventListener('click', confirmDelete);
 
-    hidePagination();
     loadUsers(1);
 })();

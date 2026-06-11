@@ -1,4 +1,4 @@
-{# templates/created_courses.html #}
+{# templates/course_creation/created_courses.html #}
 {% extends "base.html" %}
 {% block title %}Мастерская курсов — ReadMe{% endblock %}
 
@@ -19,6 +19,8 @@
             <button class="btn btn-outline-accent" id="addCourseBtn">+ Добавить курс</button>
         </div>
     </div>
+    <!-- Контейнер для пагинации -->
+    <div id="paginationContainer" class="mt-4"></div>
 </div>
 {% endblock %}
 
