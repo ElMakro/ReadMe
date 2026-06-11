@@ -1,7 +1,3 @@
-"""
-✅ ЧТО ТЕСТ ДЕЛАЕТ: Тестирует заявки на роль преподавателя и их одобрение Админом.
-"""
-import pytest
 import uuid
 import os
 from sqlalchemy import text
@@ -11,8 +7,6 @@ DEFAULT_SECRET_LINK = os.getenv("DEFAULT_SECRET_APPLICATION_LINK_PART", "submit_
 class TestProfessorApplication:
     @staticmethod
     def test_submit_application_success(api_client, _sync_sessionmaker):
-        """Подача заявки студентом по кастомной ссылке, установленной админом"""
-        # 1. Создаём админа
         admin_nick = f"admin_{uuid.uuid4().hex[:6]}"
         admin_password = "StrongPassword123!"
         api_client.post("/api/v1/auth/reg", json={
@@ -34,11 +28,9 @@ class TestProfessorApplication:
         set_res = api_client.post("/api/v1/users/set-application-link", json={"type": "custom", "content": secret_link})
         assert set_res.status_code == 200
 
-        # Выходим из админа
         api_client.get("/api/v1/auth/logout")
         api_client.cookies.clear()
 
-        # 2. Создаём студента
         student_nick = f"student_{uuid.uuid4().hex[:6]}"
         student_password = "StrongPassword123!"
         api_client.post("/api/v1/auth/reg", json={
@@ -51,7 +43,6 @@ class TestProfessorApplication:
             "password": student_password
         })
 
-        # 3. Подаём заявку
         res = api_client.post(f"/api/v1/users/submit-professor-application/{secret_link}", json={
             "name": "Иван",
             "surname": "Иванов"
@@ -61,8 +52,6 @@ class TestProfessorApplication:
 
     @staticmethod
     def test_get_my_applications(api_client, _sync_sessionmaker):
-        """Проверка получения списка заявок студентом"""
-        # 1. Админ устанавливает ссылку
         admin_nick = f"admin_{uuid.uuid4().hex[:6]}"
         admin_password = "StrongPassword123!"
         api_client.post("/api/v1/auth/reg", json={
@@ -87,7 +76,6 @@ class TestProfessorApplication:
         api_client.get("/api/v1/auth/logout")
         api_client.cookies.clear()
 
-        # 2. Студент подаёт заявку
         student_nick = f"student_{uuid.uuid4().hex[:6]}"
         student_password = "StrongPassword123!"
         api_client.post("/api/v1/auth/reg", json={
@@ -105,19 +93,15 @@ class TestProfessorApplication:
         })
         assert submit_res.status_code == 201
 
-        # 3. Проверяем список заявок
         res = api_client.get("/api/v1/users/get-my-applications")
         assert res.status_code == 200
         applications = res.json()
         assert len(applications) > 0
-        # Можно дополнительно проверить, что созданная заявка есть в списке
         found = any(app["application_id"] == submit_res.json()["id"] for app in applications)
         assert found, "Созданная заявка не найдена в списке"
 
     @staticmethod
     def test_approve_application_changes_role(api_client, _sync_sessionmaker):
-        """Полный цикл: админ устанавливает кастомную ссылку, студент подаёт заявку, админ одобряет, роль меняется"""
-        # 1. Админ
         admin_nick = f"admin_{uuid.uuid4().hex[:6]}"
         admin_password = "StrongPassword123!"
         api_client.post("/api/v1/auth/reg", json={
@@ -142,7 +126,6 @@ class TestProfessorApplication:
         api_client.get("/api/v1/auth/logout")
         api_client.cookies.clear()
 
-        # 2. Студент
         student_nick = f"student_{uuid.uuid4().hex[:6]}"
         student_password = "StrongPassword123!"
         api_client.post("/api/v1/auth/reg", json={
@@ -167,7 +150,6 @@ class TestProfessorApplication:
         api_client.get("/api/v1/auth/logout")
         api_client.cookies.clear()
 
-        # 3. Админ одобряет
         api_client.post("/api/v1/auth/login", json={
             "nickname": admin_nick,
             "password": admin_password
@@ -182,7 +164,6 @@ class TestProfessorApplication:
         api_client.get("/api/v1/auth/logout")
         api_client.cookies.clear()
 
-        # 4. Студент заходит и проверяет роль
         login_res = api_client.post("/api/v1/auth/login", json={
             "nickname": student_nick,
             "password": student_password
@@ -190,8 +171,6 @@ class TestProfessorApplication:
         assert login_res.status_code == 200
         new_profile = api_client.get("/api/v1/users/profile").json()
         assert new_profile["role"] == "professor"
-
-# test_users_admin.py — добавьте в конец
 
 class TestAdminUserManagement:
     @staticmethod
@@ -202,7 +181,6 @@ class TestAdminUserManagement:
 
     @staticmethod
     def test_change_user_role(api_client, _sync_sessionmaker):
-        # Создаём админа
         admin_nick = f"admin_{uuid.uuid4().hex[:6]}"
         admin_pass = "StrongPassword123!"
         api_client.post("/api/v1/auth/reg",
@@ -216,7 +194,6 @@ class TestAdminUserManagement:
         api_client.get("/api/v1/auth/logout")
         api_client.cookies.clear()
 
-        # Создаём студента
         student_nick = f"student_{uuid.uuid4().hex[:6]}"
         student_pass = "StrongPassword123!"
         api_client.post("/api/v1/auth/reg",
@@ -227,19 +204,16 @@ class TestAdminUserManagement:
         api_client.get("/api/v1/auth/logout")
         api_client.cookies.clear()
 
-        # Админ меняет роль студента на ADMIN
         api_client.post("/api/v1/auth/login", json={"nickname": admin_nick, "password": admin_pass})
         change = api_client.put("/api/v1/users/change-role", json={"id": student_id, "role": "admin"})
         assert change.status_code == 204
 
-        # Проверяем через БД
         with _sync_sessionmaker() as session:
             role = session.execute(text("SELECT role FROM users WHERE id = :uid"), {"uid": student_id}).scalar()
             assert role == "ADMIN"
 
     @staticmethod
     def test_delete_user(api_client, _sync_sessionmaker):
-        # Создаём админа
         admin_nick = f"admin_{uuid.uuid4().hex[:6]}"
         admin_pass = "StrongPassword123!"
         api_client.post("/api/v1/auth/reg",
@@ -253,7 +227,6 @@ class TestAdminUserManagement:
         api_client.get("/api/v1/auth/logout")
         api_client.cookies.clear()
 
-        # Создаём студента
         student_nick = f"todelete_{uuid.uuid4().hex[:6]}"
         student_pass = "StrongPassword123!"
         api_client.post("/api/v1/auth/reg",
@@ -264,7 +237,6 @@ class TestAdminUserManagement:
         api_client.get("/api/v1/auth/logout")
         api_client.cookies.clear()
 
-        # Админ удаляет
         api_client.post("/api/v1/auth/login", json={"nickname": admin_nick, "password": admin_pass})
         delete = api_client.delete(f"/api/v1/users/delete-user/{student_id}")
         assert delete.status_code == 204

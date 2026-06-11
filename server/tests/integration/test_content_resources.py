@@ -1,6 +1,3 @@
-# test_content_resources.py
-import uuid
-
 def test_get_topic_resource_not_found(professor_client):
     course = professor_client.post("/api/v1/courses/create-course", json={"name": "ResCourse", "is_public": True})
     assert course.status_code == 201, course.text
