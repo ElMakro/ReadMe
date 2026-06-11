@@ -4,7 +4,6 @@ from unittest.mock import patch
 
 import jwt
 import pytest
-from fastapi import HTTPException
 
 from server.app.api.v1.auth.auth_handler import AuthHandler
 from server.config.settings import settings
