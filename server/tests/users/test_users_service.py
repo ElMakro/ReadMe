@@ -1,3 +1,4 @@
+import re
 import uuid
 from unittest.mock import MagicMock
 
@@ -5,10 +6,17 @@ import pytest
 from fastapi import UploadFile
 from pytest_mock import MockerFixture
 
-from server.app.api.v1.common_schemas import CANT_CHANGE_OWN_ROLE_ERROR_TEXT, CANT_DELETE_OWN_PROFILE_ERROR_TEXT
+from server.app.api.v1.common_schemas import (
+    CANT_CHANGE_OWN_ROLE_ERROR_TEXT,
+    CANT_DELETE_OWN_PROFILE_ERROR_TEXT,
+    NOT_EXISTING_LINK_ERROR_TEXT,
+    UPDATED_LINK_ERROR_TEXT,
+)
 from server.app.api.v1.exceptions import BadRequestError, MediaTypeError
 from server.app.api.v1.notes.exceptions import CantChangeOwnRoleError, CantDeleteOwnProfileError
 from server.app.api.v1.users.exceptions import (
+    NotExistingLinkError,
+    UpdatedLinkError,
     UserNotFoundError,
 )
 from server.app.api.v1.users.users import (
@@ -24,6 +32,8 @@ from server.app.api.v1.users.users import (
     UserWithRole,
 )
 from server.app.api.v1.users.users_service import UsersService
+from server.app.common_dependencies.secret_link_strategies import CustomLinkStrategy
+from server.config.settings import settings
 from server.enums.access_permissions import AccessPermissions
 from server.enums.application_status import ApplicationStatus
 from server.enums.role import Role
@@ -357,3 +367,70 @@ class TestSetUserIcon:
 
         with pytest.raises(BadRequestError, match="some error"):
             users_service.set_user_icon(user, upload_file)
+
+
+class TestGetSecretApplicationLink:
+    async def test_returns_link_when_exists(self, users_service, mock_users_manager, mock_secret_link_handler):
+        mock_link = MagicMock(secret_part="encoded123")
+        mock_users_manager.get_secret_application_link.return_value = mock_link
+        mock_secret_link_handler.get_decoded_link.return_value = "decoded_link"
+
+        result = await users_service.get_secret_application_link()
+
+        expected_secret_part = f"{settings.client_settings.professor_application_base_url}/decoded_link"
+        assert result.secret_part == expected_secret_part
+        mock_secret_link_handler.get_decoded_link.assert_called_once_with("encoded123")
+
+    async def test_raises_not_existing_error_when_no_link(self, users_service, mock_users_manager):
+        mock_users_manager.get_secret_application_link.return_value = None
+
+        with pytest.raises(NotExistingLinkError, match=NOT_EXISTING_LINK_ERROR_TEXT):
+            await users_service.get_secret_application_link()
+
+
+class TestSetSecretApplicationLink:
+    async def test_sets_link_successfully(self, users_service, mock_users_manager, mock_secret_link_handler):
+        new_link_str = "valid_link"
+        link_strategy = CustomLinkStrategy(new_link_str)
+        mock_secret_link_handler.get_encoded_link.return_value = "encoded"
+        mock_secret_link_handler.get_decoded_link.return_value = "decoded"
+        mock_result = MagicMock(secret_part="encoded")
+        mock_users_manager.set_secret_application_link.return_value = mock_result
+
+        result = await users_service.set_secret_application_link(link_strategy)
+
+        mock_secret_link_handler.get_encoded_link.assert_called_once_with(new_link_str)
+        mock_users_manager.set_secret_application_link.assert_awaited_once_with("encoded")
+        mock_secret_link_handler.get_decoded_link.assert_called_once_with("encoded")
+        assert result.secret_part == "decoded"
+
+    async def test_raises_error_when_link_does_not_match_pattern(self, users_service):
+        link_strategy = CustomLinkStrategy("invalid@!")
+        with pytest.raises(UpdatedLinkError, match=re.escape(UPDATED_LINK_ERROR_TEXT)):
+            await users_service.set_secret_application_link(link_strategy)
+
+
+class TestVerifySecretLink:
+    async def test_returns_true_when_matches(self, users_service, mock_users_manager, mock_secret_link_handler):
+        mock_users_manager.get_secret_application_link.return_value = MagicMock(secret_part="encoded")
+        mock_secret_link_handler.verify_link.return_value = True
+
+        result = await users_service.verify_secret_link("entered")
+
+        assert result is True
+        mock_secret_link_handler.verify_link.assert_called_once_with(entered_link="entered",
+                                                                     encoded_true_link="encoded")
+
+    async def test_returns_false_when_no_link_in_db(self, users_service, mock_users_manager):
+        mock_users_manager.get_secret_application_link.return_value = None
+
+        result = await users_service.verify_secret_link("anything")
+        assert result is False
+
+    async def test_returns_false_when_verification_fails(self, users_service, mock_users_manager,
+                                                         mock_secret_link_handler):
+        mock_users_manager.get_secret_application_link.return_value = MagicMock(secret_part="encoded")
+        mock_secret_link_handler.verify_link.return_value = False
+
+        result = await users_service.verify_secret_link("wrong")
+        assert result is False
