@@ -1,5 +1,5 @@
 // static/notes.js
-(function() {
+(function () {
     const API_BASE = window.API_BASE_URL || '';
 
     function escapeHtml(str) {
@@ -33,22 +33,22 @@
             if (noteId) {
                 const resp = await fetch(`${API_BASE}notes/update-note`, {
                     method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {'Content-Type': 'application/json'},
                     credentials: 'include',
-                    body: JSON.stringify({ note_id: noteId, topic_id: topicId, name, content })
+                    body: JSON.stringify({note_id: noteId, topic_id: topicId, name, content})
                 });
                 if (!resp.ok) {
                     if (resp.status === 401 || resp.status === 403) throw new Error('Доступ запрещён');
                     if (resp.status === 409) throw new Error('Конспект не принадлежит вам или уже изменён');
                     throw new Error(`Update failed: ${resp.status}`);
                 }
-                return { success: true, noteId };
+                return {success: true, noteId};
             } else {
                 const resp = await fetch(`${API_BASE}notes/create-note`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {'Content-Type': 'application/json'},
                     credentials: 'include',
-                    body: JSON.stringify({ topic_id: topicId, name, content })
+                    body: JSON.stringify({topic_id: topicId, name, content})
                 });
                 if (!resp.ok) {
                     if (resp.status === 401 || resp.status === 403) throw new Error('Доступ запрещён');
@@ -56,7 +56,7 @@
                     throw new Error(`Create failed: ${resp.status}`);
                 }
                 const data = await resp.json();
-                return { success: true, noteId: data.id };
+                return {success: true, noteId: data.id};
             }
         } catch (err) {
             console.error('saveNote error:', err);
@@ -86,9 +86,9 @@
         }
     }
 
-    async function getMyNotes(page = 1, perPage = 10) {
+    async function getMyNotes(page = 1, perPage = 9) {
         const url = `${API_BASE}notes/my-notes?page=${page}&records_per_page=${perPage}`;
-        const resp = await fetch(url, { credentials: 'include' });
+        const resp = await fetch(url, {credentials: 'include'});
         if (!resp.ok) {
             if (resp.status === 401 || resp.status === 403) throw new Error('Доступ запрещён');
             if (resp.status === 422) throw new Error('Ошибка валидации параметров');
@@ -118,45 +118,32 @@
     async function initMyNotesPage() {
         const container = document.getElementById('notesList');
         if (!container) return;
-        const prevBtn = document.getElementById('prevNotesPage');
-        const nextBtn = document.getElementById('nextNotesPage');
-        const pageInfoSpan = document.getElementById('notesPageInfo');
-        const paginationDiv = document.getElementById('notesPagination');
-
-        function hidePagination() {
-            if (paginationDiv) paginationDiv.style.display = 'none';
-            if (prevBtn) prevBtn.disabled = true;
-            if (nextBtn) nextBtn.disabled = true;
-        }
-
-        function showPagination() {
-            if (paginationDiv) paginationDiv.style.display = 'flex';
-        }
-
-        let currentPage = 1;
+        let pagination = null;
         const perPage = 9;
-        let totalPages = 0;
 
         async function loadNotes(page) {
             container.innerHTML = '<div class="text-muted text-center py-4">Загрузка...</div>';
-            hidePagination();
             try {
                 const notes = await getMyNotes(page, perPage);
                 if (!notes.length) {
                     container.innerHTML = '<div class="text-muted text-center py-4">У вас пока нет сохранённых конспектов.</div>';
+                    if (pagination) pagination.hide();
                     return;
                 }
-                const hasNext = notes.length === perPage;
-                totalPages = hasNext ? page + 1 : page;
                 renderNotes(notes);
-                updatePagination(page, totalPages);
-                showPagination();
+                const hasNext = notes.length === perPage;
+                const total = hasNext ? page + 1 : page;
+                if (pagination) {
+                    pagination.setTotalPages(total);
+                    // Важно: silent = true, чтобы не вызывать повторно onPageChange
+                    pagination.setPage(page, true);
+                }
             } catch (err) {
-                console.error(err);
                 if (err.message === 'Доступ запрещён') {
-                    window.showAccessDenied(container, err.message, true);
+                    window.showAccessDenied(container, err.message, true, pagination);
                 } else {
                     container.innerHTML = `<div class="text-danger text-center py-4">${err.message}</div>`;
+                    if (pagination) pagination.hide();
                 }
             }
         }
@@ -197,7 +184,7 @@
                     e.stopPropagation();
                     if (confirm('Удалить этот конспект?')) {
                         await deleteNote(note.id);
-                        loadNotes(currentPage);
+                        loadNotes(pagination?.currentPage || 1);
                     }
                 });
 
@@ -205,16 +192,10 @@
             }
         }
 
-        function updatePagination(page, total) {
-            if (prevBtn) prevBtn.disabled = page <= 1;
-            if (nextBtn) nextBtn.disabled = page >= total;
-            if (pageInfoSpan) pageInfoSpan.textContent = `Страница ${page} из ${total}`;
-            currentPage = page;
+        const paginationContainer = document.getElementById('paginationContainer');
+        if (paginationContainer) {
+            pagination = new Pagination(paginationContainer, (page) => loadNotes(page), {pageSize: perPage});
         }
-
-        if (prevBtn) prevBtn.addEventListener('click', () => { if (currentPage > 1) loadNotes(currentPage - 1); });
-        if (nextBtn) nextBtn.addEventListener('click', () => { if (currentPage < totalPages) loadNotes(currentPage + 1); });
-
         await loadNotes(1);
     }
 

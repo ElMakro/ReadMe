@@ -18,11 +18,7 @@
     </div>
 
     <!-- Пагинация -->
-    <div class="pagination d-flex justify-content-center gap-2 mt-4">
-        <button class="btn btn-outline-secondary" id="prevPageBtn">← Пред.</button>
-        <span id="pageInfo" class="mx-3 align-self-center"></span>
-        <button class="btn btn-outline-secondary" id="nextPageBtn">След. →</button>
-    </div>
+    <div id="paginationContainer" class="mt-4"></div>
 </div>
 
 <!-- Модальное окно изменения роли -->
@@ -72,17 +68,6 @@
                 <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Удалить</button>
             </div>
         </div>
-    </div>
-</div>
-
-<!-- Toast уведомления -->
-<div class="position-fixed bottom-0 end-0 p-3" style="z-index: 11">
-    <div id="liveToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true" data-bs-autohide="true" data-bs-delay="5000">
-        <div class="toast-header">
-            <strong class="me-auto">Уведомление</strong>
-            <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Закрыть"></button>
-        </div>
-        <div class="toast-body"></div>
     </div>
 </div>
 {% endblock %}

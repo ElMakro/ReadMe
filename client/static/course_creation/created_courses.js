@@ -2,13 +2,17 @@
 (function() {
     const container = document.getElementById('coursesList');
     const addBtn = document.getElementById('addCourseBtn');
+    const PAGE_SIZE = 9; // количество курсов на страницу
 
     let courses = [];
     let originalCourses = [];
+    let currentPage = 1;
+    let totalPages = 1;
+    let isLoading = false;
+    let pagination = null;
 
     let selectedIconFile = null;
     let currentEditingCourseId = null;
-
     let hasUnsavedChanges = false;
     let originalEditingData = null;
 
@@ -67,13 +71,16 @@
         return words.slice(0, wordLimit).join(' ') + '…';
     }
 
-    async function loadCourses() {
+    async function loadCourses(page = 1) {
+        if (isLoading) return;
+        isLoading = true;
+        container.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-accent" role="status"></div></div>';
         try {
-            const res = await fetch(`${window.API_BASE_URL}courses/controlled-courses?page=1&records_per_page=30`, {
-                credentials: 'include'
-            });
+            const url = `${window.API_BASE_URL}courses/controlled-courses?page=${page}&records_per_page=${PAGE_SIZE}`;
+            const res = await fetch(url, { credentials: 'include' });
             if (res.status === 401 || res.status === 403) {
-                window.showAccessDenied(container, 'Доступ запрещён. Только для преподавателей и администраторов.');
+                window.showAccessDenied(container, 'Доступ запрещён. Только для преподавателей и администраторов.', true, pagination);
+                isLoading = false;
                 return;
             }
             if (!res.ok) {
@@ -92,6 +99,12 @@
             }));
             originalCourses = JSON.parse(JSON.stringify(courses));
             renderCourses();
+            const hasNext = coursesArray.length === PAGE_SIZE;
+            totalPages = hasNext ? page + 1 : page;
+            if (pagination) {
+                pagination.setTotalPages(totalPages);
+                pagination.setPage(page, true);
+            }
             if (addBtn) addBtn.disabled = false;
         } catch (err) {
             console.error(err);
@@ -100,6 +113,9 @@
             originalCourses = [];
             renderCourses();
             if (addBtn) addBtn.disabled = true;
+            if (pagination) pagination.hide();
+        } finally {
+            isLoading = false;
         }
     }
 
@@ -503,7 +519,16 @@
         }, 50);
     }
 
+    // Инициализация пагинации
+    const paginationContainer = document.getElementById('paginationContainer');
+    if (paginationContainer) {
+        pagination = new Pagination(paginationContainer, (page) => loadCourses(page), {
+            pageSize: PAGE_SIZE,
+            autoHide: true
+        });
+    }
+
     addBtn.addEventListener('click', addCourse);
-    loadCourses();
-    setupNavigationGuard();
+    loadCourses(1);
+    setupNavigationGuard(); // функция из исходного кода
 })();

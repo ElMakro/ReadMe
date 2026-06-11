@@ -8,16 +8,20 @@
     }
 
     /**
-     * Отображает сообщение об отказе в доступе и предлагает войти или вернуться на главную.
-     * @param {HTMLElement} container - DOM-элемент, содержимое которого будет заменено.
-     * @param {string} message - Текст сообщения.
-     * @param {boolean} showLoginLink - Показывать ли кнопку "Войти".
-     * @param {boolean} hidePagination - Скрывать ли пагинацию (по умолчанию true).
+     * Отображает сообщение об отказе в доступе.
+     * @param {HTMLElement} container - контейнер, содержимое которого будет заменено
+     * @param {string} message - текст сообщения
+     * @param {boolean} showLoginLink - показывать кнопку "Войти"
+     * @param {Pagination|null} paginationInstance - экземпляр пагинации для скрытия
      */
-    window.showAccessDenied = function(container, message = 'Доступ запрещён.', showLoginLink = true, hidePagination = true) {
+    window.showAccessDenied = function(container, message = 'Доступ запрещён.', showLoginLink = true, paginationInstance = null) {
         if (!container) return;
 
-        if (hidePagination) {
+        // Скрываем пагинацию, если передана
+        if (paginationInstance && typeof paginationInstance.hide === 'function') {
+            paginationInstance.hide();
+        } else {
+            // fallback для старых страниц: пытаемся найти стандартные кнопки
             const paginationDiv = document.querySelector('.pagination');
             if (paginationDiv) paginationDiv.style.display = 'none';
             const refreshBtn = document.getElementById('refreshBtn');
@@ -47,6 +51,13 @@
                     }
                 });
             }
+        }
+    };
+
+    // Дополнительная функция для восстановления пагинации (если нужно)
+    window.restorePagination = function(paginationInstance) {
+        if (paginationInstance && typeof paginationInstance.show === 'function') {
+            paginationInstance.show();
         }
     };
 })();

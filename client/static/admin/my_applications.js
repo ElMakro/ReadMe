@@ -1,27 +1,9 @@
-// static/my_applications.js
+// static/admin/my_applications.js
 (function() {
-    const PAGE_SIZE = 9;
-    let currentPage = 1;
-    let isLoading = false;
-    let totalPages = 1;
-
     const container = document.getElementById('applicationsList');
-    const prevBtn = document.getElementById('prevPageBtn');
-    const nextBtn = document.getElementById('nextPageBtn');
-    const pageInfoSpan = document.getElementById('pageInfo');
-    const paginationDiv = document.querySelector('.pagination');
-
-    function hidePagination() {
-        if (paginationDiv) paginationDiv.style.display = 'none';
-        if (prevBtn) prevBtn.disabled = true;
-        if (nextBtn) nextBtn.disabled = true;
-    }
-
-    function showPagination() {
-        if (paginationDiv) paginationDiv.style.display = 'flex';
-        if (prevBtn) prevBtn.disabled = currentPage <= 1;
-        if (nextBtn) nextBtn.disabled = currentPage >= totalPages;
-    }
+    let pagination = null;
+    let isLoading = false;
+    const PAGE_SIZE = 9;
 
     function formatDate(dateStr) {
         if (!dateStr) return '—';
@@ -47,14 +29,6 @@
         return statusMap[status] || `<span class="badge bg-secondary">${status}</span>`;
     }
 
-    function updatePagination(page, total) {
-        if (prevBtn) prevBtn.disabled = page <= 1;
-        if (nextBtn) nextBtn.disabled = page >= total;
-        if (pageInfoSpan) pageInfoSpan.textContent = `Страница ${page} из ${total}`;
-        currentPage = page;
-        totalPages = total;
-    }
-
     async function loadPage(page) {
         if (isLoading) return;
         isLoading = true;
@@ -63,7 +37,7 @@
             const url = `${window.API_BASE_URL}users/get-my-applications?page=${page}&records_per_page=${PAGE_SIZE}`;
             const response = await fetch(url, { credentials: 'include' });
             if (response.status === 401 || response.status === 403) {
-                window.showAccessDenied(container, 'Вы не авторизованы или недостаточно прав.');
+                window.showAccessDenied(container, 'Вы не авторизованы или недостаточно прав.', true, pagination);
                 isLoading = false;
                 return;
             }
@@ -76,8 +50,10 @@
             renderApplications(applications);
             const hasNext = applications.length === PAGE_SIZE;
             const total = hasNext ? page + 1 : page;
-            updatePagination(page, total);
-            showPagination();
+            if (pagination) {
+                pagination.setTotalPages(total);
+                pagination.setPage(page, true);
+            }
         } catch (err) {
             console.error(err);
             container.innerHTML = `
@@ -86,8 +62,7 @@
                     <button class="btn btn-outline-accent" onclick="location.reload()">Повторить</button>
                 </div>
             `;
-            hidePagination();
-            updatePagination(page, page);
+            if (pagination) pagination.hide();
         } finally {
             isLoading = false;
         }
@@ -119,16 +94,12 @@
         });
     }
 
-    function goPrevPage() {
-        if (currentPage > 1 && !isLoading) loadPage(currentPage - 1);
+    const paginationContainer = document.getElementById('paginationContainer');
+    if (paginationContainer) {
+        pagination = new Pagination(paginationContainer, (page) => loadPage(page), {
+            pageSize: PAGE_SIZE,
+            autoHide: true
+        });
     }
-    function goNextPage() {
-        if (currentPage < totalPages && !isLoading) loadPage(currentPage + 1);
-    }
-
-    if (prevBtn) prevBtn.addEventListener('click', (e) => { e.preventDefault(); goPrevPage(); });
-    if (nextBtn) nextBtn.addEventListener('click', (e) => { e.preventDefault(); goNextPage(); });
-
-    hidePagination();
     loadPage(1);
 })();
