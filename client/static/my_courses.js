@@ -12,6 +12,11 @@
         return div.innerHTML;
     }
 
+    function formatProfessorFullName(course) {
+        const parts = [course.professor_surname, course.professor_name, course.professor_patronymic].filter(p => p);
+        return parts.join(' ') || '—';
+    }
+
     async function fetchMyCourses(page) {
         if (isLoading) return;
         isLoading = true;
@@ -64,6 +69,7 @@
             const title = course.name || 'Без названия';
             const description = course.description || 'Описание отсутствует';
             const shortDesc = description.length > 100 ? description.substring(0, 100) + '…' : description;
+            const professorFullName = formatProfessorFullName(course);
 
             col.innerHTML = `
                 <div class="course-card position-relative d-flex flex-column h-100">
@@ -72,6 +78,7 @@
                          alt="Иконка курса">
                     <a href="/course/${course.id}" class="stretched-link text-decoration-none">
                         <h5 class="course-title mt-2">${escapeHtml(title)}</h5>
+                        <div class="course-instructor small text-secondary mb-1">Преподаватель: ${escapeHtml(professorFullName)}</div>
                         <div class="course-state mb-2">
                             <span class="badge bg-success">Записан</span>
                         </div>
