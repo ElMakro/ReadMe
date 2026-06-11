@@ -2,9 +2,11 @@ import uuid
 from unittest.mock import MagicMock
 
 import pytest
+from fastapi import UploadFile
 from pytest_mock import MockerFixture
 
 from server.app.api.v1.common_schemas import CANT_CHANGE_OWN_ROLE_ERROR_TEXT, CANT_DELETE_OWN_PROFILE_ERROR_TEXT
+from server.app.api.v1.exceptions import BadRequestError, MediaTypeError
 from server.app.api.v1.notes.exceptions import CantChangeOwnRoleError, CantDeleteOwnProfileError
 from server.app.api.v1.users.exceptions import (
     UserNotFoundError,
@@ -327,3 +329,31 @@ class TestGetUserApplications:
 
         mock_users_manager.get_user_applications.assert_awaited_once_with(id=user_id, offset=20, limit=10)
         assert isinstance(result, ApplicationsUserList)
+
+
+class TestSetUserIcon:
+    async def test_valid_image_passes(self, users_service, mock_users_resources_manager):
+        user = UserVerification(id=uuid.uuid4(), nickname="user", session_id="s", role=Role.STUDENT)
+        upload_file = MagicMock(spec=UploadFile)
+        upload_file.content_type = "image/jpeg"
+
+        users_service.set_user_icon(user, upload_file)
+
+        mock_users_resources_manager.set_user_icon.assert_called_once_with(user.id, upload_file)
+
+    async def test_invalid_content_type_raises_media_type_error(self, users_service):
+        user = UserVerification(id=uuid.uuid4(), nickname="user", session_id="s", role=Role.STUDENT)
+        upload_file = MagicMock(spec=UploadFile)
+        upload_file.content_type = "application/pdf"
+
+        with pytest.raises(MediaTypeError, match="Некорректный тип файла!"):
+            users_service.set_user_icon(user, upload_file)
+
+    async def test_value_error_from_manager_raises_bad_request(self, users_service, mock_users_resources_manager):
+        user = UserVerification(id=uuid.uuid4(), nickname="user", session_id="s", role=Role.STUDENT)
+        upload_file = MagicMock(spec=UploadFile)
+        upload_file.content_type = "image/png"
+        mock_users_resources_manager.set_user_icon.side_effect = ValueError("some error")
+
+        with pytest.raises(BadRequestError, match="some error"):
+            users_service.set_user_icon(user, upload_file)
