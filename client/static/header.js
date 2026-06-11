@@ -24,6 +24,12 @@
         themeToggle.addEventListener('click', toggleTheme);
     }
 
+    const searchBox = document.querySelector('.search-box');
+    if (searchBox) {
+        const visiblePaths = ['/'];
+        searchBox.style.display = visiblePaths.includes(window.location.pathname) ? 'flex' : 'none';
+    }
+
     // Кнопки входа/профиля
     const loginBtn = document.getElementById('loginBtn');
     const profileBtn = document.getElementById('profileBtn');

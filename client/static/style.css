@@ -250,3 +250,26 @@ a:hover {
     overflow-y: auto;
     min-height: 0;
 }
+/* Выпадающее окно фильтров */
+.filters-btn {
+    position: relative;
+}
+.filters-dropdown {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 1rem;
+    min-width: 280px;
+    z-index: 1000;
+    box-shadow: var(--shadow-md);
+}
+.filters-dropdown .form-label {
+    font-size: 0.85rem;
+    margin-bottom: 0.25rem;
+}
+.filters-dropdown .btn-sm {
+    font-size: 0.8rem;
+}

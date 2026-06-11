@@ -8,10 +8,15 @@
 
     let currentPage = 1;
     let currentSearch = '';
-    const limit = 9;
+    let currentFilterMode = 'all';
+    let currentTagFilter = '';
+    let currentProfessorFilter = '';
+    let currentLimit = 9;
     let isLoading = false;
     let pagination = null;
+    let allCoursesCache = [];
 
+    // --- Управление видимостью кнопок ---
     function updateButtonsByAuthAndRole() {
         const isLoggedIn = window.Auth && window.Auth.isAuthenticated();
         if (myCoursesBtn) myCoursesBtn.style.display = isLoggedIn ? '' : 'none';
@@ -23,39 +28,229 @@
         if (manageCoursesBtn) manageCoursesBtn.style.display = showManage ? '' : 'none';
     }
 
-    async function fetchCourses(page = 1, search = '') {
+    // --- СОЗДАНИЕ ВЫПАДАЮЩЕГО ОКНА ФИЛЬТРОВ ---
+    let filtersDropdown = null;
+    let filtersWrapper = null;
+
+    function createFiltersDropdown() {
+        if (filtersDropdown) return;
+
+        // Оборачиваем кнопку в относительный контейнер
+        filtersWrapper = document.createElement('div');
+        filtersWrapper.className = 'filters-wrapper';
+        filtersWrapper.style.position = 'relative';
+        filtersBtn.parentNode.insertBefore(filtersWrapper, filtersBtn);
+        filtersWrapper.appendChild(filtersBtn);
+
+        const dropdown = document.createElement('div');
+        dropdown.className = 'filters-dropdown';
+        dropdown.style.display = 'none'; // изначально скрыто
+        dropdown.innerHTML = `
+            <div class="filter-group mb-3">
+                <label class="form-label fw-bold">Статус участия</label>
+                <select id="filterStatusSelect" class="form-select form-select-sm">
+                    <option value="all">Все курсы</option>
+                    <option value="enrolled">Только записанные</option>
+                    <option value="controlled">Только преподаваемые</option>
+                    <option value="enrollable">Только можно записаться</option>
+                </select>
+            </div>
+            <div class="filter-group mb-3">
+                <label class="form-label fw-bold">Тег (точное совпадение)</label>
+                <input type="text" id="filterTagInput" class="form-control form-control-sm" placeholder="например: программирование">
+            </div>
+            <div class="filter-group mb-3">
+                <label class="form-label fw-bold">Преподаватель</label>
+                <select id="filterProfessorSelect" class="form-select form-select-sm">
+                    <option value="">Все преподаватели</option>
+                </select>
+            </div>
+            <div class="filter-group mb-3">
+                <label class="form-label fw-bold">Курсов на странице</label>
+                <select id="filterLimitSelect" class="form-select form-select-sm">
+                    <option value="6">6</option>
+                    <option value="9" selected>9</option>
+                    <option value="15">15</option>
+                    <option value="30">30</option>
+                </select>
+            </div>
+            <div class="d-flex justify-content-between gap-2 mt-2">
+                <button id="resetFiltersBtn" class="btn btn-sm btn-outline-secondary">Сбросить</button>
+                <button id="applyFiltersBtn" class="btn btn-sm btn-primary">Применить</button>
+            </div>
+        `;
+        filtersWrapper.appendChild(dropdown);
+        filtersDropdown = dropdown;
+
+        // Закрытие при клике вне
+        document.addEventListener('click', (e) => {
+            if (!filtersWrapper.contains(e.target)) {
+                dropdown.style.display = 'none';
+            }
+        });
+
+        // Открытие/закрытие по кнопке
+        filtersBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const isVisible = dropdown.style.display === 'block';
+            dropdown.style.display = isVisible ? 'none' : 'block';
+            if (!isVisible) {
+                updateProfessorFilterList();
+                document.getElementById('filterStatusSelect').value = currentFilterMode;
+                document.getElementById('filterTagInput').value = currentTagFilter;
+                document.getElementById('filterLimitSelect').value = currentLimit;
+            }
+        });
+
+        document.getElementById('resetFiltersBtn').addEventListener('click', () => {
+            document.getElementById('filterStatusSelect').value = 'all';
+            document.getElementById('filterTagInput').value = '';
+            document.getElementById('filterProfessorSelect').value = '';
+            document.getElementById('filterLimitSelect').value = '9';
+            applyFiltersAndFetch();
+        });
+        document.getElementById('applyFiltersBtn').addEventListener('click', applyFiltersAndFetch);
+    }
+
+    function updateProfessorFilterList() {
+        const select = document.getElementById('filterProfessorSelect');
+        if (!select) return;
+        const professors = new Map();
+        allCoursesCache.forEach(course => {
+            if (course.professor_id && course.professor_surname) {
+                const fullName = `${course.professor_surname} ${course.professor_name} ${course.professor_patronymic || ''}`.trim();
+                professors.set(course.professor_id, fullName);
+            }
+        });
+        const currentVal = select.value;
+        select.innerHTML = '<option value="">Все преподаватели</option>';
+        for (let [id, name] of professors) {
+            const option = document.createElement('option');
+            option.value = id;
+            option.textContent = name;
+            if (id === currentVal) option.selected = true;
+            select.appendChild(option);
+        }
+    }
+
+    function applyFiltersAndFetch() {
+        currentFilterMode = document.getElementById('filterStatusSelect').value;
+        currentTagFilter = document.getElementById('filterTagInput').value.trim();
+        currentProfessorFilter = document.getElementById('filterProfessorSelect').value;
+        const newLimit = parseInt(document.getElementById('filterLimitSelect').value, 10);
+
+        if (currentFilterMode !== 'enrollable') {
+            if (newLimit !== currentLimit) {
+                currentLimit = newLimit;
+                if (pagination) pagination.destroy();
+                if (paginationContainer && window.Pagination) {
+                    pagination = new window.Pagination(paginationContainer, (page) => fetchCourses(page), { pageSize: currentLimit });
+                }
+            }
+        }
+        if (searchInput) searchInput.value = '';
+        currentSearch = '';
+        fetchCourses(1);
+        filtersDropdown.style.display = 'none';
+    }
+
+    // --- Загрузка всех страниц для режима "Только можно записаться" ---
+    async function fetchAllEnrollableCourses() {
+        let allCourses = [];
+        let page = 1;
+        const perPage = 30; // максимально допустимое значение
+        let hasMore = true;
+        while (hasMore) {
+            const url = `${window.API_BASE_URL}courses/search?page=${page}&records_per_page=${perPage}&criteria=name_prefix&value=`;
+            const response = await fetch(url, { credentials: 'include' });
+            if (!response.ok) {
+                throw new Error(`Ошибка загрузки курсов: ${response.status}`);
+            }
+            const coursesChunk = await response.json();
+            allCourses = allCourses.concat(coursesChunk);
+            hasMore = coursesChunk.length === perPage;
+            page++;
+            if (page > 10) break; // защита от бесконечного цикла (максимум 10 страниц = 300 курсов)
+        }
+        return allCourses.filter(c => c.state === 'enrollable');
+    }
+
+    // --- ОСНОВНАЯ ФУНКЦИЯ ЗАГРУЗКИ КУРСОВ ---
+    async function fetchCourses(page = 1) {
         if (isLoading) return;
         isLoading = true;
         coursesGrid.innerHTML = '<div class="col-12 text-center py-5"><div class="spinner-border text-accent" role="status"></div></div>';
-        const params = new URLSearchParams({
-            page, records_per_page: limit,
-            criteria: 'name_prefix', value: search.trim()
-        });
+
         try {
-            const response = await fetch(`${window.API_BASE_URL}courses/search?${params}`, { credentials: 'include' });
-            if (!response.ok) {
-                if (response.status === 401 || response.status === 403) {
-                    window.showAccessDenied(coursesGrid, 'Для просмотра курсов необходимо войти.', true, pagination);
-                    isLoading = false;
-                    return;
-                }
-                throw new Error('Ошибка загрузки курсов');
+            let courses = [];
+            let hasNext = false;
+
+            if (currentFilterMode === 'enrolled') {
+                const response = await fetch(`${window.API_BASE_URL}courses/followed-courses?page=${page}&records_per_page=${currentLimit}`, { credentials: 'include' });
+                if (!response.ok) throw new Error('Ошибка загрузки записанных курсов');
+                courses = await response.json();
+                courses = courses.map(c => ({ ...c, state: 'enrolled' }));
+                hasNext = courses.length === currentLimit;
+                if (pagination) pagination.show();
             }
-            const courses = await response.json();
+            else if (currentFilterMode === 'controlled') {
+                const response = await fetch(`${window.API_BASE_URL}courses/controlled-courses?page=${page}&records_per_page=${currentLimit}`, { credentials: 'include' });
+                if (!response.ok) throw new Error('Ошибка загрузки преподаваемых курсов');
+                courses = await response.json();
+                hasNext = courses.length === currentLimit;
+                if (pagination) pagination.show();
+            }
+            else if (currentFilterMode === 'enrollable') {
+                courses = await fetchAllEnrollableCourses();
+                if (pagination) pagination.hide();
+            }
+            else { // Режим 'all'
+                let url;
+                if (currentTagFilter) {
+                    url = `${window.API_BASE_URL}courses/search?page=${page}&records_per_page=${currentLimit}&criteria=tag&value=${encodeURIComponent(currentTagFilter)}`;
+                } else {
+                    url = `${window.API_BASE_URL}courses/search?page=${page}&records_per_page=${currentLimit}&criteria=name_prefix&value=${encodeURIComponent(currentSearch)}`;
+                }
+                const response = await fetch(url, { credentials: 'include' });
+                if (!response.ok) {
+                    if (response.status === 401 || response.status === 403) {
+                        if (window.showAccessDenied) window.showAccessDenied(coursesGrid, 'Для просмотра курсов необходимо войти.', true, pagination);
+                        isLoading = false;
+                        return;
+                    }
+                    throw new Error('Ошибка загрузки курсов');
+                }
+                courses = await response.json();
+                hasNext = courses.length === currentLimit;
+                if (pagination) pagination.show();
+            }
+
+            allCoursesCache = courses;
+            if (currentProfessorFilter && currentFilterMode !== 'enrollable') {
+                courses = courses.filter(c => c.professor_id === currentProfessorFilter);
+            }
+
             renderCourses(courses);
-            const hasNext = courses.length === limit;
-            const total = hasNext ? page + 1 : page;
-            pagination.setTotalPages(total);
-            pagination.setPage(page, true);
-            currentPage = page;
+
+            if (currentFilterMode !== 'enrollable') {
+                const total = hasNext ? page + 1 : page;
+                if (pagination) {
+                    pagination.setTotalPages(total);
+                    pagination.setPage(page, true);
+                }
+                currentPage = page;
+            } else {
+                currentPage = 1;
+            }
         } catch (error) {
             coursesGrid.innerHTML = `<p class="text-center text-danger">${error.message}</p>`;
-            pagination.hide();
+            if (pagination) pagination.hide();
         } finally {
             isLoading = false;
         }
     }
 
+    // --- ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ (без изменений) ---
     function formatProfessorFullName(course) {
         const parts = [course.professor_surname, course.professor_name, course.professor_patronymic].filter(p => p);
         return parts.join(' ') || '—';
@@ -103,38 +298,59 @@
         return div.innerHTML;
     }
 
+    // --- ПАГИНАЦИЯ ---
     const paginationContainer = document.getElementById('paginationContainer');
-    if (paginationContainer) {
-        pagination = new Pagination(paginationContainer, (page) => fetchCourses(page, currentSearch), { pageSize: limit });
+    if (paginationContainer && window.Pagination) {
+        pagination = new window.Pagination(paginationContainer, (page) => fetchCourses(page), { pageSize: currentLimit });
     }
 
+    // --- ПОИСК ПО НАЗВАНИЮ ---
     let searchTimeout;
     if (searchInput) {
         searchInput.addEventListener('input', (e) => {
             clearTimeout(searchTimeout);
             const query = e.target.value.trim();
             searchTimeout = setTimeout(() => {
+                currentFilterMode = 'all';
+                currentTagFilter = '';
+                currentProfessorFilter = '';
                 currentSearch = query;
-                fetchCourses(1, currentSearch);
+                if (filtersDropdown) {
+                    const statusSelect = document.getElementById('filterStatusSelect');
+                    if (statusSelect) statusSelect.value = 'all';
+                    const tagInput = document.getElementById('filterTagInput');
+                    if (tagInput) tagInput.value = '';
+                    const profSelect = document.getElementById('filterProfessorSelect');
+                    if (profSelect) profSelect.value = '';
+                }
+                if (pagination) pagination.show();
+                fetchCourses(1);
             }, 400);
         });
     }
 
-    if (filtersBtn) filtersBtn.addEventListener('click', () => window.showToast('Фильтры курсов (демо)', 'warning'));
+    // --- КНОПКИ ---
     if (myCoursesBtn) myCoursesBtn.addEventListener('click', () => window.location.href = '/my-courses');
     if (manageCoursesBtn) manageCoursesBtn.addEventListener('click', () => window.location.href = '/created-courses');
 
+    // --- ПОДПИСКА НА ИЗМЕНЕНИЕ АВТОРИЗАЦИИ ---
     window.addEventListener('auth-changed', () => {
         updateButtonsByAuthAndRole();
+        currentFilterMode = 'all';
+        currentTagFilter = '';
+        currentProfessorFilter = '';
         currentSearch = '';
         if (searchInput) searchInput.value = '';
-        fetchCourses(1, '');
+        if (pagination) pagination.show();
+        fetchCourses(1);
     });
 
+    // --- ИНИЦИАЛИЗАЦИЯ ---
     function init() {
+        createFiltersDropdown();
         if (window.Auth && window.Auth.isAuthenticated !== undefined) updateButtonsByAuthAndRole();
         else document.addEventListener('auth-loaded', updateButtonsByAuthAndRole);
-        fetchCourses(1, '');
+        fetchCourses(1);
     }
     init();
 })();
