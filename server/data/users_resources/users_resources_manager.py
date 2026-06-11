@@ -29,10 +29,12 @@ class UsersResourcesManager:
         user_dir = self.get_absolute_user_directory_path(created_user_info.id)
         self.storage.create_directory(user_dir)
 
+        data = (f"{created_user_info.id}-{created_user_info.nickname}-"
+                f"{created_user_info.created_at}-{created_user_info.updated_at}")
+        self.storage.save_file(user_dir / "icon.png", self.icons_generator.generate_icon(data))
+
         files_dir = user_dir / "files"
         self.storage.create_directory(files_dir)
-
-        self.icons_generator.generate_icon(created_user_info, user_dir)
 
     def get_user_icon_path(self, user_id: UUID) -> Path:
         user_dir = self.get_absolute_user_directory_path(user_id)

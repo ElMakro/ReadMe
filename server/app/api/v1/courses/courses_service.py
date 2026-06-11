@@ -109,7 +109,7 @@ class CoursesService:
             tags=tags,
         )
 
-        self.courses_resources_manager.create_course_directory(
+        self.courses_resources_manager.create_course(
             course.id,
         )
 

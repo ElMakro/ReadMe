@@ -1,5 +1,6 @@
 from typing import Annotated
 
+import jwt
 from fastapi import Depends, HTTPException, status
 
 from server.app.api.v1.auth.auth_handler import AuthHandler
@@ -7,13 +8,13 @@ from server.app.api.v1.auth.auth_manager import AuthManager
 from server.app.api.v1.common_schemas import FORBIDDEN_ERROR_TEXT
 from server.app.api.v1.users.users import UpdatedLinkContent, UserVerification
 from server.app.api.v1.users.users_manager import UsersManager
+from server.app.common_dependencies.get_token_from_cookies import get_token_from_cookies
 from server.app.common_dependencies.secret_link_strategies import (
     CustomLinkStrategy,
     DefaultLinkStrategy,
     RandomLinkStrategy,
     UpdatedLinkStrategy,
 )
-from server.app.common_dependencies.utils import get_token_from_cookies
 from server.enums.role import Role
 from server.enums.updated_link_type import LinkType
 
@@ -26,7 +27,19 @@ async def get_current_user(
 ) -> UserVerification | None:
     if token is None:
         return None
-    decoded_token = await handler.decode_token(token=token)
+    try:
+        decoded_token = await handler.decode_token(token=token)
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Срок действия временного ключа доступа истёк."
+        )
+
+    except jwt.InvalidTokenError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Токен недействителен."
+        )
     user_id = decoded_token.get("user_id")
     session_id = decoded_token.get("session_id")
     if not await auth_manager.get_token(user_id=user_id, session_id=session_id):

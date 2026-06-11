@@ -10,6 +10,7 @@ from server.app.api.v1.topics.topics import TopicContent
 from server.app.api.v1.topics.topics_manager import TopicsManager
 from server.data.courses_resources.compilation_manager import CompilationManager
 from server.data.resource_storage import IResourceStorage, get_courses_resource_storage
+from server.data.users_resources.icons_generator import IconsGenerator
 
 
 class CoursesResourcesManager:
@@ -20,12 +21,14 @@ class CoursesResourcesManager:
             sections_manager: SectionsManager = Depends(SectionsManager),
             topics_manager: TopicsManager = Depends(TopicsManager),
             compilation_manager: CompilationManager = Depends(CompilationManager),
+            icons_generator: IconsGenerator = Depends(IconsGenerator),
     ):
         self.storage = storage
         self.courses_manager = courses_manager
         self.sections_manager = sections_manager
         self.topics_manager = topics_manager
         self.compilation_manager = compilation_manager
+        self.icons_generator = icons_generator
 
     @staticmethod
     def get_relative_course_directory_path(course_id: UUID) -> Path:
@@ -38,6 +41,11 @@ class CoursesResourcesManager:
             section = await self.sections_manager.get_section_by_id(section_id)
             course_id = section.course_id
         return self.get_relative_course_directory_path(course_id) / str(section_id)
+
+    def create_course(self, course_id: UUID) -> None:
+        self.create_course_directory(course_id)
+        self.storage.save_file(self.get_relative_course_directory_path(course_id) / "icon.png",
+                               self.icons_generator.generate_icon(f"{course_id}"))
 
     def create_course_directory(self, course_id: UUID) -> None:
         self.storage.create_directory(self.get_relative_course_directory_path(course_id))

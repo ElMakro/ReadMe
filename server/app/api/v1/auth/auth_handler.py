@@ -2,7 +2,6 @@ import datetime
 import uuid
 
 import jwt
-from fastapi import HTTPException, status
 from passlib.context import CryptContext
 
 from server.app.common_dependencies.utils import CreatedTokenTuple
@@ -31,15 +30,5 @@ class AuthHandler:
         return CreatedTokenTuple(encoded_jwt=encoded_jwt, session_id=session_id)
 
     async def decode_token(self, token: str) -> dict:
-        try:
-            return jwt.decode(jwt=token, key=self.secret, algorithms=["HS256"])
-        except jwt.ExpiredSignatureError:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Срок действия временного ключа доступа истёк."
-            )
-        except jwt.InvalidTokenError:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Токен недействителен."
-            )
+        return jwt.decode(jwt=token, key=self.secret, algorithms=["HS256"])
+
