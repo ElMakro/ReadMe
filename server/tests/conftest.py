@@ -38,6 +38,8 @@ TEST_DB_URL = f"postgresql+asyncpg://{TEST_DB_USER}:{TEST_DB_PASSWORD}@{TEST_DB_
 TEST_REDIS_URL = f"redis://:{TEST_REDIS_PASSWORD}@{TEST_REDIS_HOST}:{TEST_REDIS_PORT}/{TEST_REDIS_DB}"
 
 os.environ["SECRET_KEY"] = "a" * 32
+os.environ["SECRET_LINK_KEY"] = "jOlDKyBBqp8okb9sS-E6FzTXyTv0viu3aessVKSdLSU="
+os.environ["DEFAULT_SECRET_APPLICATION_LINK_PART"] = "test"
 
 
 def _is_port_open(host: str, port: int) -> bool:
