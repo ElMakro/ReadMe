@@ -10,6 +10,11 @@ from server.app.api.v1.users.exceptions import (
     UserNotFoundError,
 )
 from server.app.api.v1.users.users import (
+    ApplicationById,
+    ApplicationChangeStatus,
+    ApplicationsList,
+    ApplicationsUserList,
+    ProfessorApplication,
     UserProfile,
     UsersList,
     UserUpdatedInfo,
@@ -18,6 +23,7 @@ from server.app.api.v1.users.users import (
 )
 from server.app.api.v1.users.users_service import UsersService
 from server.enums.access_permissions import AccessPermissions
+from server.enums.application_status import ApplicationStatus
 from server.enums.role import Role
 
 pytestmark = pytest.mark.asyncio
@@ -260,3 +266,64 @@ class TestDeleteUser:
 
         mock_users_manager.delete_user.assert_awaited_once_with(id=target_id)
         mock_auth_manager.delete_sessions.assert_awaited_once_with(user_id=target_id)
+
+
+class TestRegProfessorApplication:
+    async def test_registers_application(self, users_service, mock_users_manager):
+        user_id = uuid.uuid4()
+        application = ProfessorApplication(name="Иван", surname="Петров", patronymic="Сергеевич")
+        expected = MagicMock(spec=ApplicationById)
+        mock_users_manager.reg_professor_application.return_value = expected
+
+        result = await users_service.reg_professor_application(user_id, application)
+
+        mock_users_manager.reg_professor_application.assert_awaited_once_with(
+            id=user_id,
+            name=application.name,
+            surname=application.surname,
+            patronymic=application.patronymic,
+        )
+        assert result == expected
+
+
+class TestGetProfessorApplications:
+    async def test_pagination(self, users_service, mock_users_manager):
+        mock_users_manager.get_professor_applications.return_value = MagicMock(spec=ApplicationsList)
+
+        result = await users_service.get_professor_applications(page=2, size=25)
+
+        mock_users_manager.get_professor_applications.assert_awaited_once_with(25, 25)
+        assert isinstance(result, ApplicationsList)
+
+
+class TestChangeApplicationStatus:
+    @pytest.mark.parametrize("application_status,comment", [
+        (ApplicationStatus.APPROVED, "Ok"),
+        (ApplicationStatus.REJECTED, "Rejected"),
+        (ApplicationStatus.PENDING, None),
+    ])
+    async def test_changes_status(self, users_service, mock_users_manager, application_status, comment):
+        application = ApplicationChangeStatus(
+            application_id=uuid.uuid4(),
+            user_id=uuid.uuid4(),
+            status=application_status,
+            admin_comment=comment,
+        )
+        await users_service.change_application_status(application)
+        mock_users_manager.change_application_status.assert_awaited_once_with(
+            id=application.application_id,
+            user_id=application.user_id,
+            status=application.status,
+            comment=application.admin_comment,
+        )
+
+
+class TestGetUserApplications:
+    async def test_pagination(self, users_service, mock_users_manager):
+        user_id = uuid.uuid4()
+        mock_users_manager.get_user_applications.return_value = MagicMock(spec=ApplicationsUserList)
+
+        result = await users_service.get_user_applications(user_id, page=3, size=10)
+
+        mock_users_manager.get_user_applications.assert_awaited_once_with(id=user_id, offset=20, limit=10)
+        assert isinstance(result, ApplicationsUserList)
