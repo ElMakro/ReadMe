@@ -1,6 +1,7 @@
 import os
 import socket
 from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 from uuid import uuid4
 
 import pytest
@@ -25,6 +26,8 @@ TEST_REDIS_DB = 0
 
 TEST_DB_URL = f"postgresql+asyncpg://{TEST_DB_USER}:{TEST_DB_PASSWORD}@{TEST_DB_HOST}:{TEST_DB_PORT}/{TEST_DB_NAME}"
 TEST_REDIS_URL = f"redis://:{TEST_REDIS_PASSWORD}@{TEST_REDIS_HOST}:{TEST_REDIS_PORT}/{TEST_REDIS_DB}"
+
+os.environ["SECRET_KEY"] = "a" * 32
 
 
 def _is_port_open(host: str, port: int) -> bool:
@@ -264,6 +267,34 @@ def db_dependency(db_engine: AsyncEngine):
 
     return MockDBDependency(db_engine)
 
+@pytest.fixture(scope="function")
+def redis_dependency(redis_service):
+    class MockRedisDependency:
+        def __init__(self):
+            self._url = TEST_REDIS_URL
+            self._pool = ConnectionPool.from_url(TEST_REDIS_URL, encoding="utf-8", decode_responses=True)
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc_val, exc_tb):
+            pass
+
+        @asynccontextmanager
+        async def get_client(self):
+            redis_client = Redis(connection_pool=self._pool)
+            try:
+                yield redis_client
+            finally:
+                await redis_client.aclose()
+
+    return MockRedisDependency()
+
+
+@pytest_asyncio.fixture(scope="function")
+async def redis_client(redis_dependency) -> AsyncGenerator[Redis]:
+    async with redis_dependency.get_client() as client:
+        yield client
 
 @pytest.fixture(scope="function")
 def courses_manager(db_dependency):
@@ -278,9 +309,9 @@ def users_manager(db_dependency):
 
 
 @pytest.fixture(scope="function")
-def auth_manager(db_dependency):
+def auth_manager(db_dependency, redis_dependency):
     from server.app.api.v1.auth.auth_manager import AuthManager
-    return AuthManager(db=db_dependency)
+    return AuthManager(db=db_dependency, redis=redis_dependency)
 
 
 @pytest.fixture(scope="function")
@@ -340,19 +371,3 @@ async def setup_student_and_course(student_factory, course_factory, enrollment_f
     course = await course_factory()
     enrollment = await enrollment_factory(student_id=student.id, course_id=course.id)
     return student, course, enrollment
-
-
-@pytest.fixture(scope="function")
-def redis_dependency(redis_service):
-    from server.config.redis_dependency import RedisDependency
-
-    dep = object.__new__(RedisDependency)
-    dep._url = TEST_REDIS_URL
-    dep._pool = ConnectionPool.from_url(TEST_REDIS_URL, encoding="utf-8", decode_responses=True)
-    return dep
-
-
-@pytest_asyncio.fixture(scope="function")
-async def redis_client(redis_dependency) -> AsyncGenerator[Redis]:
-    async with redis_dependency.get_client() as client:
-        yield client
