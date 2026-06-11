@@ -4,13 +4,17 @@ from unittest.mock import MagicMock
 import pytest
 from pytest_mock import MockerFixture
 
+from server.app.api.v1.common_schemas import CANT_CHANGE_OWN_ROLE_ERROR_TEXT, CANT_DELETE_OWN_PROFILE_ERROR_TEXT
+from server.app.api.v1.notes.exceptions import CantChangeOwnRoleError, CantDeleteOwnProfileError
 from server.app.api.v1.users.exceptions import (
     UserNotFoundError,
 )
 from server.app.api.v1.users.users import (
     UserProfile,
+    UsersList,
     UserUpdatedInfo,
     UserVerification,
+    UserWithRole,
 )
 from server.app.api.v1.users.users_service import UsersService
 from server.enums.access_permissions import AccessPermissions
@@ -191,3 +195,68 @@ class TestCheckCourseAccess:
     async def test_raises_value_error_when_no_course_and_no_id(self, users_service):
         with pytest.raises(ValueError, match="Либо курс, либо его идентификатор должны быть переданы!"):
             await users_service.check_course_access(None)
+
+class TestGetAllUsers:
+    async def test_pagination_converted_correctly(self, users_service, mock_users_manager):
+        mock_users_manager.get_all_users.return_value = MagicMock(spec=UsersList)
+
+        result = await users_service.get_all_users(page=3, size=9)
+
+        mock_users_manager.get_all_users.assert_awaited_once_with(18, 9)
+        assert isinstance(result, UsersList)
+
+
+class TestSearchUsers:
+    async def test_search_pagination(self, users_service, mock_users_manager):
+        mock_users_manager.search_users.return_value = MagicMock(spec=UsersList)
+
+        result = await users_service.search_users(pattern="test", page=2, size=15)
+
+        mock_users_manager.search_users.assert_awaited_once_with("test", 15, 15)
+        assert isinstance(result, UsersList)
+
+
+class TestChangeRole:
+    async def test_cannot_change_own_role(self, users_service):
+        user_id = uuid.uuid4()
+        user_with_role = UserWithRole(id=user_id, role=Role.STUDENT)
+
+        with pytest.raises(CantChangeOwnRoleError) as exc:
+            await users_service.change_role(user_with_role, current_user_id=user_id)
+        assert CANT_CHANGE_OWN_ROLE_ERROR_TEXT in str(exc.value)
+
+    async def test_change_to_professor_calls_correct_manager_method(self, users_service, mock_users_manager):
+        target_id = uuid.uuid4()
+        user_with_role = UserWithRole(id=target_id, role=Role.PROFESSOR)
+
+        await users_service.change_role(user_with_role, current_user_id=uuid.uuid4())
+
+        mock_users_manager.change_role_to_professor.assert_awaited_once_with(id=target_id)
+        mock_users_manager.change_role_except_professors.assert_not_called()
+
+    async def test_change_to_student_calls_except_professors(self, users_service, mock_users_manager):
+        target_id = uuid.uuid4()
+        user_with_role = UserWithRole(id=target_id, role=Role.STUDENT)
+
+        await users_service.change_role(user_with_role, current_user_id=uuid.uuid4())
+
+        mock_users_manager.change_role_except_professors.assert_awaited_once_with(id=target_id,
+                                                                                  role=Role.STUDENT)
+        mock_users_manager.change_role_to_professor.assert_not_called()
+
+
+class TestDeleteUser:
+    async def test_cannot_delete_self(self, users_service):
+        user_id = uuid.uuid4()
+        with pytest.raises(CantDeleteOwnProfileError) as exc:
+            await users_service.delete_user(id=user_id, current_user_id=user_id)
+        assert CANT_DELETE_OWN_PROFILE_ERROR_TEXT in str(exc.value)
+
+    async def test_delete_other_user_clears_sessions(self, users_service, mock_users_manager, mock_auth_manager):
+        target_id = uuid.uuid4()
+        current_id = uuid.uuid4()
+
+        await users_service.delete_user(id=target_id, current_user_id=current_id)
+
+        mock_users_manager.delete_user.assert_awaited_once_with(id=target_id)
+        mock_auth_manager.delete_sessions.assert_awaited_once_with(user_id=target_id)
