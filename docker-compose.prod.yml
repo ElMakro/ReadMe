@@ -32,7 +32,8 @@ services:
         volumes:
             - readme-letsencrypt:/etc/letsencrypt
             - readme-certbot-webroot:/var/www/certbot
-        entrypoint: /bin/sh
+        profiles:
+            - certs
         restart: no
         deploy:
             resources:
