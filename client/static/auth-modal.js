@@ -23,7 +23,7 @@
                 <input type="text" class="form-control" placeholder="Никнейм" id="${PREFIX}regNickname" disabled required>
               </div>
               <div class="mb-3">
-                <input type="email" class="form-control" placeholder="Email" id="${PREFIX}regEmail" disabled>
+                <input type="email" class="form-control" placeholder="Email *" id="${PREFIX}regEmail" disabled required>
               </div>
               <div class="mb-3">
                 <input type="password" class="form-control" placeholder="Пароль" id="${PREFIX}regPassword" disabled required>
@@ -126,6 +126,7 @@
         loginPassword.disabled = false;
 
         regNickname.required = false;
+        regEmail.required = false;
         regPassword.required = false;
         regConfirm.required = false;
         regNickname.disabled = true;
@@ -153,6 +154,7 @@
         loginPassword.disabled = true;
 
         regNickname.required = true;
+        regEmail.required = true;          // email обязателен
         regPassword.required = true;
         regConfirm.required = true;
         regNickname.disabled = false;
@@ -222,15 +224,20 @@
                 window.dispatchEvent(new CustomEvent('auth-changed', {detail: {user: userProfile}}));
                 await savePasswordWithAPI(nickname, password);
                 closeModal();
-                location.reload(); // Перезагрузка страницы после входа
+                location.reload();
             } else {
                 const nickname = regNickname.value.trim();
-                const email = regEmail.value.trim() || undefined;
+                const email = regEmail.value.trim();
                 const password = regPassword.value;
                 const confirm = regConfirm.value;
 
-                if (!nickname || !password) {
-                    throw new Error('Заполните обязательные поля');
+                if (!nickname || !email || !password) {
+                    throw new Error('Заполните все обязательные поля');
+                }
+                // простая проверка email
+                const emailRegex = /^[^\s@]+@([^\s@]+\.)+[^\s@]+$/;
+                if (!emailRegex.test(email)) {
+                    throw new Error('Введите корректный email');
                 }
                 if (password !== confirm) {
                     throw new Error('Пароли не совпадают');
@@ -271,7 +278,7 @@
 
                 savePasswordWithAPI(nickname, password);
                 closeModal();
-                location.reload(); // Перезагрузка страницы после регистрации
+                location.reload();
             }
         } catch (error) {
             console.error('Ошибка:', error);

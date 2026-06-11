@@ -56,6 +56,11 @@
         }
     }
 
+    function formatProfessorFullName(course) {
+        const parts = [course.professor_surname, course.professor_name, course.professor_patronymic].filter(p => p);
+        return parts.join(' ') || '—';
+    }
+
     function renderCourses(courses) {
         if (!coursesGrid) return;
         if (courses.length === 0) {
@@ -72,6 +77,7 @@
             else stateText = '<span class="badge bg-secondary">Можно записаться</span>';
             const description = course.description || 'Описание отсутствует';
             const shortDesc = description.length > 100 ? description.substring(0, 100) + '…' : description;
+            const professorFullName = formatProfessorFullName(course);
 
             col.innerHTML = `
                 <div class="course-card position-relative d-flex flex-column h-100">
@@ -80,6 +86,7 @@
                          alt="Иконка курса">
                     <a href="/course/${course.id}" class="stretched-link text-decoration-none">
                         <h5 class="course-title mt-2">${escapeHtml(course.name)}</h5>
+                        <div class="course-instructor small text-secondary mb-1">Преподаватель: ${escapeHtml(professorFullName)}</div>
                         <div class="course-state mb-2">${stateText}</div>
                         <p class="course-description">${escapeHtml(shortDesc)}</p>
                     </a>

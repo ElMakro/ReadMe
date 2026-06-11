@@ -232,6 +232,10 @@
 
             let html = `
                 <div class="course-description-card mb-4">
+                    <div class="mb-2">
+                        <strong>Преподаватель:</strong> 
+                        ${escapeHtml([currentCourse.professor_surname, currentCourse.professor_name, currentCourse.professor_patronymic].filter(p => p).join(' ') || '—')}
+                    </div>
                     <p>${escapeHtml(currentCourse.description || 'Описание отсутствует')}</p>
                 </div>
             `;
