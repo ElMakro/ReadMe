@@ -6,6 +6,9 @@
     let authCheckPending = false;
     let pendingActions = [];
 
+    // Флаг для предотвращения повторного открытия модалки при 401
+    let unauthorizedModalOpen = false;
+
     async function checkAuth() {
         if (authCheckPending) return null;
         authCheckPending = true;
@@ -99,14 +102,21 @@
     window.handleUnauthorized = function(message = 'Сессия истекла. Пожалуйста, войдите снова.') {
         window.AppState.currentUser = null;
         window.dispatchEvent(new CustomEvent('auth-changed', { detail: { user: null } }));
+
+        // Защита от повторного открытия модалки
+        if (unauthorizedModalOpen) return;
+        unauthorizedModalOpen = true;
+
         if (window.AuthModal && typeof window.AuthModal.open === 'function') {
             window.AuthModal.open();
             setTimeout(() => {
                 const errorDiv = document.querySelector('#auth-modal-error');
                 if (errorDiv) errorDiv.textContent = message;
+                setTimeout(() => { unauthorizedModalOpen = false; }, 1000);
             }, 100);
         } else {
             alert(message);
+            unauthorizedModalOpen = false;
         }
     };
 
@@ -118,6 +128,7 @@
         }
     };
 
+    // Глобальный перехват fetch (без изменений, кроме возможного добавления обработки 5xx)
     const originalFetch = window.fetch;
     window.fetch = function(...args) {
         return originalFetch.apply(this, args).then(async response => {
@@ -130,6 +141,11 @@
                 const url = typeof args[0] === 'string' ? args[0] : args[0].url;
                 if (!url.includes('/client_healthcheck') && !url.includes('/static/')) {
                     window.handleForbidden();
+                }
+            } else if (response.status >= 500 && response.status < 600) {
+                // Необязательно: показывать тост при серверной ошибке
+                if (window.showToast) {
+                    window.showToast('Серверная ошибка. Попробуйте позже.', 'danger');
                 }
             }
             return response;
