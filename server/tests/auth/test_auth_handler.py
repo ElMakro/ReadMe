@@ -90,7 +90,7 @@ class TestDecodeToken:
         assert payload["session_id"] == session_id
         assert "exp" in payload
 
-    async def test_decode_expired_token_raises_401(self):
+    async def test_decode_expired_token_raises_expired_signature_error(self):
         handler = AuthHandler()
         user_id = uuid.uuid4()
         expire = datetime.datetime.now(datetime.UTC) - datetime.timedelta(seconds=10)
@@ -100,26 +100,20 @@ class TestDecodeToken:
             "exp": expire
         }
         expired_token = jwt.encode(payload, handler.secret, algorithm="HS256")
-        with pytest.raises(HTTPException) as exc:
+        with pytest.raises(jwt.exceptions.ExpiredSignatureError):
             await handler.decode_token(expired_token)
-        assert exc.value.status_code == 401
-        assert "Срок действия временного ключа доступа истёк" in exc.value.detail
 
-    async def test_decode_invalid_token_raises_401(self):
+    async def test_decode_invalid_token_raises_decode_error(self):
         handler = AuthHandler()
         invalid_token = "this.is.not.a.valid.token"
-        with pytest.raises(HTTPException) as exc:
+        with pytest.raises(jwt.exceptions.DecodeError):
             await handler.decode_token(invalid_token)
-        assert exc.value.status_code == 401
-        assert "Токен недействителен" in exc.value.detail
 
-    async def test_decode_token_with_wrong_secret_raises_401(self):
+    async def test_decode_token_with_wrong_secret_raises_invalid_signature_error(self):
         other_secret = "different_secret".rjust(32)
         handler = AuthHandler()
         payload = {"user_id": str(uuid.uuid4()),
                    "exp": datetime.datetime.now(datetime.UTC) + datetime.timedelta(hours=1)}
         token_with_other_secret = jwt.encode(payload, other_secret, algorithm="HS256")
-        with pytest.raises(HTTPException) as exc:
+        with pytest.raises(jwt.exceptions.InvalidSignatureError):
             await handler.decode_token(token_with_other_secret)
-        assert exc.value.status_code == 401
-        assert "Токен недействителен" in exc.value.detail

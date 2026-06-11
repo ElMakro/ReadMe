@@ -90,35 +90,6 @@ services:
                 max-size: 10m
                 max-file: 3
 
-    postgres-database-backups:
-        image: prodrigestivill/postgres-backup-local:18-alpine-d257e5d
-        container_name: readme-postgres-database-backups
-        restart: always
-        environment:
-            - POSTGRES_HOST=${DB_HOST}
-            - POSTGRES_DB=${DB_NAME}
-            - POSTGRES_USER=${DB_USER}
-            - POSTGRES_PASSWORD=${DB_PASSWORD}
-            - SCHEDULE=@every 12h00m00s
-            - BACKUP_KEEP_DAYS=7
-        volumes:
-            - readme-postgres-database-backups:/backups
-        networks:
-            - readme-network
-        depends_on:
-            postgres-database:
-                condition: service_healthy
-        deploy:
-            resources:
-                limits:
-                    cpus: 0.5
-                    memory: 256M
-        logging:
-            driver: json-file
-            options:
-                max-size: 10m
-                max-file: 3
-
     database-manager:
         build:
             context: .
@@ -142,10 +113,19 @@ services:
             - SECRET_KEY=${SECRET_KEY}
             - SECRET_LINK_KEY=${SECRET_LINK_KEY}
             - DEFAULT_SECRET_APPLICATION_LINK_PART=${DEFAULT_SECRET_APPLICATION_LINK_PART}
+            - DEFAULT_ADMIN_NICKNAME=${DEFAULT_ADMIN_NICKNAME}
+            - DEFAULT_ADMIN_EMAIL=${DEFAULT_ADMIN_EMAIL}
+            - DEFAULT_ADMIN_PASSWORD=${DEFAULT_ADMIN_PASSWORD}
+            - BACKUP_INTERVAL_HOURS=${BACKUP_INTERVAL_HOURS}
+            - BACKUP_ENABLED=${BACKUP_ENABLED}
+            - BACKUP_KEEP_DAYS=${BACKUP_KEEP_DAYS}
+        command: [ "auto-backup" ]
         stdin_open: true
         tty: true
         volumes:
             - readme-postgres-database-backups:/backups
+        ports:
+            -   "8888:8888"
         networks:
             - readme-network
         depends_on:
@@ -153,6 +133,8 @@ services:
                 condition: service_healthy
             redis-database:
                 condition: service_healthy
+            auto-migrations:
+                condition: service_completed_successfully
         deploy:
             resources:
                 limits:
@@ -187,7 +169,10 @@ services:
             - SECRET_KEY=${SECRET_KEY}
             - SECRET_LINK_KEY=${SECRET_LINK_KEY}
             - DEFAULT_SECRET_APPLICATION_LINK_PART=${DEFAULT_SECRET_APPLICATION_LINK_PART}
-        command: [ "migrate", "auto" ]
+            - DEFAULT_ADMIN_NICKNAME=${DEFAULT_ADMIN_NICKNAME}
+            - DEFAULT_ADMIN_EMAIL=${DEFAULT_ADMIN_EMAIL}
+            - DEFAULT_ADMIN_PASSWORD=${DEFAULT_ADMIN_PASSWORD}
+        command: ["auto"]
         networks:
             - readme-network
         depends_on:

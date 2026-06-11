@@ -54,7 +54,7 @@ class TestCreateUser:
         )
         with pytest.raises(HTTPException) as exc_info:
             await auth_manager.create_user(new_user)
-        assert exc_info.value.status_code == status.HTTP_400_BAD_REQUEST
+        assert exc_info.value.status_code == status.HTTP_409_CONFLICT
 
 
 class TestStoreAndGetToken:

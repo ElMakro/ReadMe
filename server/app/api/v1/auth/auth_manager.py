@@ -24,7 +24,7 @@ class AuthManager:
             try:
                 result = await session.execute(query)
             except IntegrityError:
-                raise HTTPException(status_code=400, detail="User already exists.")
+                raise HTTPException(status_code=409, detail="Пользователь уже существует.")
 
             await session.commit()
 

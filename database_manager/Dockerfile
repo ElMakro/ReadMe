@@ -4,30 +4,26 @@ WORKDIR /content
 
 RUN apk add --no-cache \
     postgresql-client \
-    curl \
-    dos2unix
+    curl
 
 COPY database_manager/requirements.txt .
-
 RUN pip install --no-cache-dir -r requirements.txt
 
 ENV PYTHONPATH=/content \
     PYTHONUNBUFFERED=1 \
-    ALEMBIC_CONFIG=/content/alembic.ini \
-    PATH="/content/scripts:$PATH"
-
-COPY database_manager/scripts /content/scripts
-RUN chmod +x /content/scripts/* && \
-    dos2unix /content/scripts/* 2>/dev/null || true
+    ALEMBIC_CONFIG=/content/alembic.ini
 
 COPY alembic.ini /content/
 
-WORKDIR /content/server
-COPY server/database database
-COPY server/config config
-COPY server/enums enums
+COPY server/app/api/v1/auth/auth_handler.py /content/server/app/api/v1/auth/auth_handler.py
+COPY server/database /content/server/database
+COPY server/enums /content/server/enums
+COPY server/config /content/server/config
+COPY server/app/common_dependencies/utils.py /content/server/app/common_dependencies/utils.py
+
+COPY database_manager/database_manager.py /content/scripts/database_manager.py
+RUN chmod +x /content/scripts/database_manager.py
 
 WORKDIR /content/scripts
 
-ENTRYPOINT ["database_manager"]
-CMD []
+ENTRYPOINT ["python", "/content/scripts/database_manager.py"]

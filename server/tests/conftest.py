@@ -244,6 +244,9 @@ class MockCoursesResourcesManager:
     async def render_topic(self, topic_directory_path, raw_content):
         return raw_content
 
+    def create_course(self, course_id):
+        pass
+
 
 @pytest.fixture(scope="function")
 def db_dependency(db_engine: AsyncEngine):
