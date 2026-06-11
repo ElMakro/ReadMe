@@ -1,109 +1,150 @@
 import uuid
+import pytest
 from sqlalchemy import text
 
-
+@pytest.mark.integration
 def _create_professor(api_client, _sync_sessionmaker):
-    admin_nick = f"admin_{uuid.uuid4().hex[:6]}"
-    admin_pass = "StrongPassword123!"
-    api_client.post("/api/v1/auth/reg", json={"nickname": admin_nick, "email": f"{admin_nick}@t.com", "password": admin_pass})
-    api_client.post("/api/v1/auth/login", json={"nickname": admin_nick, "password": admin_pass})
+    admin_nickname = f"admin_{uuid.uuid4().hex[:6]}"
+    admin_password = "StrongPassword123!"
+    api_client.post("/api/v1/auth/reg", json={"nickname": admin_nickname, "email": f"{admin_nickname}@t.com", "password": admin_password})
+    api_client.post("/api/v1/auth/login", json={"nickname": admin_nickname, "password": admin_password})
     admin_profile = api_client.get("/api/v1/users/profile").json()
     with _sync_sessionmaker() as session:
         session.execute(text("UPDATE users SET role = 'ADMIN' WHERE id = :uid"), {"uid": admin_profile["id"]})
         session.commit()
-
     secret_link = f"prof_link_{uuid.uuid4().hex[:8]}"
     set_link = api_client.post("/api/v1/users/set-application-link", json={"type": "custom", "content": secret_link})
-    assert set_link.status_code == 200, "Failed to set custom link"
-
+    assert set_link.status_code == 200
     api_client.get("/api/v1/auth/logout")
     api_client.cookies.clear()
-
-    student_nick = f"prof_{uuid.uuid4().hex[:6]}"
-    student_pass = "StrongPassword123!"
-    api_client.post("/api/v1/auth/reg", json={"nickname": student_nick, "email": f"{student_nick}@t.com", "password": student_pass})
-    api_client.post("/api/v1/auth/login", json={"nickname": student_nick, "password": student_pass})
+    student_nickname = f"prof_{uuid.uuid4().hex[:6]}"
+    student_password = "StrongPassword123!"
+    api_client.post("/api/v1/auth/reg", json={"nickname": student_nickname, "email": f"{student_nickname}@t.com", "password": student_password})
+    api_client.post("/api/v1/auth/login", json={"nickname": student_nickname, "password": student_password})
     student_profile = api_client.get("/api/v1/users/profile").json()
     student_id = student_profile["id"]
-
     submit = api_client.post(f"/api/v1/users/submit-professor-application/{secret_link}",
-                             json={"name": "Prof", "surname": "Test", "patronymic": "Testovich"})
-    assert submit.status_code == 201, submit.text
+                             json={"name": "Иван", "surname": "Иванов", "patronymic": "Иванович"})
+    assert submit.status_code == 201
     app_id = submit.json()["id"]
-
     api_client.get("/api/v1/auth/logout")
     api_client.cookies.clear()
-
-    api_client.post("/api/v1/auth/login", json={"nickname": admin_nick, "password": admin_pass})
+    api_client.post("/api/v1/auth/login", json={"nickname": admin_nickname, "password": admin_password})
     approve = api_client.put("/api/v1/users/change-application-status", json={"application_id": app_id, "user_id": student_id, "status": "approved"})
-    assert approve.status_code in (200, 204)
-    with _sync_sessionmaker() as session:
-        session.execute(text("UPDATE users SET role = 'PROFESSOR' WHERE id = :uid"), {"uid": student_id})
-        session.commit()
+    assert approve.status_code == 204
     api_client.get("/api/v1/auth/logout")
     api_client.cookies.clear()
-
-    api_client.post("/api/v1/auth/login", json={"nickname": student_nick, "password": student_pass})
+    api_client.post("/api/v1/auth/login", json={"nickname": student_nickname, "password": student_password})
     return api_client
 
 class TestCourseCreation:
     @staticmethod
-    def test_create_course_by_professor(professor_client):
+    @pytest.mark.integration
+    @pytest.mark.parametrize("name, description, is_public, is_content_public", [
+        (f"Math_{uuid.uuid4().hex[:6]}", "Mathematics", True, True),
+        (f"PE_{uuid.uuid4().hex[:6]}", "Programming engineering", True, True),
+        (f"ML_{uuid.uuid4().hex[:6]}", "Machine learning", False, False),
+        (f"BD_{uuid.uuid4().hex[:6]}", "Databases", True, False),
+        (f"Eng_{uuid.uuid4().hex[:6]}", "English", False, False),
+    ])
+    def test_create_course_by_professor(professor_client, name, description, is_public, is_content_public):
         res = professor_client.post("/api/v1/courses/create-course", json={
-            "name": f"Math_{uuid.uuid4().hex[:6]}",
-            "description": "Test course",
-            "is_public": True
+            "name": name,
+            "description": description,
+            "is_public": is_public,
+            "is_content_public": is_content_public
         })
-        assert res.status_code == 201, f"Не удалось создать курс: {res.text}"
+        assert res.status_code == 201
         assert "id" in res.json()
 
     @staticmethod
-    def test_create_course_by_student_fails(student_client):
+    @pytest.mark.integration
+    @pytest.mark.parametrize("name, is_public", [
+        (f"Math_{uuid.uuid4().hex[:6]}", True),
+        (f"PE_{uuid.uuid4().hex[:6]}", True),
+        (f"ML_{uuid.uuid4().hex[:6]}", False),
+        (f"BD_{uuid.uuid4().hex[:6]}", True),
+        (f"Eng_{uuid.uuid4().hex[:6]}", False),
+    ])
+    def test_create_course_by_student_fails(student_client, name, is_public):
         res = student_client.post("/api/v1/courses/create-course", json={
-            "name": "Forbidden Course",
-            "is_public": True
+            "name": name,
+            "is_public": is_public
         })
-        assert res.status_code == 403, f"Ожидали 403, получили {res.status_code}: {res.text}"
+        assert res.status_code == 403
 
 class TestCourseAccess:
     @staticmethod
-    def test_get_course_by_id(professor_client):
+    @pytest.mark.integration
+    @pytest.mark.parametrize("name, is_public, is_content_public", [
+        (f"Math_{uuid.uuid4().hex[:6]}", True, False),
+        (f"PE_{uuid.uuid4().hex[:6]}", True, True),
+        (f"ML_{uuid.uuid4().hex[:6]}", False, False),
+        (f"BD_{uuid.uuid4().hex[:6]}", True, False),
+        (f"Eng_{uuid.uuid4().hex[:6]}", False, False),
+    ])
+    def test_get_course_by_id(professor_client, name, is_public, is_content_public):
         create_res = professor_client.post("/api/v1/courses/create-course", json={
-            "name": "GetTest", "is_public": True
+            "name": name, "is_public": is_public, "is_content_public": is_content_public
         })
-        assert create_res.status_code == 201, f"Не удалось создать курс: {create_res.text}"
+        assert create_res.status_code == 201
         course_id = create_res.json()["id"]
-        print(f"Получен id курса: {course_id}")
-
         get_res = professor_client.get(f"/api/v1/courses/{course_id}")
-        assert get_res.status_code == 200, f"Не удалось получить курс: {get_res.text}"
-        assert get_res.json()["name"] == "GetTest"
+        assert get_res.status_code == 200
+        assert get_res.json()["name"] == name
 
     @staticmethod
+    @pytest.mark.integration
     def test_search_courses_by_name(professor_client):
         res = professor_client.get("/api/v1/courses/search", params={
             "criteria": "name_prefix",
             "value": "M"
         })
-        assert res.status_code == 200, f"Не удалось выполнить поиск: {res.text}"
+        assert res.status_code == 200
 
 class TestCourseUpdate:
     @staticmethod
-    def test_update_course(professor_client):
-        pass
+    @pytest.mark.integration
+    @pytest.mark.parametrize("name, is_public, is_content_public", [
+        (f"Math_{uuid.uuid4().hex[:6]}", True, True),
+        (f"PE_{uuid.uuid4().hex[:6]}", True, False),
+        (f"ML_{uuid.uuid4().hex[:6]}", False, False),
+        (f"BD_{uuid.uuid4().hex[:6]}", True, True),
+        (f"Eng_{uuid.uuid4().hex[:6]}", False, False),
+    ])
+    def test_update_course(api_client, _sync_sessionmaker, name, is_public, is_content_public):
+        professor = _create_professor(api_client, _sync_sessionmaker)
+        course = professor.post("/api/v1/courses/create-course", json={"name": name, "is_public": is_public, "is_content_public": is_content_public})
+        assert course.status_code == 201
+        course_id = course.json()["id"]
+        update = professor.put(f"/api/v1/courses/{course_id}", json={"name": "Новое имя курса"})
+        assert update.status_code == 204
+        course_info = professor.get(f"/api/v1/courses/{course_id}")
+        assert course_info.status_code == 200
+        assert course_info.json()["name"] == "Новое имя курса"
+        professor.get("/api/v1/auth/logout")
+        professor.cookies.clear()
 
     @staticmethod
-    def test_update_course_forbidden_for_student(api_client, _sync_sessionmaker):
-        prof = _create_professor(api_client, _sync_sessionmaker)
-        course = prof.post("/api/v1/courses/create-course", json={"name": "Prof Course", "is_public": True})
+    @pytest.mark.integration
+    @pytest.mark.parametrize("name, is_public, is_content_public", [
+        (f"Math_{uuid.uuid4().hex[:6]}", True, False),
+        (f"PE_{uuid.uuid4().hex[:6]}", True, False),
+        (f"ML_{uuid.uuid4().hex[:6]}", False, False),
+        (f"BD_{uuid.uuid4().hex[:6]}", True, True),
+        (f"Eng_{uuid.uuid4().hex[:6]}", False, False),
+    ])
+    def test_update_course_forbidden_for_student(api_client, _sync_sessionmaker, name, is_public, is_content_public):
+        professor = _create_professor(api_client, _sync_sessionmaker)
+        course = professor.post("/api/v1/courses/create-course", json={"name": name, "is_public": is_public, "is_content_public": is_content_public})
         assert course.status_code == 201
         course_id = course.json()["id"]
 
-        student_nick = f"student_{uuid.uuid4().hex[:6]}"
-        student_pass = "StrongPassword123!"
+        student_nickname = f"student_{uuid.uuid4().hex[:6]}"
+        student_password = "StrongPassword123!"
         api_client.post("/api/v1/auth/reg",
-                        json={"nickname": student_nick, "email": f"{student_nick}@t.com", "password": student_pass})
-        api_client.post("/api/v1/auth/login", json={"nickname": student_nick, "password": student_pass})
+                        json={"nickname": student_nickname, "email": f"{student_nickname}@t.com", "password": student_password})
+        api_client.post("/api/v1/auth/login", json={"nickname": student_nickname, "password": student_password})
 
         update = api_client.put(f"/api/v1/courses/{course_id}", json={"name": "Hack"})
         assert update.status_code == 403
@@ -113,26 +154,34 @@ class TestCourseUpdate:
 
 class TestCourseEnrollUnenroll:
     @staticmethod
-    def test_enroll_on_course(api_client, _sync_sessionmaker):
-        prof = _create_professor(api_client, _sync_sessionmaker)
-        create = prof.post("/api/v1/courses/create-course", json={"name": "Public Course", "is_public": True})
+    @pytest.mark.integration
+    @pytest.mark.parametrize("name, is_public", [
+        (f"Math_{uuid.uuid4().hex[:6]}", True),
+        (f"PE_{uuid.uuid4().hex[:6]}", True),
+        (f"ML_{uuid.uuid4().hex[:6]}", True),
+        (f"BD_{uuid.uuid4().hex[:6]}", True),
+        (f"Eng_{uuid.uuid4().hex[:6]}", True),
+    ])
+    def test_enroll_on_course(api_client, _sync_sessionmaker, name, is_public):
+        professor = _create_professor(api_client, _sync_sessionmaker)
+        create = professor.post("/api/v1/courses/create-course", json={"name": name, "is_public": is_public})
         assert create.status_code == 201
         course_id = create.json()["id"]
 
         api_client.get("/api/v1/auth/logout")
         api_client.cookies.clear()
 
-        student_nick = f"student_{uuid.uuid4().hex[:6]}"
-        student_pass = "StrongPassword123!"
+        student_nickname = f"student_{uuid.uuid4().hex[:6]}"
+        student_password = "StrongPassword123!"
         api_client.post("/api/v1/auth/reg",
-                        json={"nickname": student_nick, "email": f"{student_nick}@t.com", "password": student_pass})
-        api_client.post("/api/v1/auth/login", json={"nickname": student_nick, "password": student_pass})
+                        json={"nickname": student_nickname, "email": f"{student_nickname}@t.com", "password": student_password})
+        api_client.post("/api/v1/auth/login", json={"nickname": student_nickname, "password": student_password})
 
         get_course = api_client.get(f"/api/v1/courses/{course_id}")
-        assert get_course.status_code == 200, "Студент не видит публичный курс"
+        assert get_course.status_code == 200
 
         enroll = api_client.post(f"/api/v1/users/enroll?course_id={course_id}")
-        assert enroll.status_code == 204, f"Ожидался 204, получили {enroll.status_code}"
+        assert enroll.status_code == 204
 
         followed = api_client.get("/api/v1/courses/followed-courses")
         assert any(c["id"] == course_id for c in followed.json())
@@ -146,13 +195,20 @@ class TestCourseEnrollUnenroll:
         api_client.cookies.clear()
 
     @staticmethod
-    def test_enroll_on_private_course_forbidden(api_client, _sync_sessionmaker):
-        prof = _create_professor(api_client, _sync_sessionmaker)
-        unique_name = f"Private_{uuid.uuid4().hex[:6]}"
-        create = prof.post("/api/v1/courses/create-course", json={
-            "name": unique_name,
-            "is_public": False,
-            "is_content_public": False
+    @pytest.mark.integration
+    @pytest.mark.parametrize("name, is_public, is_content_public", [
+        (f"Math_{uuid.uuid4().hex[:6]}", False, False),
+        (f"PE_{uuid.uuid4().hex[:6]}", False, False),
+        (f"ML_{uuid.uuid4().hex[:6]}", False, False),
+        (f"BD_{uuid.uuid4().hex[:6]}", False, False),
+        (f"Eng_{uuid.uuid4().hex[:6]}", False, False),
+    ])
+    def test_enroll_on_private_course_forbidden(api_client, _sync_sessionmaker, name, is_public, is_content_public):
+        professor = _create_professor(api_client, _sync_sessionmaker)
+        create = professor.post("/api/v1/courses/create-course", json={
+            "name": name,
+            "is_public": is_public,
+            "is_content_public": is_content_public
         })
         assert create.status_code == 201
         course_id = create.json()["id"]
@@ -160,17 +216,17 @@ class TestCourseEnrollUnenroll:
         api_client.get("/api/v1/auth/logout")
         api_client.cookies.clear()
 
-        student_nick = f"student_{uuid.uuid4().hex[:6]}"
-        student_pass = "StrongPassword123!"
+        student_nickname = f"student_{uuid.uuid4().hex[:6]}"
+        student_password = "StrongPassword123!"
         api_client.post("/api/v1/auth/reg",
-                        json={"nickname": student_nick, "email": f"{student_nick}@t.com", "password": student_pass})
-        api_client.post("/api/v1/auth/login", json={"nickname": student_nick, "password": student_pass})
+                        json={"nickname": student_nickname, "email": f"{student_nickname}@t.com", "password": student_password})
+        api_client.post("/api/v1/auth/login", json={"nickname": student_nickname, "password": student_password})
 
         get_course = api_client.get(f"/api/v1/courses/{course_id}")
-        assert get_course.status_code == 403, "Студент не должен видеть приватный курс"
+        assert get_course.status_code == 403
 
         enroll = api_client.post(f"/api/v1/users/enroll?course_id={course_id}")
-        assert enroll.status_code == 403, "Студент не должен записываться на приватный курс"
+        assert enroll.status_code == 403
 
         api_client.get("/api/v1/auth/logout")
         api_client.cookies.clear()
@@ -178,21 +234,46 @@ class TestCourseEnrollUnenroll:
 
 class TestCourseDelete:
     @staticmethod
-    def test_delete_course_by_professor(professor_client):
-        pass
+    @pytest.mark.integration
+    @pytest.mark.parametrize("name, is_public, is_content_public", [
+        (f"Math_{uuid.uuid4().hex[:6]}", True, True),
+        (f"PE_{uuid.uuid4().hex[:6]}", True, False),
+        (f"ML_{uuid.uuid4().hex[:6]}", False, False),
+        (f"BD_{uuid.uuid4().hex[:6]}", False, False),
+        (f"Eng_{uuid.uuid4().hex[:6]}", True, True),
+    ])
+    def test_delete_course_by_professor(api_client, _sync_sessionmaker, name, is_public, is_content_public):
+        professor = _create_professor(api_client, _sync_sessionmaker)
+        course = professor.post("/api/v1/courses/create-course", json={"name": name, "is_public": is_public, "is_content_public": is_content_public})
+        assert course.status_code == 201
+        course_id = course.json()["id"]
+        delete = professor.delete(f"/api/v1/courses/{course_id}")
+        assert delete.status_code == 204
+        course_info = professor.get(f"/api/v1/courses/{course_id}")
+        assert course_info.status_code == 404
+        professor.get("/api/v1/auth/logout")
+        professor.cookies.clear()
 
     @staticmethod
-    def test_delete_course_by_student_forbidden(api_client, _sync_sessionmaker):
-        prof = _create_professor(api_client, _sync_sessionmaker)
-        course = prof.post("/api/v1/courses/create-course", json={"name": "Protected", "is_public": True})
+    @pytest.mark.integration
+    @pytest.mark.parametrize("name, is_public, is_content_public", [
+        (f"Math_{uuid.uuid4().hex[:6]}", True, True),
+        (f"PE_{uuid.uuid4().hex[:6]}", True, False),
+        (f"ML_{uuid.uuid4().hex[:6]}", False, False),
+        (f"BD_{uuid.uuid4().hex[:6]}", False, False),
+        (f"Eng_{uuid.uuid4().hex[:6]}", True, True),
+    ])
+    def test_delete_course_by_student_forbidden(api_client, _sync_sessionmaker, name, is_public, is_content_public):
+        professor = _create_professor(api_client, _sync_sessionmaker)
+        course = professor.post("/api/v1/courses/create-course", json={"name": name, "is_public": is_public, "is_content_public": is_content_public})
         assert course.status_code == 201
         course_id = course.json()["id"]
 
-        student_nick = f"student_{uuid.uuid4().hex[:6]}"
-        student_pass = "StrongPassword123!"
+        student_nickname = f"student_{uuid.uuid4().hex[:6]}"
+        student_password = "StrongPassword123!"
         api_client.post("/api/v1/auth/reg",
-                        json={"nickname": student_nick, "email": f"{student_nick}@t.com", "password": student_pass})
-        api_client.post("/api/v1/auth/login", json={"nickname": student_nick, "password": student_pass})
+                        json={"nickname": student_nickname, "email": f"{student_nickname}@t.com", "password": student_password})
+        api_client.post("/api/v1/auth/login", json={"nickname": student_nickname, "password": student_password})
 
         delete = api_client.delete(f"/api/v1/courses/{course_id}")
         assert delete.status_code == 403
