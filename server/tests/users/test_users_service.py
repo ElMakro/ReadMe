@@ -12,7 +12,7 @@ from server.app.api.v1.common_schemas import (
     NOT_EXISTING_LINK_ERROR_TEXT,
     UPDATED_LINK_ERROR_TEXT,
 )
-from server.app.api.v1.exceptions import BadRequestError, MediaTypeError
+from server.app.api.v1.exceptions import BadRequestError, ConflictError, MediaTypeError, OperationPermissionError
 from server.app.api.v1.notes.exceptions import CantChangeOwnRoleError, CantDeleteOwnProfileError
 from server.app.api.v1.users.exceptions import (
     NotExistingLinkError,
@@ -434,3 +434,154 @@ class TestVerifySecretLink:
 
         result = await users_service.verify_secret_link("wrong")
         assert result is False
+
+
+class TestEnroll:
+    async def test_student_enrolls_self_on_public_course(self, users_service, mock_courses_manager,
+                                                         mock_users_manager):
+        user = UserVerification(id=uuid.uuid4(), nickname="user", role=Role.STUDENT, session_id="s")
+        course_id = uuid.uuid4()
+        course = MagicMock(professor_id=uuid.uuid4(), is_public=True, is_content_public=False)
+        mock_courses_manager.get_course_by_id.return_value = course
+        mock_courses_manager.check_is_user_enrolled_on_course.return_value = False
+
+        await users_service.enroll(user, target_user_id=None, course_id=course_id)
+
+        mock_users_manager.enroll.assert_awaited_once_with(user.id, course_id)
+
+    async def test_student_cannot_enroll_another_user(self, users_service, mock_courses_manager):
+        user = UserVerification(id=uuid.uuid4(), nickname="user", role=Role.STUDENT, session_id="s")
+        other_id = uuid.uuid4()
+        course_id = uuid.uuid4()
+        course = MagicMock(professor_id=uuid.uuid4())
+        mock_courses_manager.get_course_by_id.return_value = course
+
+        with pytest.raises(OperationPermissionError):
+            await users_service.enroll(user, target_user_id=other_id, course_id=course_id)
+
+    async def test_professor_can_enroll_student_on_own_course(self, users_service, mock_courses_manager,
+                                                              mock_users_manager):
+        professor = UserVerification(id=uuid.uuid4(), nickname="user", role=Role.PROFESSOR, session_id="s")
+        student_id = uuid.uuid4()
+        course_id = uuid.uuid4()
+        course = MagicMock(professor_id=professor.id, is_public=False)
+        mock_courses_manager.get_course_by_id.return_value = course
+        mock_users_manager.get_user_by_id.return_value = MagicMock(id=student_id)
+        mock_courses_manager.check_is_user_enrolled_on_course.return_value = False
+
+        await users_service.enroll(professor, target_user_id=student_id, course_id=course_id)
+
+        mock_users_manager.enroll.assert_awaited_once_with(student_id, course_id)
+
+    async def test_professor_cannot_enroll_on_others_course(self, users_service, mock_courses_manager,
+                                                            mock_users_manager):
+        professor = UserVerification(id=uuid.uuid4(), nickname="user", role=Role.PROFESSOR, session_id="s")
+        student_id = uuid.uuid4()
+        course_id = uuid.uuid4()
+        course = MagicMock(professor_id=uuid.uuid4())  # not his course
+        mock_courses_manager.get_course_by_id.return_value = course
+        mock_users_manager.get_user_by_id.return_value = MagicMock(id=student_id)
+
+        with pytest.raises(OperationPermissionError):
+            await users_service.enroll(professor, target_user_id=student_id, course_id=course_id)
+
+    async def test_cannot_enroll_course_professor(self, users_service, mock_courses_manager):
+        user = UserVerification(id=uuid.uuid4(), nickname="user", role=Role.STUDENT, session_id="s")
+        course_id = uuid.uuid4()
+        course = MagicMock(professor_id=user.id)
+        mock_courses_manager.get_course_by_id.return_value = course
+
+        with pytest.raises(ConflictError):
+            await users_service.enroll(user, target_user_id=None, course_id=course_id)
+
+    async def test_cannot_enroll_if_already_enrolled(self, users_service, mock_courses_manager):
+        user = UserVerification(id=uuid.uuid4(), nickname="user", role=Role.STUDENT, session_id="s")
+        course_id = uuid.uuid4()
+        course = MagicMock(professor_id=uuid.uuid4())
+        mock_courses_manager.get_course_by_id.return_value = course
+        mock_courses_manager.check_is_user_enrolled_on_course.return_value = True
+
+        with pytest.raises(ConflictError):
+            await users_service.enroll(user, target_user_id=None, course_id=course_id)
+
+
+class TestUnenroll:
+    async def test_student_unenrolls_self(self, users_service, mock_courses_manager, mock_users_manager):
+        user = UserVerification(id=uuid.uuid4(), nickname="user", role=Role.STUDENT, session_id="s")
+        course_id = uuid.uuid4()
+        course = MagicMock(professor_id=uuid.uuid4())
+        mock_courses_manager.get_course_by_id.return_value = course
+        mock_courses_manager.check_is_user_enrolled_on_course.return_value = True
+
+        await users_service.unenroll(user, target_user_id=None, course_id=course_id)
+
+        mock_users_manager.unenroll.assert_awaited_once_with(user.id, course_id)
+
+    async def test_student_cannot_unenroll_another(self, users_service, mock_courses_manager):
+        user = UserVerification(id=uuid.uuid4(), nickname="user", role=Role.STUDENT, session_id="s")
+        other_id = uuid.uuid4()
+        course_id = uuid.uuid4()
+        course = MagicMock(professor_id=uuid.uuid4())
+        mock_courses_manager.get_course_by_id.return_value = course
+
+        with pytest.raises(OperationPermissionError):
+            await users_service.unenroll(user, target_user_id=other_id, course_id=course_id)
+
+    async def test_professor_can_unenroll_student_from_own_course(self, users_service, mock_courses_manager,
+                                                                  mock_users_manager):
+        professor = UserVerification(id=uuid.uuid4(), nickname="user", role=Role.PROFESSOR, session_id="s")
+        student_id = uuid.uuid4()
+        course_id = uuid.uuid4()
+        course = MagicMock(professor_id=professor.id)
+        mock_courses_manager.get_course_by_id.return_value = course
+        mock_users_manager.get_user_by_id.return_value = MagicMock(id=student_id)
+        mock_courses_manager.check_is_user_enrolled_on_course.return_value = True
+
+        await users_service.unenroll(professor, target_user_id=student_id, course_id=course_id)
+
+        mock_users_manager.unenroll.assert_awaited_once_with(student_id, course_id)
+
+    async def test_cannot_unenroll_course_professor(self, users_service, mock_courses_manager):
+        user = UserVerification(id=uuid.uuid4(), nickname="user", role=Role.STUDENT, session_id="s")
+        course_id = uuid.uuid4()
+        course = MagicMock(professor_id=user.id)
+        mock_courses_manager.get_course_by_id.return_value = course
+
+        with pytest.raises(ConflictError):
+            await users_service.unenroll(user, target_user_id=None, course_id=course_id)
+
+    async def test_cannot_unenroll_if_not_enrolled(self, users_service, mock_courses_manager):
+        user = UserVerification(id=uuid.uuid4(), nickname="user", role=Role.STUDENT, session_id="s")
+        course_id = uuid.uuid4()
+        course = MagicMock(professor_id=uuid.uuid4())
+        mock_courses_manager.get_course_by_id.return_value = course
+        mock_courses_manager.check_is_user_enrolled_on_course.return_value = False
+
+        with pytest.raises(ConflictError):
+            await users_service.unenroll(user, target_user_id=None, course_id=course_id)
+
+
+class TestGetEnrolledUsers:
+    async def test_returns_users_list_when_access_granted(self, users_service, mock_courses_manager,
+                                                          mock_users_manager):
+        user = UserVerification(id=uuid.uuid4(), nickname="user", role=Role.PROFESSOR, session_id="s")
+        course_id = uuid.uuid4()
+        course = MagicMock(professor_id=user.id, is_public=False)
+        mock_courses_manager.get_course_by_id.return_value = course
+        expected = MagicMock(spec=UsersList)
+        mock_users_manager.get_enrolled_users.return_value = expected
+
+        result = await users_service.get_enrolled_users(user, course_id)
+
+        assert result == expected
+        mock_users_manager.get_enrolled_users.assert_awaited_once_with(course_id)
+
+    async def test_raises_error_when_no_access(self, users_service, mock_courses_manager):
+        user = UserVerification(id=uuid.uuid4(), nickname="user", role=Role.STUDENT, session_id="s")
+        course_id = uuid.uuid4()
+        course = MagicMock(professor_id=uuid.uuid4(), is_public=False, is_content_public=False)
+        mock_courses_manager.get_course_by_id.return_value = course
+        mock_courses_manager.check_is_user_enrolled_on_course.return_value = False
+
+        with pytest.raises(OperationPermissionError):
+            await users_service.get_enrolled_users(user, course_id)
