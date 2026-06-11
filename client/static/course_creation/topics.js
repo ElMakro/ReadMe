@@ -6,6 +6,8 @@
     const addBtn = document.getElementById('addTopicBtn');
     const saveAllBtn = document.getElementById('saveAllBtn');
 
+    const ICONS_BASE_PATH = '/static/images/';
+
     let topics = [];
     let originalTopics = [];
 
@@ -74,6 +76,29 @@
         const div = document.createElement('div');
         div.textContent = str;
         return div.innerHTML;
+    }
+
+    // Функция для получения HTML с изображением SVG-иконки
+    function getBlockIcon(type) {
+        let fileName = '';
+        switch (type) {
+            case 'files':
+                fileName = 'File.svg';
+                break;
+            case 'latex':
+                fileName = 'LaTeX.svg';
+                break;
+            case 'markdown':
+                fileName = 'Markdown.svg';
+                break;
+            case 'plantuml':
+                fileName = 'UML.svg';
+                break;
+            default:
+                fileName = 'Markdown.svg'; // иконка по умолчанию
+        }
+        // Возвращаем <img> с классом для стилизации
+        return `<img src="${ICONS_BASE_PATH}${fileName}" class="block-icon-img" alt="${type} icon">`;
     }
 
     function truncateText(text, maxLength = 80) {
@@ -386,7 +411,7 @@
                     blockCard.innerHTML = `
                         <div class="d-flex justify-content-between align-items-start p-2">
                             <div class="flex-grow-1">
-                                <strong>${escapeHtml(typeLabel)}</strong>
+                                <span class="block-icon">${getBlockIcon(block.type)}</span> <strong>${escapeHtml(typeLabel)}</strong>
                                 <div class="small text-muted">${escapeHtml(preview)}</div>
                             </div>
                             <span class="text-secondary edit-block-trigger" data-idx="${idx}" style="cursor: pointer;">✎ редактировать</span>
@@ -407,9 +432,9 @@
 
                         blockCard.innerHTML = `
                             <div class="p-2">
-                                <div class="mb-3">
-                                    <label class="form-label">Тип блока</label>
-                                    <select class="form-select block-type-edit" data-idx="${idx}">
+                                <div class="mb-3 d-flex align-items-center gap-2">
+                                    <span class="block-icon">${getBlockIcon('files')}</span>
+                                    <select class="form-select block-type-edit flex-grow-1" data-idx="${idx}">
                                         <option value="markdown">Markdown</option>
                                         <option value="plantuml">UML</option>
                                         <option value="latex">LaTeX</option>
@@ -445,8 +470,11 @@
                         const saveBtn = blockCard.querySelector('.save-block-edit');
                         const addFileBtn = blockCard.querySelector('.add-file-btn');
 
+                        // Обновление иконки при смене типа
                         typeSelect.addEventListener('change', async (e) => {
                             const newType = e.target.value;
+                            const iconSpan = blockCard.querySelector('.block-icon');
+                            if (iconSpan) iconSpan.innerHTML = getBlockIcon(newType);
                             if (newType !== 'files') {
                                 block.type = newType;
                                 block.content = [''];
@@ -530,9 +558,9 @@
                         else currentRaw = block.content || '';
                         blockCard.innerHTML = `
                             <div class="p-2">
-                                <div class="mb-3">
-                                    <label class="form-label">Тип блока</label>
-                                    <select class="form-select block-type-edit" data-idx="${idx}">
+                                <div class="mb-3 d-flex align-items-center gap-2">
+                                    <span class="block-icon" id="type-icon-${idx}">${getBlockIcon(block.type)}</span>
+                                    <select class="form-select block-type-edit flex-grow-1" data-idx="${idx}">
                                         <option value="markdown" ${block.type === 'markdown' ? 'selected' : ''}>Markdown</option>
                                         <option value="plantuml" ${block.type === 'plantuml' ? 'selected' : ''}>UML</option>
                                         <option value="latex" ${block.type === 'latex' ? 'selected' : ''}>LaTeX</option>
@@ -565,8 +593,11 @@
                             setTimeout(() => autosize(contentTextarea, 800), 20);
                         }
 
+                        // Обновление иконки при смене типа
                         typeSelect.addEventListener('change', async (e) => {
                             const newType = e.target.value;
+                            const iconSpan = blockCard.querySelector(`#type-icon-${idx}`);
+                            if (iconSpan) iconSpan.innerHTML = getBlockIcon(newType);
                             if (newType === 'files') {
                                 block.type = newType;
                                 block.content = [];
