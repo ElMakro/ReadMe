@@ -233,25 +233,20 @@ class UsersManager:
     async def reg_professor_application(self, id: uuid.UUID, name: str, surname: str, patronymic: str | None) \
             -> ApplicationById:
         async with self.db.db_session() as session:
-            conflict_exists = (
-                select(1)
-                .where(
-                    or_(
-                        self.professors_model.id == id,
-                        and_(
-                            self.professors_applications_model.user_id == id,
-                            self.professors_applications_model.status == ApplicationStatus.PENDING.name
-                        )
-                    )
+            conflict_exists = or_(
+                exists().where(self.professors_model.id == id),
+                exists().where(
+                    self.professors_applications_model.user_id == id,
+                    self.professors_applications_model.status == ApplicationStatus.PENDING
                 )
-                .exists()
             )
             query = insert(
                 self.professors_applications_model
             ).from_select(
-                ['name', 'surname', 'patronymic', 'user_id'],
+                ['name', 'surname', 'patronymic', 'user_id', 'status'],
                 select(
-                    literal(name), literal(surname), literal(patronymic), literal(id)
+                    literal(name), literal(surname), literal(patronymic), literal(id),
+                    literal(ApplicationStatus.PENDING, self.professors_applications_model.status.type)
                 ).where(~conflict_exists)
             ).returning(
                 self.professors_applications_model.id
