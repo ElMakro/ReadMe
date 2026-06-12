@@ -4,11 +4,12 @@ import pytest
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
-from server.app.api.v1.users.exceptions import UserMustBeInProfessorsTableError, UserNotFoundError
+from server.app.api.v1.users.exceptions import NotUniqueFieldsError, UserMustBeInProfessorsTableError, UserNotFoundError
 from server.app.api.v1.users.users import (
     UserInfo,
     UserProfile,
     UsersList,
+    UserUpdatedInfo,
     UserVerification,
 )
 from server.database.models import Users
@@ -155,3 +156,29 @@ class TestDeleteUser:
     async def test_raises_error_when_user_not_found(self, users_manager):
         with pytest.raises(UserNotFoundError):
             await users_manager.delete_user(uuid.uuid4())
+
+
+class TestUpdateUserProfile:
+    async def test_updates_nickname_and_email(self, users_manager, student_factory):
+        student = await student_factory(nickname="old_nick", email="old@example.com")
+        updated_info = UserUpdatedInfo(nickname="new_nick", email="new@example.com")
+        profile = await users_manager.update_user_profile(student.id, updated_info)
+        assert profile.nickname == "new_nick"
+        assert profile.email == "new@example.com"
+        async with users_manager.db.db_session() as session:
+            result = await session.execute(select(Users).where(Users.id == student.id))
+            user = result.scalar_one()
+            assert user.nickname == "new_nick"
+            assert user.email == "new@example.com"
+
+    async def test_raises_not_unique_error_on_duplicate_nickname(self, users_manager, student_factory):
+        await student_factory(nickname="unique1")
+        student2 = await student_factory(nickname="unique2")
+        updated_info = UserUpdatedInfo(nickname="unique1", email="email@example.com")
+        with pytest.raises(NotUniqueFieldsError):
+            await users_manager.update_user_profile(student2.id, updated_info)
+
+    async def test_raises_not_found_error_when_user_missing(self, users_manager):
+        updated_info = UserUpdatedInfo(nickname="user", email="x@x.com")
+        with pytest.raises(UserNotFoundError):
+            await users_manager.update_user_profile(uuid.uuid4(), updated_info)
