@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import (
 
 from server.app.api.v1.auth.auth_manager import AuthManager
 from server.app.api.v1.courses.courses_manager import CoursesManager
+from server.app.api.v1.notes.notes_manager import NotesManager
 from server.app.api.v1.sections.sections_manager import SectionsManager
 from server.app.api.v1.topics.topics import TopicContent, TopicContentBlock
 from server.app.api.v1.topics.topics_manager import TopicsManager
@@ -372,6 +373,11 @@ async def redis_client(redis_dependency) -> AsyncGenerator[Redis]:
 @pytest.fixture(scope="function")
 def courses_manager(db_dependency):
     return CoursesManager(db=db_dependency)
+
+
+@pytest.fixture(scope="function")
+def notes_manager(db_dependency):
+    return NotesManager(db=db_dependency)
 
 
 @pytest.fixture(scope="function")
