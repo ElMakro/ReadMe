@@ -7,8 +7,6 @@ services:
             - "443:443"
         volumes:
             - ./nginx/conf.d:/etc/nginx/conf.d:ro
-            - readme-letsencrypt:/etc/letsencrypt:ro
-            - readme-certbot-webroot:/var/www/certbot:ro
         networks:
             - readme-network
         depends_on:
@@ -302,5 +300,3 @@ volumes:
     readme-backups:
     readme-courses-resources:
     readme-users-resources:
-    readme-letsencrypt:
-    readme-certbot-webroot:
