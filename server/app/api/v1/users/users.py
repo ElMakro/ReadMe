@@ -4,6 +4,7 @@ from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, RootModel, StringConstraints
 
+from server.config.constants import MAX_USER_NAME_LENGTH, MIN_USER_NAME_LENGTH
 from server.enums.application_status import ApplicationStatus
 from server.enums.role import Role
 from server.enums.updated_link_type import LinkType
@@ -47,8 +48,8 @@ class UserByNickname(
     )
 
     nickname: Annotated[str, StringConstraints(
-        min_length=4,
-        max_length=32,
+        min_length=MIN_USER_NAME_LENGTH,
+        max_length=MAX_USER_NAME_LENGTH,
         to_lower=True,
         pattern=r'^[A-Za-z0-9_\-\.!@#$%^&*()+=?<>]+$',
     )] = Field(
