@@ -61,7 +61,9 @@ class UsersManager:
                 self.users_model.id == user_id,
             )
             result = await session.execute(query)
-            user = result.mappings().one()
+            user = result.mappings().one_or_none()
+            if user is None:
+                raise UserNotFoundError(NOT_FOUND_ERROR_TEXT)
             return UserProfile.model_validate(user)
 
     async def get_user_by_nickname(
