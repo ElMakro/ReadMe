@@ -13,13 +13,14 @@ from server.app.api.v1.users.exceptions import (
 )
 from server.app.api.v1.users.users import (
     ApplicationById,
+    SecretApplicationLink,
     UserInfo,
     UserProfile,
     UsersList,
     UserUpdatedInfo,
     UserVerification,
 )
-from server.database.models import ProfessorsApplications, Users
+from server.database.models import ApplicationLink, ProfessorsApplications, Users
 from server.enums.application_status import ApplicationStatus
 from server.enums.role import Role
 
@@ -301,3 +302,38 @@ class TestGetUserApplications:
         result2 = await users_manager.get_user_applications(student.id, 2, 2)
         assert len(result1.root) == 2
         assert len(result2.root) == 2
+
+
+class TestGetSecretApplicationLink:
+    async def test_returns_none_when_no_link(self, users_manager):
+        async with users_manager.db.db_session() as session:
+            await session.execute(delete(ApplicationLink))
+            await session.commit()
+        link = await users_manager.get_secret_application_link()
+        assert link is None
+
+    async def test_returns_link_when_exists(self, users_manager):
+        await users_manager.set_secret_application_link("test_secret")
+        retrieved = await users_manager.get_secret_application_link()
+        assert isinstance(retrieved, SecretApplicationLink)
+        assert retrieved.secret_part == "test_secret"
+
+
+class TestSetSecretApplicationLink:
+    async def test_creates_new_link_when_none(self, users_manager):
+        async with users_manager.db.db_session() as session:
+            await session.execute(delete(ApplicationLink))
+            await session.commit()
+        result = await users_manager.set_secret_application_link("new_link_value")
+        assert isinstance(result, SecretApplicationLink)
+        assert result.secret_part == "new_link_value"
+
+    async def test_updates_existing_link(self, users_manager):
+        await users_manager.set_secret_application_link("first")
+        updated = await users_manager.set_secret_application_link("second")
+        assert updated.secret_part == "second"
+        async with users_manager.db.db_session() as session:
+            result = await session.execute(select(ApplicationLink))
+            links = result.scalars().all()
+            assert len(links) == 1
+            assert links[0].secret_part == "second"
