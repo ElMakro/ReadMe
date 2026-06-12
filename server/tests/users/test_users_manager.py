@@ -1,7 +1,8 @@
 import uuid
 
 import pytest
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from server.app.api.v1.users.exceptions import (
@@ -20,7 +21,7 @@ from server.app.api.v1.users.users import (
     UserUpdatedInfo,
     UserVerification,
 )
-from server.database.models import ApplicationLink, ProfessorsApplications, Users
+from server.database.models import ApplicationLink, CoursesForStudents, ProfessorsApplications, Users
 from server.enums.application_status import ApplicationStatus
 from server.enums.role import Role
 
@@ -337,3 +338,120 @@ class TestSetSecretApplicationLink:
             links = result.scalars().all()
             assert len(links) == 1
             assert links[0].secret_part == "second"
+
+
+class TestEnroll:
+    async def test_enroll_success(self, users_manager, student_factory, course_factory, db_engine):
+        student = await student_factory()
+        course = await course_factory()
+
+        await users_manager.enroll(student.id, course.id)
+
+        async with db_engine.connect() as conn:
+            result = await conn.execute(
+                select(CoursesForStudents).where(
+                    CoursesForStudents.student_id == student.id,
+                    CoursesForStudents.course_id == course.id
+                )
+            )
+            assert result.scalar_one_or_none() is not None
+
+    async def test_enroll_duplicate_raises_integrity_error(self, users_manager, student_factory,
+                                                           course_factory):
+        student = await student_factory()
+        course = await course_factory()
+
+        await users_manager.enroll(student.id, course.id)
+        with pytest.raises(IntegrityError):
+            await users_manager.enroll(student.id, course.id)
+
+
+class TestUnenroll:
+    async def test_unenroll_success(self, users_manager, student_factory, course_factory,
+                                    enrollment_factory, db_engine):
+        student = await student_factory()
+        course = await course_factory()
+        await enrollment_factory(student_id=student.id, course_id=course.id)
+
+        await users_manager.unenroll(student.id, course.id)
+
+        async with db_engine.connect() as conn:
+            result = await conn.execute(
+                select(CoursesForStudents).where(
+                    CoursesForStudents.student_id == student.id,
+                    CoursesForStudents.course_id == course.id
+                )
+            )
+            assert result.scalar_one_or_none() is None
+
+    async def test_unenroll_nonexistent_does_nothing(self, users_manager, student_factory,
+                                                     course_factory, db_engine):
+        student = await student_factory()
+        course = await course_factory()
+
+        async with db_engine.connect() as conn:
+            count_before = await conn.scalar(select(func.count()).select_from(CoursesForStudents))
+
+        await users_manager.unenroll(student.id, course.id)
+
+        async with db_engine.connect() as conn:
+            count_after = await conn.scalar(select(func.count()).select_from(CoursesForStudents))
+        assert count_before == count_after
+
+    async def test_unenroll_removes_only_specific_enrollment(self, users_manager, student_factory,
+                                                             course_factory, enrollment_factory, db_engine):
+        student1 = await student_factory()
+        student2 = await student_factory()
+        course = await course_factory()
+        await enrollment_factory(student_id=student1.id, course_id=course.id)
+        await enrollment_factory(student_id=student2.id, course_id=course.id)
+
+        await users_manager.unenroll(student1.id, course.id)
+
+        async with db_engine.connect() as conn:
+            res1 = await conn.execute(
+                select(CoursesForStudents).where(
+                    CoursesForStudents.student_id == student1.id,
+                    CoursesForStudents.course_id == course.id
+                )
+            )
+            assert res1.scalar_one_or_none() is None
+            res2 = await conn.execute(
+                select(CoursesForStudents).where(
+                    CoursesForStudents.student_id == student2.id,
+                    CoursesForStudents.course_id == course.id
+                )
+            )
+            assert res2.scalar_one_or_none() is not None
+
+
+class TestGetEnrolledUsers:
+    async def test_get_enrolled_users_empty(self, users_manager, course_factory):
+        course = await course_factory()
+        result = await users_manager.get_enrolled_users(course.id)
+        assert result.root == []
+
+    async def test_get_enrolled_users_returns_students(self, users_manager, student_factory,
+                                                       course_factory, enrollment_factory):
+        student1 = await student_factory()
+        student2 = await student_factory()
+        course = await course_factory()
+        await enrollment_factory(student_id=student1.id, course_id=course.id)
+        await enrollment_factory(student_id=student2.id, course_id=course.id)
+
+        result = await users_manager.get_enrolled_users(course.id)
+
+        assert len(result.root) == 2
+        student_ids = {s.id for s in result.root}
+        assert student1.id in student_ids
+        assert student2.id in student_ids
+
+    async def test_get_enrolled_users_does_not_include_other_course(self, users_manager, student_factory,
+                                                                    course_factory, enrollment_factory):
+        student = await student_factory()
+        course1 = await course_factory()
+        course2 = await course_factory()
+        await enrollment_factory(student_id=student.id, course_id=course1.id)
+
+        result = await users_manager.get_enrolled_users(course2.id)
+        assert result.root == []
