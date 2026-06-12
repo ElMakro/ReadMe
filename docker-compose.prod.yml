@@ -116,7 +116,7 @@ services:
                 max-file: 3
 
     database-manager:
-        image: readmeivtyarsu/readme-database-manager:1.0.3
+        image: readmeivtyarsu/readme-database-manager:latest
         container_name: readme-database-manager
         environment:
             - DB_NAME=${DB_NAME}
@@ -171,7 +171,7 @@ services:
                 max-file: 3
 
     auto-migrations:
-        image: readmeivtyarsu/readme-database-manager:1.0.3
+        image: readmeivtyarsu/readme-database-manager:latest
         container_name: readme-auto-migrations
         environment:
             - DB_NAME=${DB_NAME}
@@ -215,7 +215,7 @@ services:
                 max-file: 3
 
     client:
-        image: readmeivtyarsu/readme-client:1.0.3
+        image: readmeivtyarsu/readme-client:latest
         container_name: readme-client
         environment:
             - CLIENT_HOST=${CLIENT_HOST}
@@ -240,7 +240,7 @@ services:
                 max-file: 3
 
     server:
-        image: readmeivtyarsu/readme-server:1.0.3
+        image: readmeivtyarsu/readme-server:latest
         container_name: readme-server
         environment:
             - DB_NAME=${DB_NAME}
