@@ -187,6 +187,12 @@
 
             if (currentFilterMode === 'enrolled') {
                 const response = await fetch(`${window.API_BASE_URL}courses/followed-courses?page=${page}&records_per_page=${currentLimit}`, { credentials: 'include' });
+                // FIX: обработка 401/403
+                if (response.status === 401 || response.status === 403) {
+                    window.showAccessDenied(coursesGrid, 'Вы не авторизованы или доступ запрещён.', true, pagination);
+                    isLoading = false;
+                    return;
+                }
                 if (!response.ok) throw new Error('Ошибка загрузки записанных курсов');
                 courses = await response.json();
                 courses = courses.map(c => ({ ...c, state: 'enrolled' }));
@@ -195,6 +201,12 @@
             }
             else if (currentFilterMode === 'controlled') {
                 const response = await fetch(`${window.API_BASE_URL}courses/controlled-courses?page=${page}&records_per_page=${currentLimit}`, { credentials: 'include' });
+                // FIX: обработка 401/403
+                if (response.status === 401 || response.status === 403) {
+                    window.showAccessDenied(coursesGrid, 'Вы не авторизованы или доступ запрещён.', true, pagination);
+                    isLoading = false;
+                    return;
+                }
                 if (!response.ok) throw new Error('Ошибка загрузки преподаваемых курсов');
                 courses = await response.json();
                 hasNext = courses.length === currentLimit;
@@ -214,7 +226,7 @@
                 const response = await fetch(url, { credentials: 'include' });
                 if (!response.ok) {
                     if (response.status === 401 || response.status === 403) {
-                        if (window.showAccessDenied) window.showAccessDenied(coursesGrid, 'Для просмотра курсов необходимо войти.', true, pagination);
+                        window.showAccessDenied(coursesGrid, 'Для просмотра курсов необходимо войти.', true, pagination);
                         isLoading = false;
                         return;
                     }

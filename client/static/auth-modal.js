@@ -13,6 +13,31 @@
         return defaultMsg;
     }
 
+    function validateNickname(nickname) {
+        if (!nickname || nickname.length < 4) return 'Никнейм должен содержать не менее 4 символов.';
+        if (nickname.length > 32) return 'Никнейм не может быть длиннее 32 символов.';
+        const nicknameRegex = /^[A-Za-z0-9_\-\.!@#$%^&*()+=?<>]+$/;
+        if (!nicknameRegex.test(nickname)) {
+            return 'Никнейм может содержать только латинские буквы, цифры и символы: _ - . ! @ # $ % ^ & * ( ) + = ? < >';
+        }
+        return null;
+    }
+
+    function validateEmail(email) {
+        if (!email) return 'Email обязателен.';
+        // Стандартная проверка email (RFC 5322 упрощённая)
+        const emailRegex = /^[^\s@]+@([^\s@]+\.)+[^\s@]+$/;
+        if (!emailRegex.test(email)) return 'Введите корректный email (например, user@example.com).';
+        return null;
+    }
+
+    function validatePassword(password, isRegistration = true) {
+        if (!password) return 'Пароль обязателен.';
+        if (password.length < 8) return 'Пароль должен быть не менее 8 символов.';
+        if (isRegistration && password.length > 64) return 'Пароль не может быть длиннее 64 символов.';
+        return null;
+    }
+
     const template = `
     <div class="modal-overlay" id="${PREFIX}overlay">
       <div class="modal-container">
@@ -126,6 +151,7 @@
     }
 
     closeBtn.addEventListener('click', closeModal);
+
     function switchToLogin() {
         loginFields.style.display = 'block';
         regFields.style.display = 'none';
@@ -209,12 +235,11 @@
                 const nickname = loginNickname.value.trim();
                 const password = loginPassword.value;
 
-                if (!nickname || !password) {
-                    throw new Error('Заполните никнейм и пароль');
-                }
-                if (password.length < 8) {
-                    throw new Error('Длина пароля должна быть не менее 8 символов');
-                }
+                // Валидация
+                const nicknameErr = validateNickname(nickname);
+                if (nicknameErr) throw new Error(nicknameErr);
+                const passwordErr = validatePassword(password, false);
+                if (passwordErr) throw new Error(passwordErr);
 
                 const loginResponse = await fetch(`${window.API_BASE_URL}auth/login`, {
                     method: 'POST',
@@ -225,7 +250,10 @@
 
                 if (!loginResponse.ok) {
                     let errorData = null;
-                    try { errorData = await loginResponse.json(); } catch(e) {}
+                    try {
+                        errorData = await loginResponse.json();
+                    } catch (e) {
+                    }
                     let errorMessage;
                     switch (loginResponse.status) {
                         case 401:
@@ -260,20 +288,14 @@
                 const password = regPassword.value;
                 const confirm = regConfirm.value;
 
-                if (!nickname || !email || !password) {
-                    throw new Error('Заполните все обязательные поля');
-                }
-                // простая проверка email
-                const emailRegex = /^[^\s@]+@([^\s@]+\.)+[^\s@]+$/;
-                if (!emailRegex.test(email)) {
-                    throw new Error('Введите корректный email');
-                }
-                if (password !== confirm) {
-                    throw new Error('Пароли не совпадают');
-                }
-                if (password.length < 8) {
-                    throw new Error('Длина пароля должна быть не менее 8 символов');
-                }
+                // Валидация
+                const nicknameErr = validateNickname(nickname);
+                if (nicknameErr) throw new Error(nicknameErr);
+                const emailErr = validateEmail(email);
+                if (emailErr) throw new Error(emailErr);
+                const passwordErr = validatePassword(password, true);
+                if (passwordErr) throw new Error(passwordErr);
+                if (password !== confirm) throw new Error('Пароли не совпадают.');
 
                 const regResponse = await fetch(`${window.API_BASE_URL}auth/reg`, {
                     method: 'POST',
@@ -284,19 +306,14 @@
 
                 if (!regResponse.ok) {
                     let errorData = null;
-                    try { errorData = await regResponse.json(); } catch(e) {}
+                    try {
+                        errorData = await regResponse.json();
+                    } catch (e) {
+                    }
                     let errorMessage;
                     switch (regResponse.status) {
                         case 400:
-                            errorMessage = getErrorMessage(errorData, 'Некорректные данные. Проверьте никнейм (4–32 символа), email и пароль (минимум 8 символов).');
-                            // Уточнения
-                            if (errorMessage.toLowerCase().includes('nickname')) {
-                                errorMessage = 'Никнейм должен быть длиной 4–32 символа и содержать только латиницу, цифры и разрешённые спецсимволы.';
-                            } else if (errorMessage.toLowerCase().includes('email')) {
-                                errorMessage = 'Введите корректный email (например, user@example.com).';
-                            } else if (errorMessage.toLowerCase().includes('password')) {
-                                errorMessage = 'Пароль должен быть не менее 8 символов.';
-                            }
+                            errorMessage = getErrorMessage(errorData, 'Некорректные данные. Проверьте поля.');
                             break;
                         case 409:
                             errorMessage = 'Пользователь с таким никнеймом или email уже существует.';
@@ -306,11 +323,6 @@
                             break;
                         case 500:
                             errorMessage = 'Ошибка на сервере. Попробуйте позже.';
-                            break;
-                        case 502:
-                        case 503:
-                        case 504:
-                            errorMessage = 'Сервер временно недоступен. Повторите попытку.';
                             break;
                         default:
                             errorMessage = getErrorMessage(errorData, `Ошибка регистрации (${regResponse.status})`);
@@ -332,15 +344,13 @@
                 const userProfile = await fetchProfile();
                 window.AppState.currentUser = userProfile;
                 window.dispatchEvent(new CustomEvent('auth-changed', {detail: {user: userProfile}}));
-
-                savePasswordWithAPI(nickname, password);
+                await savePasswordWithAPI(nickname, password);
                 closeModal();
                 location.reload();
             }
         } catch (error) {
             console.error('Ошибка:', error);
             let userMessage = error.message;
-            // Обработка сетевых ошибок
             if (error.name === 'TypeError' && (error.message.includes('fetch') || error.message.includes('network'))) {
                 userMessage = 'Нет соединения с сервером. Проверьте интернет.';
             } else if (error.name === 'AbortError') {

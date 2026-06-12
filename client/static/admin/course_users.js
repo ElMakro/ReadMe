@@ -16,7 +16,6 @@
     const enrolledNext = document.getElementById('enrolledNextBtn');
     const enrolledPageInfo = document.getElementById('enrolledPageInfo');
 
-    // Колонки и контейнер для ошибки
     const leftColumn = document.getElementById('notEnrolledColumn');
     const rightColumn = document.getElementById('enrolledColumn');
     const errorContainer = document.getElementById('errorMessageContainer');
@@ -44,7 +43,6 @@
         return div.innerHTML;
     }
 
-    // Отключает все кнопки управления на странице
     function disableAllControls() {
         if (enrollSelectedBtn) enrollSelectedBtn.disabled = true;
         if (unenrollSelectedBtn) unenrollSelectedBtn.disabled = true;
@@ -54,20 +52,15 @@
         if (enrolledNext) enrolledNext.disabled = true;
     }
 
-    // Показывает сообщение об ошибке ВМЕСТО колонок, используя глобальную функцию showAccessDenied
     function showAccessDeniedForCourseUsers(message, showLoginLink = true) {
-        // Скрываем колонки со списками
         if (leftColumn) leftColumn.style.display = 'none';
         if (rightColumn) rightColumn.style.display = 'none';
 
-        // Показываем контейнер для ошибки и заполняем его
         if (errorContainer) {
             errorContainer.style.display = 'block';
-            // Вызываем универсальную функцию из access-denied.js
             if (typeof window.showAccessDenied === 'function') {
                 window.showAccessDenied(errorContainer, message, showLoginLink, true);
             } else {
-                // fallback, если функция не загрузилась
                 errorContainer.innerHTML = `
                     <div class="text-center py-5">
                         <p class="text-danger">${escapeHtml(message)}</p>
@@ -94,7 +87,6 @@
         window.showToast(message, 'danger');
     }
 
-    // Проверка роли пользователя
     async function checkUserRole() {
         try {
             const resp = await fetch(`${window.API_BASE_URL}users/profile`, {credentials: 'include'});
@@ -118,7 +110,6 @@
         }
     }
 
-    // Загрузка информации о курсе
     async function loadCourseInfo() {
         try {
             const resp = await fetch(`${window.API_BASE_URL}courses/${courseId}`, {credentials: 'include'});
@@ -145,7 +136,6 @@
         }
     }
 
-    // Загрузка всех пользователей
     async function loadAllUsers() {
         try {
             const resp = await fetch(`${window.API_BASE_URL}users/all?page=1&records_per_page=30`, {credentials: 'include'});
@@ -167,7 +157,6 @@
         }
     }
 
-    // Загрузка записанных пользователей
     async function loadEnrolledUsers() {
         try {
             const resp = await fetch(`${window.API_BASE_URL}users/enrolled-users/${courseId}`, {credentials: 'include'});
@@ -190,10 +179,6 @@
         }
     }
 
-    // ... остальные функции (computeNotEnrolled, renderNotEnrolledList, renderEnrolledList,
-    // updatePagination, goPrev/Next, performAction, performBulk, loadDataAndRender, bindEvents, init)
-    // остаются без изменений (кроме того, что в performBulk тоже нужно вызывать showAccessDeniedForCourseUsers при 401/403)
-    // Ниже они приведены полностью для удобства копирования.
     function computeNotEnrolled() {
         const enrolledIds = new Set(enrolledUsers.map(u => u.id));
         notEnrolledUsers = allUsers.filter(user => !enrolledIds.has(user.id));
@@ -366,6 +351,17 @@
             window.showToast('Выберите хотя бы одного пользователя', 'warning');
             return;
         }
+
+        // FIX: индикатор загрузки
+        const originalText = action === 'enroll' ? enrollSelectedBtn?.innerHTML : unenrollSelectedBtn?.innerHTML;
+        if (action === 'enroll' && enrollSelectedBtn) {
+            enrollSelectedBtn.disabled = true;
+            enrollSelectedBtn.innerHTML = 'Запись...';
+        } else if (action === 'unenroll' && unenrollSelectedBtn) {
+            unenrollSelectedBtn.disabled = true;
+            unenrollSelectedBtn.innerHTML = 'Отписка...';
+        }
+
         const isEnroll = action === 'enroll';
         let successCount = 0;
         for (const userId of userIds) {
@@ -386,6 +382,15 @@
         }
         window.showToast(`Выполнено: ${successCount} из ${userIds.length}`, successCount === userIds.length ? 'success' : 'warning');
         if (successCount > 0) await loadDataAndRender();
+
+        // Восстанавливаем кнопки
+        if (action === 'enroll' && enrollSelectedBtn) {
+            enrollSelectedBtn.disabled = false;
+            enrollSelectedBtn.innerHTML = originalText;
+        } else if (action === 'unenroll' && unenrollSelectedBtn) {
+            unenrollSelectedBtn.disabled = false;
+            unenrollSelectedBtn.innerHTML = originalText;
+        }
     }
 
     async function loadDataAndRender() {
@@ -393,7 +398,6 @@
         isLoading = true;
         try {
             await Promise.all([loadAllUsers(), loadEnrolledUsers()]);
-            // Если дошли сюда, значит ошибок не было — показываем колонки и скрываем контейнер ошибки
             if (leftColumn) leftColumn.style.display = '';
             if (rightColumn) rightColumn.style.display = '';
             if (errorContainer) errorContainer.style.display = 'none';

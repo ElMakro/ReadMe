@@ -1,6 +1,5 @@
 // static/course_creation/tag_manager.js
 (function() {
-    // Вспомогательная функция для экранирования HTML
     function escapeHtml(str) {
         if (!str) return '';
         const div = document.createElement('div');
@@ -10,8 +9,8 @@
 
     class TagManager {
         constructor(container, tagsArray, options = {}) {
-            this.container = container;        // DOM-элемент, куда будет помещён UI
-            this.tags = tagsArray;              // ссылка на массив тегов (будет изменяться)
+            this.container = container;
+            this.tags = tagsArray;
             this.deleteMode = false;
             this.inputField = null;
             this.deleteModeBtn = null;
@@ -21,7 +20,6 @@
         }
 
         render() {
-            // Очищаем контейнер и создаём структуру
             this.container.innerHTML = `
                 <div class="d-flex gap-2 mb-2">
                     <input type="text" class="form-control form-control-sm tag-input" placeholder="Название тега + Enter" style="width: auto; flex-grow: 1;">
@@ -34,7 +32,6 @@
             this.deleteModeBtn = this.container.querySelector('.delete-mode-tag-btn');
             this.tagsContainer = this.container.querySelector('.tag-chips-container');
 
-            // Обработчики событий
             this.inputField.addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') {
                     e.preventDefault();
@@ -54,6 +51,20 @@
         addTag() {
             let newTag = this.inputField.value.trim();
             if (newTag === '') return;
+
+            // FIX: ограничение длины тега
+            if (newTag.length > 30) {
+                window.showToast('Тег не может быть длиннее 30 символов', 'warning');
+                return;
+            }
+
+            // FIX: проверка на уникальность (регистронезависимо)
+            const lowerNewTag = newTag.toLowerCase();
+            if (this.tags.some(tag => tag.toLowerCase() === lowerNewTag)) {
+                window.showToast('Такой тег уже существует', 'warning');
+                return;
+            }
+
             this.tags.push(newTag);
             this.inputField.value = '';
             this.renderTags();
@@ -85,7 +96,6 @@
             }
         }
 
-        // Если нужно принудительно обновить теги извне
         setTags(newTags) {
             this.tags.length = 0;
             this.tags.push(...newTags);
@@ -93,7 +103,6 @@
         }
     }
 
-    // Глобальная функция для удобного создания менеджера тегов
     window.initTagManager = (container, tagsArray) => {
         return new TagManager(container, tagsArray);
     };

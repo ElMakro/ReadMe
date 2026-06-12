@@ -147,3 +147,10 @@ async def admin_course_users_page(request: Request, course_id: str):
         "course_id": course_id,
         "api_base_url": BACKEND_URL
     })
+
+@client_app.get("/policy")
+async def policy_page(request: Request):
+    return templates.TemplateResponse(request, "policy.html", {
+        "request": request,
+        "api_base_url": BACKEND_URL
+    })
