@@ -52,10 +52,18 @@
                     const followedCourses = Array.isArray(followedData) ? followedData : (followedData.courses || []);
                     const isEnrolled = followedCourses.some(c => c.id === window.COURSE_ID);
                     if (isEnrolled) return 'enrolled';
-                } else if (followedResp.status === 401) {
-                    // Не авторизован – обработаем позже
-                } else if (followedResp.status === 403) {
-                    // Недостаточно прав
+                }
+
+                const profileResp = await fetch(`${window.API_BASE_URL}users/profile`, { credentials: 'include' });
+                if (profileResp.ok) {
+                    const profile = await profileResp.json();
+                    const courseResp = await fetch(`${window.API_BASE_URL}courses/${window.COURSE_ID}`, { credentials: 'include' });
+                    if (courseResp.ok) {
+                        const course = await courseResp.json();
+                        if (course.professor_id === profile.id) {
+                            return 'controlled';
+                        }
+                    }
                 }
 
                 const controlledResp = await fetch(`${window.API_BASE_URL}courses/controlled-courses`, {
@@ -77,6 +85,7 @@
             if (!enrollBtn) return;
             const state = await fetchCourseState();
             currentEnrollmentState = state;
+            console.log(`[Enroll] Course ${window.COURSE_ID} state: ${state}`);
 
             if (!window.Auth || !window.Auth.isAuthenticated()) {
                 enrollBtn.style.display = 'block';
@@ -89,13 +98,14 @@
                 return;
             }
 
-            if (state === 'enrolled') {
+            if (state === 'controlled') {
+                enrollBtn.style.display = 'none';
+                console.log('Кнопка скрыта, так как пользователь – преподаватель курса');
+            } else if (state === 'enrolled') {
                 enrollBtn.style.display = 'block';
                 enrollBtn.textContent = 'Отписаться от курса';
                 enrollBtn.onclick = () => handleUnenroll();
                 enrollBtn.disabled = false;
-            } else if (state === 'controlled') {
-                enrollBtn.style.display = 'none';
             } else {
                 enrollBtn.style.display = 'block';
                 enrollBtn.textContent = 'Записаться на курс';
@@ -374,7 +384,6 @@
                         blockHtml = await renderMarkdown(rawContent);
                     } else if (blockType === 'latex') {
                         const latexSource = prepareLatexBlock(rawContent);
-                        // FIX: Не экранируем LaTeX, чтобы не повредить синтаксис
                         blockHtml = `<div class="latex-block">${latexSource}</div>`;
                     } else if (blockType === 'plantuml' || blockType === 'image') {
                         if (rawContent && typeof rawContent === 'string' && rawContent.length > 0) {
@@ -583,7 +592,7 @@
     });
 })();
 
-// Плавающее окно конспекта
+// Плавающее окно конспекта (без изменений)
 (function () {
     document.addEventListener('DOMContentLoaded', function () {
         const win = document.getElementById('floatingWindow');
