@@ -4,15 +4,23 @@ import pytest
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
-from server.app.api.v1.users.exceptions import NotUniqueFieldsError, UserMustBeInProfessorsTableError, UserNotFoundError
+from server.app.api.v1.users.exceptions import (
+    ApplicationFieldsMismatchError,
+    ApplicationRefusedError,
+    NotUniqueFieldsError,
+    UserMustBeInProfessorsTableError,
+    UserNotFoundError,
+)
 from server.app.api.v1.users.users import (
+    ApplicationById,
     UserInfo,
     UserProfile,
     UsersList,
     UserUpdatedInfo,
     UserVerification,
 )
-from server.database.models import Users
+from server.database.models import ProfessorsApplications, Users
+from server.enums.application_status import ApplicationStatus
 from server.enums.role import Role
 
 pytestmark = pytest.mark.asyncio
@@ -182,3 +190,114 @@ class TestUpdateUserProfile:
         updated_info = UserUpdatedInfo(nickname="user", email="x@x.com")
         with pytest.raises(UserNotFoundError):
             await users_manager.update_user_profile(uuid.uuid4(), updated_info)
+
+
+class TestRegProfessorApplication:
+    async def test_creates_application_successfully(self, users_manager, student_factory):
+        student = await student_factory()
+        app = await users_manager.reg_professor_application(student.id, "Иван", "Петров", "Сергеевич")
+        assert isinstance(app, ApplicationById)
+        assert app.id is not None
+
+        async with users_manager.db.db_session() as session:
+            result = await session.execute(select(ProfessorsApplications)
+                                           .where(ProfessorsApplications.id == app.id))
+            db_app = result.scalar_one()
+            assert db_app.user_id == student.id
+            assert db_app.name == "Иван"
+            assert db_app.surname == "Петров"
+            assert db_app.patronymic == "Сергеевич"
+            assert db_app.status == ApplicationStatus.PENDING
+
+    async def test_raises_error_if_user_already_has_pending_application(self, users_manager, student_factory):
+        student = await student_factory()
+        await users_manager.reg_professor_application(student.id, "Иван", "Петров", None)
+        with pytest.raises(ApplicationRefusedError):
+            await users_manager.reg_professor_application(student.id, "Петр", "Сидоров", None)
+
+    async def test_raises_error_if_user_already_professor(self, users_manager, professor_factory):
+        professor = await professor_factory()
+        with pytest.raises(ApplicationRefusedError):
+            await users_manager.reg_professor_application(professor.id, "Иван", "Петров", None)
+
+
+class TestGetProfessorApplications:
+    async def test_returns_pending_applications(self, users_manager, student_factory):
+        student1 = await student_factory()
+        student2 = await student_factory()
+        app1 = await users_manager.reg_professor_application(student1.id, "A", "B", None)
+        app2 = await users_manager.reg_professor_application(student2.id, "C", "D", None)
+
+        result = await users_manager.get_professor_applications(0, 10)
+        assert len(result.root) == 2
+        assert result.root[0].application_id in (app1.id, app2.id)
+
+    async def test_pagination(self, users_manager, student_factory):
+        for i in range(5):
+            student = await student_factory()
+            await users_manager.reg_professor_application(student.id, f"Name{i}", "Surname", None)
+        result1 = await users_manager.get_professor_applications(0, 2)
+        result2 = await users_manager.get_professor_applications(2, 2)
+        assert len(result1.root) == 2
+        assert len(result2.root) == 2
+        ids1 = {a.application_id for a in result1.root}
+        ids2 = {a.application_id for a in result2.root}
+        assert ids1.isdisjoint(ids2)
+
+
+class TestChangeApplicationStatus:
+    async def test_changes_status_and_comment(self, users_manager, student_factory):
+        student = await student_factory()
+        app = await users_manager.reg_professor_application(student.id, "Name", "Surname", None)
+        await users_manager.change_application_status(
+            app.id, student.id, ApplicationStatus.APPROVED, "Good"
+        )
+        async with users_manager.db.db_session() as session:
+            result = await session.execute(select(ProfessorsApplications)
+                                           .where(ProfessorsApplications.id == app.id))
+            db_app = result.scalar_one()
+            assert db_app.status == ApplicationStatus.APPROVED
+            assert db_app.admin_comment == "Good"
+
+    async def test_raises_error_if_ids_mismatch(self, users_manager, student_factory):
+        student = await student_factory()
+        app = await users_manager.reg_professor_application(student.id, "Name", "Surname", None)
+        other_id = uuid.uuid4()
+        with pytest.raises(ApplicationFieldsMismatchError):
+            await users_manager.change_application_status(
+                app.id, other_id, ApplicationStatus.APPROVED, ""
+            )
+
+
+class TestGetUserApplications:
+    async def test_returns_applications_for_user(self, users_manager, student_factory):
+        student = await student_factory()
+        app1 = await users_manager.reg_professor_application(student.id, "Name1", "Surname1", None)
+        await users_manager.change_application_status(
+            id=app1.id,
+            user_id=student.id,
+            status=ApplicationStatus.REJECTED,
+            comment="Отклонено для теста"
+        )
+        app2 = await users_manager.reg_professor_application(student.id, "Name2", "Surname2", None)
+        result = await users_manager.get_user_applications(student.id, offset=0, limit=10)
+
+        assert len(result.root) == 2
+        apps_by_id = {app.application_id: app for app in result.root}
+        assert apps_by_id[app1.id].status == ApplicationStatus.REJECTED
+        assert apps_by_id[app2.id].status == ApplicationStatus.PENDING
+
+    async def test_pagination(self, users_manager, student_factory):
+        student = await student_factory()
+        for i in range(5):
+            app = await users_manager.reg_professor_application(student.id, f"Name{i}", "Surname", None)
+            await users_manager.change_application_status(
+                id=app.id,
+                user_id=student.id,
+                status=ApplicationStatus.REJECTED,
+                comment="Отклонено для теста"
+            )
+        result1 = await users_manager.get_user_applications(student.id, 0, 2)
+        result2 = await users_manager.get_user_applications(student.id, 2, 2)
+        assert len(result1.root) == 2
+        assert len(result2.root) == 2
