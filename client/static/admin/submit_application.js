@@ -28,6 +28,7 @@
         const nameInput = document.getElementById('name');
         const surnameInput = document.getElementById('surname');
         const patronymicInput = document.getElementById('patronymic');
+        const consentCheckbox = document.getElementById('consentCheckbox');
 
         let isValid = true;
         if (!nameInput.value.trim()) {
@@ -38,12 +39,17 @@
             surnameInput.classList.add('is-invalid');
             isValid = false;
         }
-        if (!patronymicInput.value.trim()) {
-            patronymicInput.classList.add('is-invalid');
+        if (!consentCheckbox.checked) {
+            consentCheckbox.classList.add('is-invalid');
             isValid = false;
         }
+
         if (!isValid) {
-            window.showToast('Пожалуйста, заполните все обязательные поля.', 'danger');
+            if (!consentCheckbox.checked) {
+                window.showToast('Пожалуйста, подтвердите согласие с политикой конфиденциальности.', 'danger');
+            } else {
+                window.showToast('Пожалуйста, заполните все обязательные поля (имя и фамилия).', 'danger');
+            }
             return;
         }
 
@@ -55,7 +61,7 @@
         const payload = {
             name: nameInput.value.trim(),
             surname: surnameInput.value.trim(),
-            patronymic: patronymicInput.value.trim()
+            patronymic: patronymicInput.value.trim() || null
         };
 
         const sendRequest = async () => {

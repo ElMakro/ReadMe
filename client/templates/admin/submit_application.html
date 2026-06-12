@@ -1,3 +1,4 @@
+<!-- templates/admin/submit_application.html -->
 {% extends "base.html" %}
 
 {% block title %}Подать заявку на преподавание{% endblock %}
@@ -15,24 +16,31 @@
                             После проверки администрации вы получите доступ к созданию курсов.
                         </p>
 
-                        <form id="applicationForm">
+                        <form id="applicationForm" novalidate>
                             <div class="mb-3">
                                 <label for="name" class="form-label" style="color: var(--text-primary);">Имя *</label>
-                                <input type="text" class="form-control" id="name" name="name" required
+                                <input type="text" class="form-control" id="name" name="name"
                                        style="background: var(--bg-primary); border-color: var(--border-color); color: var(--text-primary);">
                                 <div class="invalid-feedback">Пожалуйста, укажите имя.</div>
                             </div>
                             <div class="mb-3">
                                 <label for="surname" class="form-label" style="color: var(--text-primary);">Фамилия *</label>
-                                <input type="text" class="form-control" id="surname" name="surname" required
+                                <input type="text" class="form-control" id="surname" name="surname"
                                        style="background: var(--bg-primary); border-color: var(--border-color); color: var(--text-primary);">
                                 <div class="invalid-feedback">Пожалуйста, укажите фамилию.</div>
                             </div>
                             <div class="mb-4">
-                                <label for="patronymic" class="form-label" style="color: var(--text-primary);">Отчество *</label>
-                                <input type="text" class="form-control" id="patronymic" name="patronymic" required
+                                <label for="patronymic" class="form-label" style="color: var(--text-primary);">Отчество</label>
+                                <input type="text" class="form-control" id="patronymic" name="patronymic"
                                        style="background: var(--bg-primary); border-color: var(--border-color); color: var(--text-primary);">
-                                <div class="invalid-feedback">Пожалуйста, укажите отчество.</div>
+                                <div class="form-text text-muted">Необязательное поле</div>
+                            </div>
+
+                            <div class="mb-3 form-check">
+                                <input type="checkbox" class="form-check-input" id="consentCheckbox">
+                                <label class="form-check-label" for="consentCheckbox" style="color: var(--text-secondary);">
+                                    Подавая заявку, я соглашаюсь с <a href="/policy" target="_blank">политикой конфиденциальности</a>
+                                </label>
                             </div>
 
                             <div id="alertContainer" class="mb-3"></div>

@@ -1,3 +1,4 @@
+// static/auth-modal.js
 (function () {
     const PREFIX = 'auth-modal-';
 
@@ -25,7 +26,6 @@
 
     function validateEmail(email) {
         if (!email) return 'Email обязателен.';
-        // Стандартная проверка email (RFC 5322 упрощённая)
         const emailRegex = /^[^\s@]+@([^\s@]+\.)+[^\s@]+$/;
         if (!emailRegex.test(email)) return 'Введите корректный email (например, user@example.com).';
         return null;
@@ -68,6 +68,12 @@
               <div class="mb-3">
                 <input type="password" class="form-control" placeholder="Подтвердите пароль" id="${PREFIX}regConfirm" disabled required>
               </div>
+              <div class="mb-3 form-check">
+                <input type="checkbox" class="form-check-input" id="${PREFIX}regConsent" disabled>
+                <label class="form-check-label" for="${PREFIX}regConsent">
+                  Я соглашаюсь с <a href="/policy" target="_blank">политикой конфиденциальности</a>
+                </label>
+              </div>
             </div>
 
             <div class="d-flex gap-2 mb-3">
@@ -100,6 +106,7 @@
     const regEmail = document.getElementById(`${PREFIX}regEmail`);
     const regPassword = document.getElementById(`${PREFIX}regPassword`);
     const regConfirm = document.getElementById(`${PREFIX}regConfirm`);
+    const regConsent = document.getElementById(`${PREFIX}regConsent`);
 
     async function fillSavedCredentials() {
         if (!window.PasswordCredential || !navigator.credentials) return;
@@ -167,10 +174,12 @@
         regEmail.required = false;
         regPassword.required = false;
         regConfirm.required = false;
+        regConsent.required = false;
         regNickname.disabled = true;
         regEmail.disabled = true;
         regPassword.disabled = true;
         regConfirm.disabled = true;
+        regConsent.disabled = true;
 
         modalTitle.textContent = 'Вход';
         submitBtn.textContent = 'Войти';
@@ -192,13 +201,15 @@
         loginPassword.disabled = true;
 
         regNickname.required = true;
-        regEmail.required = true;          // email обязателен
+        regEmail.required = true;
         regPassword.required = true;
         regConfirm.required = true;
+        regConsent.required = true;   // чекбокс обязателен при регистрации
         regNickname.disabled = false;
         regEmail.disabled = false;
         regPassword.disabled = false;
         regConfirm.disabled = false;
+        regConsent.disabled = false;
 
         modalTitle.textContent = 'Регистрация';
         submitBtn.textContent = 'Зарегистрироваться';
@@ -235,7 +246,6 @@
                 const nickname = loginNickname.value.trim();
                 const password = loginPassword.value;
 
-                // Валидация
                 const nicknameErr = validateNickname(nickname);
                 if (nicknameErr) throw new Error(nicknameErr);
                 const passwordErr = validatePassword(password, false);
@@ -252,8 +262,7 @@
                     let errorData = null;
                     try {
                         errorData = await loginResponse.json();
-                    } catch (e) {
-                    }
+                    } catch (e) {}
                     let errorMessage;
                     switch (loginResponse.status) {
                         case 401:
@@ -287,6 +296,7 @@
                 const email = regEmail.value.trim();
                 const password = regPassword.value;
                 const confirm = regConfirm.value;
+                const consent = regConsent.checked;
 
                 // Валидация
                 const nicknameErr = validateNickname(nickname);
@@ -296,6 +306,7 @@
                 const passwordErr = validatePassword(password, true);
                 if (passwordErr) throw new Error(passwordErr);
                 if (password !== confirm) throw new Error('Пароли не совпадают.');
+                if (!consent) throw new Error('Необходимо согласие с политикой конфиденциальности.');
 
                 const regResponse = await fetch(`${window.API_BASE_URL}auth/reg`, {
                     method: 'POST',
@@ -308,8 +319,7 @@
                     let errorData = null;
                     try {
                         errorData = await regResponse.json();
-                    } catch (e) {
-                    }
+                    } catch (e) {}
                     let errorMessage;
                     switch (regResponse.status) {
                         case 400:
