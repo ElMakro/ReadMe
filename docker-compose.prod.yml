@@ -26,21 +26,6 @@ services:
                 max-size: 10m
                 max-file: 3
 
-    certbot:
-        image: certbot/certbot:v5.6.0
-        container_name: readme-certbot
-        volumes:
-            - readme-letsencrypt:/etc/letsencrypt
-            - readme-certbot-webroot:/var/www/certbot
-        profiles:
-            - certs
-        restart: no
-        deploy:
-            resources:
-                limits:
-                    cpus: 0.5
-                    memory: 128M
-
     postgres-database:
         image: postgres:18.3-alpine3.23
         container_name: readme-postgres-database
@@ -133,7 +118,7 @@ services:
                 max-file: 3
 
     database-manager:
-        image: readmeivtyarsu/readme-database-manager:1.0.2
+        image: readmeivtyarsu/readme-database-manager:1.0.3
         container_name: readme-database-manager
         environment:
             - DB_NAME=${DB_NAME}
@@ -156,6 +141,7 @@ services:
             - DEFAULT_ADMIN_NICKNAME=${DEFAULT_ADMIN_NICKNAME}
             - DEFAULT_ADMIN_EMAIL=${DEFAULT_ADMIN_EMAIL}
             - DEFAULT_ADMIN_PASSWORD=${DEFAULT_ADMIN_PASSWORD}
+            - BACKUP_VOLUMES=${BACKUP_VOLUMES}
             - BACKUP_INTERVAL_HOURS=${BACKUP_INTERVAL_HOURS}
             - BACKUP_ENABLED=${BACKUP_ENABLED}
             - BACKUP_KEEP_DAYS=${BACKUP_KEEP_DAYS}
@@ -163,9 +149,11 @@ services:
         stdin_open: true
         tty: true
         volumes:
-            - readme-postgres-database-backups:/backups
+            - readme-backups:/backups
+            - readme-courses-resources:/volumes/readme-courses-resources
+            - readme-users-resources:/volumes/readme-users-resources
         ports:
-            -   "8888:8888"
+            - "8888:8888"
         networks:
             - readme-network
         depends_on:
@@ -187,7 +175,7 @@ services:
                 max-file: 3
 
     auto-migrations:
-        image: readmeivtyarsu/readme-database-manager:1.0.2
+        image: readmeivtyarsu/readme-database-manager:1.0.3
         container_name: readme-auto-migrations
         environment:
             - DB_NAME=${DB_NAME}
@@ -210,7 +198,9 @@ services:
             - DEFAULT_ADMIN_NICKNAME=${DEFAULT_ADMIN_NICKNAME}
             - DEFAULT_ADMIN_EMAIL=${DEFAULT_ADMIN_EMAIL}
             - DEFAULT_ADMIN_PASSWORD=${DEFAULT_ADMIN_PASSWORD}
-        command: ["auto"]
+        command: [ "auto" ]
+        volumes:
+            - readme-users-resources:/volumes/readme-users-resources
         networks:
             - readme-network
         depends_on:
@@ -229,7 +219,7 @@ services:
                 max-file: 3
 
     client:
-        image: readmeivtyarsu/readme-client:1.0.2
+        image: readmeivtyarsu/readme-client:1.0.3
         container_name: readme-client
         environment:
             - CLIENT_HOST=${CLIENT_HOST}
@@ -254,7 +244,7 @@ services:
                 max-file: 3
 
     server:
-        image: readmeivtyarsu/readme-server:1.0.2
+        image: readmeivtyarsu/readme-server:1.0.3
         container_name: readme-server
         environment:
             - DB_NAME=${DB_NAME}
@@ -308,8 +298,8 @@ networks:
 
 volumes:
     readme-postgres-database-data:
-    readme-postgres-database-backups:
     readme-redis-database-data:
+    readme-backups:
     readme-courses-resources:
     readme-users-resources:
     readme-letsencrypt:

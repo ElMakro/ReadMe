@@ -4,6 +4,7 @@ from pydantic import BaseModel, ConfigDict, Field, RootModel
 
 from server.app.api.v1.common_schemas import TimestampsMixin
 from server.app.api.v1.courses.course_state import CourseState
+from server.config.constants import MAX_COURSE_DESCRIPTION_LENGTH, MAX_COURSE_NAME_LENGTH
 
 
 class CourseIDMixin(
@@ -34,13 +35,13 @@ class CourseBase(
         ...,
         description="Название курса",
         min_length=1,
-        max_length=255,
+        max_length=MAX_COURSE_NAME_LENGTH,
         examples=["Название курса"],
     )
     description: str = Field(
         "",
         description="Описание курса",
-        max_length=500,
+        max_length=MAX_COURSE_DESCRIPTION_LENGTH,
         examples=["Описание курса"],
     )
     is_public: bool = Field(
@@ -83,12 +84,12 @@ class CourseUpdate(
         None,
         description="Название курса",
         min_length=1,
-        max_length=255,
+        max_length=MAX_COURSE_NAME_LENGTH,
         examples=["Название курса"],
     )
     description: str = Field(
         None,
-        max_length=500,
+        max_length=MAX_COURSE_DESCRIPTION_LENGTH,
         description="Описание курса",
         examples=["Описание курса"],
     )
@@ -139,13 +140,13 @@ class CourseResponse(
         description="ID преподавателя",
         examples=[uuid.uuid4()],
     )
-    professor_name: str = Field(
+    professor_name: str | None = Field(
         description="Имя преподавателя"
     )
-    professor_surname: str = Field(
+    professor_surname: str | None = Field(
         description="Фамилия преподавателя"
     )
-    professor_patronymic: str = Field(
+    professor_patronymic: str | None = Field(
         description="Отчество преподавателя"
     )
 

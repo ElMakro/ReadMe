@@ -46,7 +46,7 @@ class CoursesManager:
             ).join(
                 self.courses_for_students_model,
                 self.courses_model.id == self.courses_for_students_model.course_id,
-            ).join(
+            ).outerjoin(
                 self.professors_model,
                 self.professors_model.id == self.courses_model.professor_id,
             ).where(
@@ -86,7 +86,7 @@ class CoursesManager:
                 self.professors_model.name.label("professor_name"),
                 self.professors_model.surname.label("professor_surname"),
                 self.professors_model.patronymic.label("professor_patronymic"),
-            ).join(
+            ).outerjoin(
                 self.professors_model,
                 self.professors_model.id == self.courses_model.professor_id,
             ).where(
@@ -157,7 +157,7 @@ class CoursesManager:
                 self.professors_model.name.label("professor_name"),
                 self.professors_model.surname.label("professor_surname"),
                 self.professors_model.patronymic.label("professor_patronymic"),
-            ).join(
+            ).outerjoin(
                 self.professors_model,
                 self.professors_model.id == self.courses_model.professor_id,
             ).where(
@@ -264,7 +264,7 @@ class CoursesManager:
                 self.professors_model.name.label("professor_name"),
                 self.professors_model.surname.label("professor_surname"),
                 self.professors_model.patronymic.label("professor_patronymic"),
-            ).join(
+            ).outerjoin(
                 self.professors_model,
                 self.professors_model.id == self.courses_model.professor_id,
             ).where(
@@ -316,7 +316,7 @@ class CoursesManager:
                 self.professors_model.name.label("professor_name"),
                 self.professors_model.surname.label("professor_surname"),
                 self.professors_model.patronymic.label("professor_patronymic"),
-            ).join(
+            ).outerjoin(
                 self.professors_model,
                 self.professors_model.id == self.courses_model.professor_id,
             ).where(

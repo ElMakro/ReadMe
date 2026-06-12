@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import asyncio
 import os
+import shutil
 import subprocess
 import sys
 import threading
@@ -14,6 +15,9 @@ from sqlalchemy import or_, select, text
 
 sys.path.insert(0, "/content")
 
+from alembic import command
+from alembic.config import Config
+
 from server.app.api.v1.auth.auth_handler import AuthHandler
 from server.config.db_dependency import DBDependency
 from server.config.settings import settings
@@ -24,6 +28,20 @@ BACKUP_DIR = Path("/backups")
 BACKUP_ENABLED = os.getenv("BACKUP_ENABLED", "false").lower() == "true"
 BACKUP_INTERVAL_HOURS = int(os.getenv("BACKUP_INTERVAL_HOURS", "24"))
 BACKUP_KEEP_DAYS = int(os.getenv("BACKUP_KEEP_DAYS", "7"))
+
+BACKUP_VOLUMES = {}
+for vol in os.getenv("BACKUP_VOLUMES", "readme-courses-resources,readme-users-resources").split(","):
+    vol = vol.strip()
+    if vol:
+        BACKUP_VOLUMES[vol] = Path(f"/volumes/{vol}")
+
+
+def get_alembic_config():
+    config_path = os.getenv("ALEMBIC_CONFIG", "/content/alembic.ini")
+    alembic_cfg = Config(config_path)
+    sync_url = settings.db_settings.db_url.replace("+asyncpg", "")
+    alembic_cfg.set_main_option("sqlalchemy.url", sync_url)
+    return alembic_cfg
 
 
 def wait_for_db():
@@ -49,16 +67,38 @@ def wait_for_db():
         time.sleep(2)
 
 
-def get_alembic_config():
-    from alembic.config import Config
-    config_path = os.getenv("ALEMBIC_CONFIG", "/content/alembic.ini")
-    alembic_cfg = Config(config_path)
-    sync_url = settings.db_settings.db_url.replace("+asyncpg", "")
-    alembic_cfg.set_main_option("sqlalchemy.url", sync_url)
-    return alembic_cfg
+def create_user_directories(user_id: uuid.UUID, nickname: str) -> bool:
+    users_volume = Path("/volumes/readme-users-resources")
+
+    if not users_volume.exists():
+        print(f"  ✗ Users volume not mounted at {users_volume}")
+        return False
+
+    user_dir = users_volume / str(user_id)
+    files_dir = user_dir / "files"
+
+    try:
+        user_dir.mkdir(parents=True, exist_ok=True)
+        files_dir.mkdir(parents=True, exist_ok=True)
+        print(f"  ✓ Created user directory: {user_dir}")
+        print(f"  ✓ Created files directory: {files_dir}")
+
+        from server.data.icons_generator import IconsGenerator
+        icons_generator = IconsGenerator()
+        data = f"{user_id}-{nickname}"
+        icon_path = user_dir / "icon.png"
+        icon_path.write_bytes(icons_generator.generate_icon(data))
+        print(f"  ✓ Created icon: {icon_path}")
+
+        return True
+    except Exception as e:
+        print(f"  ✗ Failed to create directories: {e}")
+        return False
 
 
 async def create_admin_user(nickname: str = None, email: str = None, password: str = None):
+    print("\n=== Creating admin user ===")
+
     if nickname is None:
         nickname = os.getenv("DEFAULT_ADMIN_NICKNAME")
     if email is None:
@@ -70,6 +110,9 @@ async def create_admin_user(nickname: str = None, email: str = None, password: s
         print("Admin credentials not fully provided. Skipping admin creation.")
         return False
 
+    print(f"  Nickname: {nickname}")
+    print(f"  Email: {email}")
+
     auth_handler = AuthHandler()
     hashed_password = await auth_handler.get_hashed_password(password)
 
@@ -80,7 +123,7 @@ async def create_admin_user(nickname: str = None, email: str = None, password: s
         existing_user = result.scalar_one_or_none()
 
         if existing_user:
-            print(f"Admin user '{nickname}' already exists. Skipping creation.")
+            print(f"  Admin user '{nickname}' already exists. Skipping creation.")
             return True
 
         admin_id = uuid.uuid4()
@@ -97,59 +140,38 @@ async def create_admin_user(nickname: str = None, email: str = None, password: s
         )
         session.add(admin_user)
         await session.commit()
-        print(f"Admin user '{nickname}' created successfully!")
+        print(f"  Admin user '{nickname}' created successfully with ID: {admin_id}")
+
+        create_user_directories(admin_id, nickname)
+
         return True
 
 
-def list_backups():
-    if not BACKUP_DIR.exists():
-        print("Backup directory not found.")
-        return []
+def backup_volume(volume_name: str, mount_path: Path, backup_path: Path) -> bool:
+    print(f"  Backing up volume: {volume_name}")
 
-    backups = sorted(BACKUP_DIR.glob("*.sql.gz"), key=lambda x: x.stat().st_mtime, reverse=True)
-    if not backups:
-        print("No backups found.")
-        return []
+    if not mount_path.exists():
+        print(f"    ✗ Volume {volume_name} not mounted at {mount_path}")
+        return False
 
-    print("\nAvailable backups:")
-    print("-" * 60)
-    for i, backup in enumerate(backups, 1):
-        size = backup.stat().st_size / (1024 * 1024)
-        mtime = datetime.fromtimestamp(backup.stat().st_mtime).strftime("%Y-%m-%d %H:%M:%S")
-        print(f"  {i}. {backup.name} ({size:.2f} MB) - {mtime}")
-    print("-" * 60)
-    return backups
+    try:
+        cmd = ["tar", "czf", str(backup_path), "-C", str(mount_path), "."]
+        result = subprocess.run(cmd, capture_output=True, text=True, check=False)
 
-
-def clean_old_backups():
-    if not BACKUP_DIR.exists():
-        return
-
-    cutoff = datetime.now() - timedelta(days=BACKUP_KEEP_DAYS)
-    deleted_count = 0
-
-    for backup in BACKUP_DIR.glob("*.sql.gz"):
-        mtime = datetime.fromtimestamp(backup.stat().st_mtime)
-        if mtime < cutoff:
-            backup.unlink()
-            deleted_count += 1
-            print(f"Deleted old backup: {backup.name}")
-
-    if deleted_count > 0:
-        print(f"Cleaned up {deleted_count} old backup(s)")
+        if result.returncode == 0:
+            size = backup_path.stat().st_size / (1024 * 1024)
+            print(f"    ✓ Volume {volume_name} backed up successfully ({size:.2f} MB)")
+            return True
+        else:
+            print(f"    ✗ Failed to backup volume {volume_name}: {result.stderr}")
+            return False
+    except Exception as e:
+        print(f"    ✗ Exception backing up {volume_name}: {e}")
+        return False
 
 
-def create_backup(name: str = None, auto_cleanup: bool = True):
-    BACKUP_DIR.mkdir(parents=True, exist_ok=True)
-
-    if name:
-        filename = f"{name}.sql.gz"
-    else:
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"backup_{timestamp}.sql.gz"
-
-    backup_path = BACKUP_DIR / filename
-    print(f"Creating backup: {filename}")
+def backup_database(backup_path: Path) -> bool:
+    print("  Backing up database...")
 
     cmd = [
         "pg_dump",
@@ -168,18 +190,289 @@ def create_backup(name: str = None, auto_cleanup: bool = True):
 
         if result.returncode == 0:
             size = backup_path.stat().st_size / (1024 * 1024)
-            print(f"Backup created: {filename} ({size:.2f} MB)")
-
-            if auto_cleanup:
-                clean_old_backups()
-
+            print(f"    ✓ Database backed up successfully ({size:.2f} MB)")
             return True
         else:
-            print(f"Backup failed: {result.stderr.decode()}")
+            print(f"    ✗ Database backup failed: {result.stderr.decode()}")
             return False
     except Exception as e:
-        print(f"Backup failed: {e}")
+        print(f"    ✗ Database backup exception: {e}")
         return False
+
+
+def create_backup(name: str = None, auto_cleanup: bool = True) -> bool:
+    BACKUP_DIR.mkdir(parents=True, exist_ok=True)
+
+    if name:
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        backup_prefix = f"{name}_{timestamp}"
+    else:
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        backup_prefix = f"backup_{timestamp}"
+
+    backup_root = BACKUP_DIR / backup_prefix
+    backup_root.mkdir(parents=True, exist_ok=True)
+
+    print(f"\n{'=' * 60}")
+    print(f"Creating full backup: {backup_prefix}")
+    print(f"{'=' * 60}")
+
+    success = True
+
+    db_backup_path = backup_root / "database.sql.gz"
+    if not backup_database(db_backup_path):
+        success = False
+
+    for volume_name, mount_path in BACKUP_VOLUMES.items():
+        volume_backup_path = backup_root / f"volume_{volume_name}.tar.gz"
+        if not backup_volume(volume_name, mount_path, volume_backup_path):
+            success = False
+
+    manifest_path = backup_root / "manifest.txt"
+    with open(manifest_path, "w") as f:
+        f.write(f"Backup created: {datetime.now().isoformat()}\n")
+        f.write(f"Backup name: {backup_prefix}\n")
+        f.write("Database backup: database.sql.gz\n")
+        f.write(f"Volumes backed up: {', '.join(BACKUP_VOLUMES.keys())}\n")
+
+    archive_path = BACKUP_DIR / f"{backup_prefix}.tar.gz"
+    print(f"\n  Creating archive: {archive_path.name}")
+
+    cmd = ["tar", "czf", str(archive_path), "-C", str(BACKUP_DIR), backup_prefix]
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, check=False)
+        if result.returncode == 0:
+            size = archive_path.stat().st_size / (1024 * 1024)
+            print(f"  ✓ Archive created ({size:.2f} MB)")
+            shutil.rmtree(backup_root)
+        else:
+            print(f"  ✗ Archive creation failed: {result.stderr}")
+            success = False
+    except Exception as e:
+        print(f"  ✗ Archive creation exception: {e}")
+        success = False
+
+    if success:
+        print(f"\n✓ Full backup completed successfully: {archive_path.name}")
+    else:
+        print("\n✗ Backup completed with errors")
+
+    if auto_cleanup:
+        clean_old_backups()
+
+    return success
+
+
+def restore_volume(volume_name: str, mount_path: Path, backup_path: Path) -> bool:
+    print(f"  Restoring volume: {volume_name}")
+
+    if not mount_path.exists():
+        print(f"    ✗ Volume {volume_name} not mounted at {mount_path}")
+        return False
+
+    try:
+        for item in mount_path.iterdir():
+            if item.is_dir():
+                shutil.rmtree(item)
+            else:
+                item.unlink()
+    except Exception as e:
+        print(f"    ✗ Failed to clean volume {volume_name}: {e}")
+        return False
+
+    cmd = ["tar", "xzf", str(backup_path), "-C", str(mount_path)]
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        if result.returncode == 0:
+            print(f"    ✓ Volume {volume_name} restored successfully")
+            return True
+        else:
+            print(f"    ✗ Failed to restore volume {volume_name}: {result.stderr}")
+            return False
+    except Exception as e:
+        print(f"    ✗ Exception restoring {volume_name}: {e}")
+        return False
+
+
+def restore_database_from_backup(backup_path: Path) -> bool:
+    env = {**os.environ, "PGPASSWORD": settings.db_settings.db_password.get_secret_value()}
+
+    try:
+        print(f"    Terminating all connections to database {settings.db_settings.db_name}...")
+
+        terminate_cmd = [
+            "psql", "-h", settings.db_settings.db_host,
+            "-p", str(settings.db_settings.db_port),
+            "-U", settings.db_settings.db_user,
+            "-d", "postgres",
+            "-c",
+            f"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '{settings.db_settings.db_name}' "
+            f"AND pid <> pg_backend_pid();"
+        ]
+
+        result = subprocess.run(terminate_cmd, env=env, capture_output=True, text=True)
+        if result.returncode == 0:
+            print("    ✓ All connections terminated")
+        else:
+            print(f"    Warning when terminating connections: {result.stderr}")
+
+        print(f"    Dropping database {settings.db_settings.db_name}...")
+        result = subprocess.run([
+            "dropdb", "--if-exists",
+            "-h", settings.db_settings.db_host,
+            "-p", str(settings.db_settings.db_port),
+            "-U", settings.db_settings.db_user,
+            settings.db_settings.db_name
+        ], env=env, capture_output=True, text=True)
+
+        if result.returncode != 0:
+            print(f"    Warning when dropping DB: {result.stderr}")
+
+        print(f"    Creating database {settings.db_settings.db_name}...")
+        result = subprocess.run([
+            "createdb",
+            "-h", settings.db_settings.db_host,
+            "-p", str(settings.db_settings.db_port),
+            "-U", settings.db_settings.db_user,
+            settings.db_settings.db_name
+        ], env=env, capture_output=True, text=True)
+
+        if result.returncode != 0:
+            print(f"    ✗ Failed to create database: {result.stderr}")
+            return False
+
+        print("    Restoring from backup...")
+        cmd = [
+            "pg_restore",
+            "-h", settings.db_settings.db_host,
+            "-p", str(settings.db_settings.db_port),
+            "-U", settings.db_settings.db_user,
+            "-d", settings.db_settings.db_name,
+            "-c",
+            "--if-exists",
+            str(backup_path)
+        ]
+
+        result = subprocess.run(cmd, env=env, capture_output=True, text=True)
+        if result.returncode == 0:
+            print("    ✓ Database restored successfully")
+            return True
+        else:
+            print(f"    ✗ Database restore failed: {result.stderr}")
+            return False
+    except Exception as e:
+        print(f"    ✗ Database restore exception: {e}")
+        return False
+
+
+def restore_backup(backup_name: str = None) -> bool:
+    if backup_name is None:
+        backup_files = list_backups()
+        if not backup_files:
+            return False
+        print("\nEnter backup number or name:")
+        choice = input("> ").strip()
+        if choice.isdigit():
+            idx = int(choice) - 1
+            if 0 <= idx < len(backup_files):
+                backup_name = backup_files[idx].name
+            else:
+                print("Invalid selection.")
+                return False
+        else:
+            backup_name = choice
+
+    backup_path = BACKUP_DIR / backup_name if not backup_name.startswith("/") else Path(backup_name)
+
+    if not backup_path.exists():
+        print(f"Backup not found: {backup_name}")
+        return False
+
+    print(f"\n{'=' * 60}")
+    print(f"Restoring from backup: {backup_path.name}")
+    print(f"{'=' * 60}")
+    print("WARNING: This will OVERWRITE the current database and volumes!")
+    print("All existing data will be lost.")
+
+    response = input("\nAre you sure? (y/N): ")
+    if response.lower() != 'y':
+        print("Cancelled.")
+        return False
+
+    import tempfile
+    with tempfile.TemporaryDirectory() as temp_dir:
+        temp_path = Path(temp_dir)
+
+        print("\n  Extracting archive...")
+        cmd = ["tar", "xzf", str(backup_path), "-C", str(temp_path)]
+        try:
+            subprocess.run(cmd, check=True, capture_output=True)
+        except subprocess.CalledProcessError as e:
+            print(f"  Failed to extract archive: {e}")
+            return False
+
+        items = os.listdir(temp_path)
+        if not items:
+            print("  No files found in archive")
+            return False
+
+        backup_root = temp_path / items[0]
+
+        db_backup = backup_root / "database.sql.gz"
+        if db_backup.exists():
+            print("\n  Restoring database...")
+            if not restore_database_from_backup(db_backup):
+                print("  Database restore failed!")
+                return False
+
+        for volume_name, mount_path in BACKUP_VOLUMES.items():
+            volume_backup = backup_root / f"volume_{volume_name}.tar.gz"
+            if volume_backup.exists():
+                print(f"\n  Restoring volume: {volume_name}")
+                if not restore_volume(volume_name, mount_path, volume_backup):
+                    print(f"  Failed to restore volume: {volume_name}")
+                    return False
+
+    print("\n✓ Backup restored successfully!")
+    return True
+
+
+def list_backups():
+    if not BACKUP_DIR.exists():
+        print("Backup directory not found.")
+        return []
+
+    backup_files = sorted(BACKUP_DIR.glob("*.tar.gz"), key=lambda x: x.stat().st_mtime, reverse=True)
+    if not backup_files:
+        print("No backups found.")
+        return []
+
+    print("\nAvailable backups:")
+    print("-" * 70)
+    for i, backup_file in enumerate(backup_files, 1):
+        size = backup_file.stat().st_size / (1024 * 1024)
+        mtime = datetime.fromtimestamp(backup_file.stat().st_mtime).strftime("%Y-%m-%d %H:%M:%S")
+        print(f"  {i}. {backup_file.name} ({size:.2f} MB) - {mtime}")
+    print("-" * 70)
+    return backup_files
+
+
+def clean_old_backups():
+    if not BACKUP_DIR.exists():
+        return
+
+    cutoff = datetime.now() - timedelta(days=BACKUP_KEEP_DAYS)
+    deleted_count = 0
+
+    for backup_file in BACKUP_DIR.glob("*.tar.gz"):
+        mtime = datetime.fromtimestamp(backup_file.stat().st_mtime)
+        if mtime < cutoff:
+            backup_file.unlink()
+            deleted_count += 1
+            print(f"Deleted old backup: {backup_file.name}")
+
+    if deleted_count > 0:
+        print(f"Cleaned up {deleted_count} old backup(s)")
 
 
 async def run_scheduled_backups():
@@ -189,6 +482,7 @@ async def run_scheduled_backups():
 
     print(f"Automatic backups enabled. Interval: {BACKUP_INTERVAL_HOURS} hours")
     print(f"Backups will be kept for {BACKUP_KEEP_DAYS} days")
+    print(f"Volumes to backup: {', '.join(BACKUP_VOLUMES.keys())}")
 
     while True:
         try:
@@ -203,99 +497,12 @@ async def run_scheduled_backups():
             await asyncio.sleep(60)
 
 
-def restore_backup(backup_name: str = None):
-    if backup_name is None:
-        backups = list_backups()
-        if not backups:
-            return False
-        print("\nEnter backup number or name:")
-        choice = input("> ").strip()
-        if choice.isdigit():
-            idx = int(choice) - 1
-            if 0 <= idx < len(backups):
-                backup_name = backups[idx].name
-            else:
-                print("Invalid selection.")
-                return False
-        else:
-            backup_name = choice
-
-    backup_path = BACKUP_DIR / backup_name if not backup_name.startswith("/") else Path(backup_name)
-
-    if not backup_path.exists():
-        print(f"Backup not found: {backup_name}")
-        return False
-
-    print(f"Restoring from backup: {backup_path.name}")
-    print("WARNING: This will OVERWRITE the current database!")
-    print("All existing data will be lost.")
-
-    response = input("Are you sure? (y/N): ")
-    if response.lower() != 'y':
-        print("Cancelled.")
-        return False
-
-    temp_db = f"restore_temp_{uuid.uuid4().hex[:8]}"
-    env = {**os.environ, "PGPASSWORD": settings.db_settings.db_password.get_secret_value()}
-
-    try:
-        subprocess.run([
-            "createdb", "-h", settings.db_settings.db_host,
-            "-p", str(settings.db_settings.db_port),
-            "-U", settings.db_settings.db_user, temp_db
-        ], env=env, check=True, capture_output=True)
-
-        subprocess.run([
-            "pg_restore", "-h", settings.db_settings.db_host,
-            "-p", str(settings.db_settings.db_port),
-            "-U", settings.db_settings.db_user,
-            "-d", temp_db, "-c", str(backup_path)
-        ], env=env, check=True, capture_output=True)
-
-        subprocess.run([
-            "dropdb", "-h", settings.db_settings.db_host,
-            "-p", str(settings.db_settings.db_port),
-            "-U", settings.db_settings.db_user, settings.db_settings.db_name
-        ], env=env, check=True, capture_output=True)
-
-        subprocess.run([
-            "createdb", "-h", settings.db_settings.db_host,
-            "-p", str(settings.db_settings.db_port),
-            "-U", settings.db_settings.db_user, settings.db_settings.db_name
-        ], env=env, check=True, capture_output=True)
-
-        subprocess.run([
-            "pg_restore", "-h", settings.db_settings.db_host,
-            "-p", str(settings.db_settings.db_port),
-            "-U", settings.db_settings.db_user,
-            "-d", settings.db_settings.db_name, str(backup_path)
-        ], env=env, check=True, capture_output=True)
-
-        subprocess.run([
-            "dropdb", "-h", settings.db_settings.db_host,
-            "-p", str(settings.db_settings.db_port),
-            "-U", settings.db_settings.db_user, temp_db
-        ], env=env, check=True, capture_output=True)
-
-        print("Backup restored successfully!")
-        return True
-
-    except subprocess.CalledProcessError as e:
-        print(f"Restore failed: {e.stderr.decode() if e.stderr else str(e)}")
-        return False
-    except Exception as e:
-        print(f"Restore failed: {e}")
-        return False
-
-
 def do_status():
-    from alembic import command
     alembic_cfg = get_alembic_config()
     command.current(alembic_cfg, verbose=True)
 
 
 def do_upgrade():
-    from alembic import command
     alembic_cfg = get_alembic_config()
     command.upgrade(alembic_cfg, "head")
     print("Migrations applied successfully!")
@@ -303,7 +510,6 @@ def do_upgrade():
 
 
 def do_downgrade(revision=None):
-    from alembic import command
     alembic_cfg = get_alembic_config()
     target = revision if revision else "-1"
     command.downgrade(alembic_cfg, target)
@@ -311,7 +517,6 @@ def do_downgrade(revision=None):
 
 
 def do_revision(message=None):
-    from alembic import command
     alembic_cfg = get_alembic_config()
     msg = message if message else "auto_generated"
     command.revision(alembic_cfg, autogenerate=True, message=msg)
@@ -319,13 +524,11 @@ def do_revision(message=None):
 
 
 def do_history():
-    from alembic import command
     alembic_cfg = get_alembic_config()
     command.history(alembic_cfg, verbose=True)
 
 
 def do_check():
-    from alembic import command
     alembic_cfg = get_alembic_config()
     try:
         command.check(alembic_cfg)
@@ -402,10 +605,8 @@ def auto():
 
 async def _async_auto_backup():
     backup_task = asyncio.create_task(run_scheduled_backups())
-
     interactive_thread = threading.Thread(target=interactive_mode, daemon=True)
     interactive_thread.start()
-
     try:
         await asyncio.Event().wait()
     except asyncio.CancelledError:
@@ -551,12 +752,13 @@ def interactive_mode():
             print(f"Backup interval: {BACKUP_INTERVAL_HOURS} hours")
             print(f"Backup retention: {BACKUP_KEEP_DAYS} days")
             print(f"Backup directory: {BACKUP_DIR}")
+            print(f"Volumes to backup: {', '.join(BACKUP_VOLUMES.keys())}")
 
-            backups = list(BACKUP_DIR.glob("*.sql.gz"))
-            if backups:
-                sizes = [b.stat().st_size for b in backups]
+            backup_files = list(BACKUP_DIR.glob("*.tar.gz"))
+            if backup_files:
+                sizes = [b.stat().st_size for b in backup_files]
                 total_size = sum(sizes) / (1024 * 1024)
-                print(f"Total backups: {len(backups)}")
+                print(f"Total backups: {len(backup_files)}")
                 print(f"Total size: {total_size:.2f} MB")
             else:
                 print("No backups found")
