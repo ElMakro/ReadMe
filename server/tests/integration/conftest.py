@@ -28,12 +28,13 @@ def postgres_container():
         sync_url = postgres.get_connection_url()
         async_url = sync_url.replace("+psycopg2", "+asyncpg")
 
+        os.environ["ALEMBIC_DB_URL"] = async_url
+
         alembic_ini_path = os.path.join(project_root, "alembic.ini")
         alembic_cfg = Config(alembic_ini_path)
 
         script_location = os.path.join(project_root, "server", "database", "alembic")
         alembic_cfg.set_main_option("script_location", script_location)
-        alembic_cfg.set_main_option("sqlalchemy.url", async_url)
 
         command.upgrade(alembic_cfg, "head")
 
