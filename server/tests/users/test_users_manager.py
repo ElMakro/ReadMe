@@ -142,3 +142,16 @@ class TestChangeRoleExceptProfessors:
     async def test_raises_error_when_user_not_found(self, users_manager):
         with pytest.raises(UserNotFoundError):
             await users_manager.change_role_except_professors(uuid.uuid4(), Role.ADMIN)
+
+
+class TestDeleteUser:
+    async def test_deletes_existing_user(self, users_manager, student_factory):
+        student = await student_factory()
+        await users_manager.delete_user(student.id)
+        async with users_manager.db.db_session() as session:
+            result = await session.execute(select(Users).where(Users.id == student.id))
+            assert result.scalar_one_or_none() is None
+
+    async def test_raises_error_when_user_not_found(self, users_manager):
+        with pytest.raises(UserNotFoundError):
+            await users_manager.delete_user(uuid.uuid4())
