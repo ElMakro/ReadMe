@@ -3,7 +3,7 @@ import uuid
 from pydantic import BaseModel, ConfigDict, Field, RootModel
 
 from server.app.api.v1.common_schemas import TimestampsMixin
-from server.config.constants import MAX_COURSE_DESCRIPTION_LENGTH
+from server.config.constants import MAX_SECTION_DESCRIPTION_LENGTH
 
 
 class SectionIDMixin(
@@ -41,7 +41,7 @@ class SectionBase(
     description: str = Field(
         ...,
         description="Описание раздела",
-        max_length=MAX_COURSE_DESCRIPTION_LENGTH,
+        max_length=MAX_SECTION_DESCRIPTION_LENGTH,
         examples=["Описание раздела"],
     )
     order_number: int = Field(
@@ -91,6 +91,7 @@ class SectionUpdate(
         None,
         description="Описание раздела",
         examples=["Описание раздела"],
+        max_length=MAX_SECTION_DESCRIPTION_LENGTH
     )
     tags: list[str] = Field(
         None,

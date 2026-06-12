@@ -116,6 +116,7 @@ services:
             - DEFAULT_ADMIN_NICKNAME=${DEFAULT_ADMIN_NICKNAME}
             - DEFAULT_ADMIN_EMAIL=${DEFAULT_ADMIN_EMAIL}
             - DEFAULT_ADMIN_PASSWORD=${DEFAULT_ADMIN_PASSWORD}
+            - BACKUP_VOLUMES=${BACKUP_VOLUMES}
             - BACKUP_INTERVAL_HOURS=${BACKUP_INTERVAL_HOURS}
             - BACKUP_ENABLED=${BACKUP_ENABLED}
             - BACKUP_KEEP_DAYS=${BACKUP_KEEP_DAYS}
@@ -123,7 +124,9 @@ services:
         stdin_open: true
         tty: true
         volumes:
-            - readme-postgres-database-backups:/backups
+            - readme-backups:/backups
+            - readme-courses-resources:/volumes/readme-courses-resources
+            - readme-users-resources:/volumes/readme-users-resources
         ports:
             -   "8888:8888"
         networks:
@@ -173,6 +176,8 @@ services:
             - DEFAULT_ADMIN_EMAIL=${DEFAULT_ADMIN_EMAIL}
             - DEFAULT_ADMIN_PASSWORD=${DEFAULT_ADMIN_PASSWORD}
         command: ["auto"]
+        volumes:
+            - readme-users-resources:/volumes/readme-users-resources
         networks:
             - readme-network
         depends_on:
@@ -277,7 +282,7 @@ networks:
 
 volumes:
     readme-postgres-database-data:
-    readme-postgres-database-backups:
     readme-redis-database-data:
+    readme-backups:
     readme-courses-resources:
     readme-users-resources:
