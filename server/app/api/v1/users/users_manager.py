@@ -2,7 +2,7 @@ import uuid
 from uuid import UUID
 
 from fastapi import Depends
-from sqlalchemy import and_, delete, desc, exists, insert, literal, or_, select, update
+from sqlalchemy import delete, desc, exists, insert, literal, or_, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError
 
