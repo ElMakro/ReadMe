@@ -67,6 +67,9 @@ users_router = APIRouter(
         status.HTTP_422_UNPROCESSABLE_CONTENT: {
             "description": "Некорректно переданы параметры",
         },
+        status.HTTP_404_NOT_FOUND: {
+            "description": NOT_FOUND_ERROR_TEXT,
+        },
     },
 )
 async def user_profile(
@@ -77,9 +80,15 @@ async def user_profile(
             UsersService,
         ),
 ) -> UserProfile:
-    return await users_service.get_info_for_user_profile(
-        user,
-    )
+    try:
+        return await users_service.get_info_for_user_profile(
+            user,
+        )
+    except UserNotFoundError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(error),
+        )
 
 
 @users_router.put(
