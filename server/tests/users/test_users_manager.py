@@ -1,10 +1,10 @@
 import uuid
 
 import pytest
-from sqlalchemy import delete
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
-from server.app.api.v1.users.exceptions import UserNotFoundError
+from server.app.api.v1.users.exceptions import UserMustBeInProfessorsTableError, UserNotFoundError
 from server.app.api.v1.users.users import (
     UserInfo,
     UserProfile,
@@ -12,6 +12,7 @@ from server.app.api.v1.users.users import (
     UserVerification,
 )
 from server.database.models import Users
+from server.enums.role import Role
 
 pytestmark = pytest.mark.asyncio
 
@@ -104,3 +105,40 @@ class TestSearchUsers:
     async def test_search_no_results(self, users_manager):
         result = await users_manager.search_users("nonexistent", 0, 10)
         assert result.root == []
+
+
+class TestChangeRoleToProfessor:
+    async def test_changes_role_when_user_in_professors_table(self, users_manager, professor_factory,
+                                                              student_factory):
+        await professor_factory()
+        from server.database.models import ProfessorsDetails
+        student = await student_factory()
+        async with users_manager.db.db_session() as session:
+            prof_detail = ProfessorsDetails(id=student.id, name="Test", surname="User",
+                                            patronymic=None)
+            session.add(prof_detail)
+            await session.commit()
+        await users_manager.change_role_to_professor(student.id)
+        async with users_manager.db.db_session() as session:
+            result = await session.execute(select(Users).where(Users.id == student.id))
+            user = result.scalar_one()
+            assert user.role == Role.PROFESSOR
+
+    async def test_raises_error_if_user_not_in_professors_table(self, users_manager, student_factory):
+        student = await student_factory()
+        with pytest.raises(UserMustBeInProfessorsTableError):
+            await users_manager.change_role_to_professor(student.id)
+
+
+class TestChangeRoleExceptProfessors:
+    async def test_changes_role_to_student(self, users_manager, professor_factory):
+        professor = await professor_factory()
+        await users_manager.change_role_except_professors(professor.id, Role.STUDENT)
+        async with users_manager.db.db_session() as session:
+            result = await session.execute(select(Users).where(Users.id == professor.id))
+            user = result.scalar_one()
+            assert user.role == Role.STUDENT
+
+    async def test_raises_error_when_user_not_found(self, users_manager):
+        with pytest.raises(UserNotFoundError):
+            await users_manager.change_role_except_professors(uuid.uuid4(), Role.ADMIN)
