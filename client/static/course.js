@@ -374,7 +374,8 @@
                         blockHtml = await renderMarkdown(rawContent);
                     } else if (blockType === 'latex') {
                         const latexSource = prepareLatexBlock(rawContent);
-                        blockHtml = `<div class="latex-block">${escapeHtml(latexSource)}</div>`;
+                        // FIX: Не экранируем LaTeX, чтобы не повредить синтаксис
+                        blockHtml = `<div class="latex-block">${latexSource}</div>`;
                     } else if (blockType === 'plantuml' || blockType === 'image') {
                         if (rawContent && typeof rawContent === 'string' && rawContent.length > 0) {
                             const imgUrl = `${window.API_BASE_URL}topics/get-resource/${currentTopicId}/${encodeURIComponent(rawContent)}`;
@@ -430,7 +431,6 @@
                 const resp = await fetch(url, {credentials: 'include'});
                 if (!resp.ok) {
                     if (resp.status === 401 || resp.status === 403) {
-                        // Не показываем в боковой панели сообщение, просто очищаем
                         sectionList.innerHTML = '<li class="section-item text-muted">Войдите, чтобы увидеть содержимое курса.</li>';
                         window.showToast('Доступ запрещён. Пожалуйста, войдите заново.', 'danger');
                         return;
@@ -583,7 +583,7 @@
     });
 })();
 
-// Плавающее окно конспекта (без изменений, но для полноты привожу)
+// Плавающее окно конспекта
 (function () {
     document.addEventListener('DOMContentLoaded', function () {
         const win = document.getElementById('floatingWindow');

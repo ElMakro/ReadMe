@@ -52,6 +52,7 @@
                 });
                 if (!resp.ok) {
                     if (resp.status === 401 || resp.status === 403) throw new Error('Доступ запрещён');
+                    // FIX: более понятное сообщение для 409
                     if (resp.status === 409) throw new Error('Конспект для этой темы уже существует');
                     throw new Error(`Create failed: ${resp.status}`);
                 }
@@ -135,7 +136,6 @@
                 const total = hasNext ? page + 1 : page;
                 if (pagination) {
                     pagination.setTotalPages(total);
-                    // Важно: silent = true, чтобы не вызывать повторно onPageChange
                     pagination.setPage(page, true);
                 }
             } catch (err) {

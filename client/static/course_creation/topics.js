@@ -720,7 +720,14 @@
                         else if (res.status === 409) errorMsg = 'Тема с таким порядковым номером уже существует';
                         else if (res.status === 400) {
                             const errData = await res.json().catch(() => null);
-                            errorMsg = errData?.detail || 'Ошибка компиляции контента';
+                            // FIX: преобразуем массив ошибок в читаемую строку
+                            if (errData && Array.isArray(errData)) {
+                                errorMsg = errData.map(e => `Блок ${e.block_index}: ${e.error}`).join('; ');
+                            } else if (errData?.detail) {
+                                errorMsg = errData.detail;
+                            } else {
+                                errorMsg = 'Ошибка компиляции контента';
+                            }
                         } else if (res.status === 422) errorMsg = 'Ошибка валидации данных';
                         throw new Error(errorMsg);
                     }
@@ -745,7 +752,14 @@
                         else if (res.status === 409) errorMsg = 'Тема с таким порядковым номером уже существует';
                         else if (res.status === 400) {
                             const errData = await res.json().catch(() => null);
-                            errorMsg = errData?.detail || 'Ошибка компиляции контента';
+                            // FIX: преобразуем массив ошибок в читаемую строку
+                            if (errData && Array.isArray(errData)) {
+                                errorMsg = errData.map(e => `Блок ${e.block_index}: ${e.error}`).join('; ');
+                            } else if (errData?.detail) {
+                                errorMsg = errData.detail;
+                            } else {
+                                errorMsg = 'Ошибка компиляции контента';
+                            }
                         } else if (res.status === 422) errorMsg = 'Ошибка валидации данных';
                         throw new Error(errorMsg);
                     }
@@ -789,14 +803,14 @@
                         credentials: 'include',
                         body: JSON.stringify({raw_content: finalRawContent})
                     });
+                    // FIX: обновляем локальный topic.raw_content после загрузки файлов
+                    topic.raw_content = finalRawContent;
+                } else {
+                    topic.raw_content = rawContentForFirstPut;
                 }
 
                 topic.name = newName;
                 topic.tags = newTags;
-                topic.raw_content = filesUploaded ? blocks.map(b => {
-                    if (b.type === 'files') return {type: 'files', content: b.content};
-                    else return {type: b.type, content: Array.isArray(b.content) ? b.content : [b.content || '']};
-                }) : rawContentForFirstPut;
 
                 const origIndex = originalTopics.findIndex(t => t.id === topic.id);
                 if (origIndex !== -1) originalTopics[origIndex] = JSON.parse(JSON.stringify(topic));
