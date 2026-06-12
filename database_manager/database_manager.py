@@ -128,16 +128,20 @@ async def create_admin_user(nickname: str = None, email: str = None, password: s
 
         admin_id = uuid.uuid4()
         now = datetime.now()
+        try:
+            admin_user = Users(
+                id=admin_id,
+                nickname=nickname,
+                email=email,
+                password=hashed_password,
+                role=Role.ADMIN,
+                created_at=now,
+                updated_at=now
+            )
+        except ValueError as error:
+            print(f"Constraint violation: {str(error)}")
+            return False
 
-        admin_user = Users(
-            id=admin_id,
-            nickname=nickname,
-            email=email,
-            password=hashed_password,
-            role=Role.ADMIN,
-            created_at=now,
-            updated_at=now
-        )
         session.add(admin_user)
         await session.commit()
         print(f"  Admin user '{nickname}' created successfully with ID: {admin_id}")
