@@ -27,7 +27,7 @@ jobs:
 
             -   name: Run all tests with combined coverage
                 run: |
-                    pytest server/tests/ client/tests/ \
+                    pytest server/tests/ client/tests/ tests \
                       -c pytest.ini \
                       --cov=server \
                       --cov=client \
