@@ -608,7 +608,7 @@ async def set_user_icon(
         ),
         users_service: UsersService = Depends(UsersService)
 ) -> None:
-    users_service.set_user_icon(user, icon_file)
+    await users_service.set_user_icon(user, icon_file)
 
 
 @users_router.get(
