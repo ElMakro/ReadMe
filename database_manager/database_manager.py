@@ -79,9 +79,7 @@ def create_user_directories(user_id: uuid.UUID, nickname: str) -> bool:
 
     try:
         user_dir.mkdir(parents=True, exist_ok=True)
-        shutil.chown(user_dir, 100, 101)
         files_dir.mkdir(parents=True, exist_ok=True)
-        shutil.chown(user_dir, 100, 101)
         print(f"  ✓ Created user directory: {user_dir}")
         print(f"  ✓ Created files directory: {files_dir}")
 
@@ -90,7 +88,6 @@ def create_user_directories(user_id: uuid.UUID, nickname: str) -> bool:
         data = f"{user_id}-{nickname}"
         icon_path = user_dir / "icon.png"
         icon_path.write_bytes(icons_generator.generate_icon(data))
-        shutil.chown(icon_path, 100, 101)
         print(f"  ✓ Created icon: {icon_path}")
 
         return True
