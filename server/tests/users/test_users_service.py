@@ -12,7 +12,13 @@ from server.app.api.v1.common_schemas import (
     NOT_EXISTING_LINK_ERROR_TEXT,
     UPDATED_LINK_ERROR_TEXT,
 )
-from server.app.api.v1.exceptions import BadRequestError, ConflictError, MediaTypeError, OperationPermissionError
+from server.app.api.v1.exceptions import (
+    BadRequestError,
+    ConflictError,
+    MediaTypeError,
+    ObjectMissingError,
+    OperationPermissionError,
+)
 from server.app.api.v1.notes.exceptions import CantChangeOwnRoleError, CantDeleteOwnProfileError
 from server.app.api.v1.users.exceptions import (
     NotExistingLinkError,
@@ -504,6 +510,40 @@ class TestEnroll:
         with pytest.raises(ConflictError):
             await users_service.enroll(user, target_user_id=None, course_id=course_id)
 
+    async def test_enroll_student_successfully_enrolls_self(self, users_service, mocker):
+        current_user = UserVerification(id=uuid.uuid4(), role=Role.STUDENT, nickname="student", session_id="sess")
+        requested_user_id = current_user.id
+        course_id = uuid.uuid4()
+        users_service.courses_manager.get_course_by_id = mocker.AsyncMock(
+            return_value=MagicMock(id=course_id, professor_id=uuid.uuid4()))
+        users_service.users_manager.get_user_by_id = mocker.AsyncMock(return_value=MagicMock(id=requested_user_id))
+        mocker.patch.object(users_service, 'check_course_access', return_value=AccessPermissions.HEADER_ACCESS)
+        users_service.courses_manager.check_is_user_enrolled_on_course = mocker.AsyncMock(return_value=False)
+        users_service.users_manager.enroll = mocker.AsyncMock()
+
+        await users_service.enroll(current_user, requested_user_id, course_id)
+        users_service.users_manager.enroll.assert_awaited_once_with(requested_user_id, course_id)
+
+    async def test_enroll_raises_error_if_requested_user_not_found(self, users_service, mocker):
+        current_user = UserVerification(id=uuid.uuid4(), role=Role.PROFESSOR, nickname="prof", session_id="sess")
+        requested_user_id = uuid.uuid4()
+        users_service.users_manager.get_user_by_id = mocker.AsyncMock(return_value=None)
+        users_service.courses_manager.get_course_by_id = mocker.AsyncMock(return_value=MagicMock())
+
+        with pytest.raises(ObjectMissingError):
+            await users_service.enroll(current_user, requested_user_id, uuid.uuid4())
+
+    async def test_enroll_student_without_access_raises_error(self, users_service, mocker):
+        current_user = UserVerification(id=uuid.uuid4(), role=Role.STUDENT, nickname="student", session_id="sess")
+        requested_user_id = current_user.id
+        course_id = uuid.uuid4()
+        users_service.users_manager.get_user_by_id = mocker.AsyncMock(return_value=MagicMock(id=requested_user_id))
+        users_service.courses_manager.get_course_by_id = mocker.AsyncMock(return_value=MagicMock(id=course_id))
+        mocker.patch.object(users_service, 'check_course_access', return_value=AccessPermissions.NO_ACCESS)
+
+        with pytest.raises(OperationPermissionError):
+            await users_service.enroll(current_user, requested_user_id, course_id)
+
 
 class TestUnenroll:
     async def test_student_unenrolls_self(self, users_service, mock_courses_manager, mock_users_manager):
@@ -559,6 +599,26 @@ class TestUnenroll:
 
         with pytest.raises(ConflictError):
             await users_service.unenroll(user, target_user_id=None, course_id=course_id)
+
+    async def test_unenroll_raises_error_if_requested_user_not_found(self, users_service, mocker):
+        current_user = UserVerification(id=uuid.uuid4(), role=Role.PROFESSOR, nickname="prof", session_id="sess")
+        requested_user_id = uuid.uuid4()
+        users_service.users_manager.get_user_by_id = mocker.AsyncMock(return_value=None)
+        users_service.courses_manager.get_course_by_id = mocker.AsyncMock(return_value=MagicMock())
+
+        with pytest.raises(ObjectMissingError):
+            await users_service.unenroll(current_user, requested_user_id, uuid.uuid4())
+
+    async def test_unenroll_professor_not_own_course_raises_error(self, users_service, mocker):
+        current_user = UserVerification(id=uuid.uuid4(), role=Role.PROFESSOR, nickname="prof", session_id="sess")
+        requested_user_id = uuid.uuid4()
+        course_id = uuid.uuid4()
+        course = MagicMock(id=course_id, professor_id=uuid.uuid4())
+        users_service.users_manager.get_user_by_id = mocker.AsyncMock(return_value=MagicMock(id=requested_user_id))
+        users_service.courses_manager.get_course_by_id = mocker.AsyncMock(return_value=course)
+
+        with pytest.raises(OperationPermissionError):
+            await users_service.unenroll(current_user, requested_user_id, course_id)
 
 
 class TestGetEnrolledUsers:
