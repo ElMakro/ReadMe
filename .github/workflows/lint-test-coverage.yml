@@ -31,6 +31,7 @@ jobs:
                       -c pytest.ini \
                       --cov=server \
                       --cov=client \
+                      --cov=database_manager \
                       --cov-report=html:reports/combined/coverage \
                       --cov-fail-under=60 \
                       --junitxml=reports/combined/test-results.xml
