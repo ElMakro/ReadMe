@@ -665,7 +665,6 @@ def interactive_mode():
         print("  3) Create Admin User")
         print("  4) Connect to Database")
         print("  5) Backup Status")
-        print("  0) Exit")
         print()
 
         choice = input("Select option [0-5]: ").strip()
@@ -767,10 +766,6 @@ def interactive_mode():
             else:
                 print("No backups found")
             input("\nPress Enter to continue...")
-
-        elif choice in ["0", "q", "Q"]:
-            print("\nGoodbye!")
-            os._exit(0)
 
         else:
             print("Invalid option!")
