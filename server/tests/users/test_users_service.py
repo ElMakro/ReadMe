@@ -76,8 +76,8 @@ def mock_courses_manager(mocker: MockerFixture):
 
 @pytest.fixture
 def mock_users_resources_manager(mocker: MockerFixture):
-    manager = mocker.MagicMock()  # синхронный
-    manager.set_user_icon = mocker.MagicMock()
+    manager = mocker.MagicMock()
+    manager.set_user_icon = mocker.AsyncMock()
     return manager
 
 @pytest.fixture
@@ -347,7 +347,7 @@ class TestSetUserIcon:
         upload_file = MagicMock(spec=UploadFile)
         upload_file.content_type = "image/jpeg"
 
-        users_service.set_user_icon(user, upload_file)
+        await users_service.set_user_icon(user, upload_file)
 
         mock_users_resources_manager.set_user_icon.assert_called_once_with(user.id, upload_file)
 
@@ -357,7 +357,7 @@ class TestSetUserIcon:
         upload_file.content_type = "application/pdf"
 
         with pytest.raises(MediaTypeError, match="Некорректный тип файла!"):
-            users_service.set_user_icon(user, upload_file)
+            await users_service.set_user_icon(user, upload_file)
 
     async def test_value_error_from_manager_raises_bad_request(self, users_service, mock_users_resources_manager):
         user = UserVerification(id=uuid.uuid4(), nickname="user", session_id="s", role=Role.STUDENT)
@@ -366,7 +366,7 @@ class TestSetUserIcon:
         mock_users_resources_manager.set_user_icon.side_effect = ValueError("some error")
 
         with pytest.raises(BadRequestError, match="some error"):
-            users_service.set_user_icon(user, upload_file)
+            await users_service.set_user_icon(user, upload_file)
 
 
 class TestGetSecretApplicationLink:
