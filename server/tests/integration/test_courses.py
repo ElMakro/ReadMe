@@ -23,8 +23,7 @@ def _create_professor(api_client, _sync_sessionmaker):
     api_client.post("/api/v1/auth/login", json={"nickname": student_nickname, "password": student_password})
     student_profile = api_client.get("/api/v1/users/profile").json()
     student_id = student_profile["id"]
-    submit = api_client.post(f"/api/v1/users/submit-professor-application/{secret_link}",
-                             json={"name": "Иван", "surname": "Иванов", "patronymic": "Иванович"})
+    submit = api_client.post(f"/api/v1/users/submit-professor-application/{secret_link}", json={"name": "Ivan", "surname": "Ivanov", "patronymic": "Ivanovich"})
     assert submit.status_code == 201
     app_id = submit.json()["id"]
     api_client.get("/api/v1/auth/logout")
@@ -35,7 +34,7 @@ def _create_professor(api_client, _sync_sessionmaker):
     api_client.get("/api/v1/auth/logout")
     api_client.cookies.clear()
     api_client.post("/api/v1/auth/login", json={"nickname": student_nickname, "password": student_password})
-    return api_client
+    return api_client, student_nickname, student_password
 
 class TestCourseCreation:
     @staticmethod
@@ -113,7 +112,7 @@ class TestCourseUpdate:
         (f"Eng_{uuid.uuid4().hex[:6]}", False, False),
     ])
     def test_update_course(api_client, _sync_sessionmaker, name, is_public, is_content_public):
-        professor = _create_professor(api_client, _sync_sessionmaker)
+        professor, _, _ = _create_professor(api_client, _sync_sessionmaker)
         course = professor.post("/api/v1/courses/create-course", json={"name": name, "is_public": is_public, "is_content_public": is_content_public})
         assert course.status_code == 201
         course_id = course.json()["id"]
@@ -135,7 +134,7 @@ class TestCourseUpdate:
         (f"Eng_{uuid.uuid4().hex[:6]}", False, False),
     ])
     def test_update_course_forbidden_for_student(api_client, _sync_sessionmaker, name, is_public, is_content_public):
-        professor = _create_professor(api_client, _sync_sessionmaker)
+        professor, _, _ = _create_professor(api_client, _sync_sessionmaker)
         course = professor.post("/api/v1/courses/create-course", json={"name": name, "is_public": is_public, "is_content_public": is_content_public})
         assert course.status_code == 201
         course_id = course.json()["id"]
@@ -163,7 +162,7 @@ class TestCourseEnrollUnenroll:
         (f"Eng_{uuid.uuid4().hex[:6]}", True),
     ])
     def test_enroll_on_course(api_client, _sync_sessionmaker, name, is_public):
-        professor = _create_professor(api_client, _sync_sessionmaker)
+        professor, _, _ = _create_professor(api_client, _sync_sessionmaker)
         create = professor.post("/api/v1/courses/create-course", json={"name": name, "is_public": is_public})
         assert create.status_code == 201
         course_id = create.json()["id"]
@@ -204,7 +203,7 @@ class TestCourseEnrollUnenroll:
         (f"Eng_{uuid.uuid4().hex[:6]}", False, False),
     ])
     def test_enroll_on_private_course_forbidden(api_client, _sync_sessionmaker, name, is_public, is_content_public):
-        professor = _create_professor(api_client, _sync_sessionmaker)
+        professor, _, _ = _create_professor(api_client, _sync_sessionmaker)
         create = professor.post("/api/v1/courses/create-course", json={
             "name": name,
             "is_public": is_public,
@@ -243,7 +242,7 @@ class TestCourseDelete:
         (f"Eng_{uuid.uuid4().hex[:6]}", True, True),
     ])
     def test_delete_course_by_professor(api_client, _sync_sessionmaker, name, is_public, is_content_public):
-        professor = _create_professor(api_client, _sync_sessionmaker)
+        professor, _, _ = _create_professor(api_client, _sync_sessionmaker)
         course = professor.post("/api/v1/courses/create-course", json={"name": name, "is_public": is_public, "is_content_public": is_content_public})
         assert course.status_code == 201
         course_id = course.json()["id"]
@@ -264,7 +263,7 @@ class TestCourseDelete:
         (f"Eng_{uuid.uuid4().hex[:6]}", True, True),
     ])
     def test_delete_course_by_student_forbidden(api_client, _sync_sessionmaker, name, is_public, is_content_public):
-        professor = _create_professor(api_client, _sync_sessionmaker)
+        professor, _, _ = _create_professor(api_client, _sync_sessionmaker)
         course = professor.post("/api/v1/courses/create-course", json={"name": name, "is_public": is_public, "is_content_public": is_content_public})
         assert course.status_code == 201
         course_id = course.json()["id"]
@@ -280,3 +279,103 @@ class TestCourseDelete:
 
         api_client.get("/api/v1/auth/logout")
         api_client.cookies.clear()
+
+class TestControlledCourses:
+    @staticmethod
+    @pytest.mark.integration
+    @pytest.mark.parametrize("name, is_public, is_content_public", [
+        (f"Math_{uuid.uuid4().hex[:6]}", True, True),
+        (f"PE_{uuid.uuid4().hex[:6]}", True, False),
+        (f"ML_{uuid.uuid4().hex[:6]}", False, False),
+        (f"BD_{uuid.uuid4().hex[:6]}", False, False),
+        (f"Eng_{uuid.uuid4().hex[:6]}", True, True),
+    ])
+    def test_get_controlled_courses(professor_client, name, is_public, is_content_public):
+        course = professor_client.post("/api/v1/courses/create-course", json={
+            "name": name,
+            "is_public": is_public,
+            "is_content_public": is_content_public
+        })
+        assert course.status_code == 201
+        res = professor_client.get("/api/v1/courses/controlled-courses")
+        assert res.status_code == 200
+        courses = res.json()
+        assert len(courses) >= 1
+        assert any(c["id"] == course.json()["id"] for c in courses)
+
+class TestChangeProfessor:
+    @staticmethod
+    @pytest.mark.integration
+    def test_change_course_professor(api_client, _sync_sessionmaker):
+        professor_a_client, professor_a_nick, professor_a_pass = _create_professor(api_client, _sync_sessionmaker)
+        course = professor_a_client.post("/api/v1/courses/create-course", json={"name": "CourseToTransfer", "is_public": True})
+        assert course.status_code == 201
+        course_id = course.json()["id"]
+
+        admin_nickname = f"admin_{uuid.uuid4().hex[:6]}"
+        admin_password = "StrongPassword123!"
+        api_client.post("/api/v1/auth/reg", json={"nickname": admin_nickname, "email": f"{admin_nickname}@t.com", "password": admin_password})
+        api_client.post("/api/v1/auth/login", json={"nickname": admin_nickname, "password": admin_password})
+        admin_profile = api_client.get("/api/v1/users/profile").json()
+        with _sync_sessionmaker() as session:
+            session.execute(text("UPDATE users SET role = 'ADMIN' WHERE id = :uid"), {"uid": admin_profile["id"]})
+            session.commit()
+        secret_link = f"prof_link_{uuid.uuid4().hex[:8]}"
+        set_link = api_client.post("/api/v1/users/set-application-link", json={"type": "custom", "content": secret_link})
+        assert set_link.status_code == 200
+        api_client.get("/api/v1/auth/logout")
+        api_client.cookies.clear()
+
+        new_professor_nickname = f"newprof_{uuid.uuid4().hex[:6]}"
+        new_professor_password = "StrongPassword123!"
+        api_client.post("/api/v1/auth/reg", json={"nickname": new_professor_nickname, "email": f"{new_professor_nickname}@t.com", "password": new_professor_password})
+        api_client.post("/api/v1/auth/login", json={"nickname": new_professor_nickname, "password": new_professor_password})
+        new_professor_profile = api_client.get("/api/v1/users/profile").json()
+        new_professor_id = new_professor_profile["id"]
+        submit = api_client.post(f"/api/v1/users/submit-professor-application/{secret_link}", json={"name": "Prof", "surname": "Test"})
+        assert submit.status_code == 201
+        app_id = submit.json()["id"]
+        api_client.get("/api/v1/auth/logout")
+        api_client.cookies.clear()
+
+        api_client.post("/api/v1/auth/login", json={"nickname": admin_nickname, "password": admin_password})
+        approve = api_client.put("/api/v1/users/change-application-status", json={"application_id": app_id, "user_id": new_professor_id, "status": "approved"})
+        assert approve.status_code == 204
+        api_client.get("/api/v1/auth/logout")
+        api_client.cookies.clear()
+
+        professor_a_client.get("/api/v1/auth/logout")
+        professor_a_client.cookies.clear()
+        login_a = professor_a_client.post("/api/v1/auth/login", json={"nickname": professor_a_nick, "password": professor_a_pass})
+        assert login_a.status_code == 200
+
+        change = professor_a_client.put(f"/api/v1/courses/{course_id}/change-professor", json={"new_professor_id": new_professor_id})
+        assert change.status_code == 204
+
+        api_client.post("/api/v1/auth/login", json={"nickname": new_professor_nickname, "password": new_professor_password})
+        get_course = api_client.get(f"/api/v1/courses/{course_id}").json()
+        assert get_course["professor_id"] == new_professor_id
+
+class TestCourseIcon:
+    @staticmethod
+    @pytest.mark.integration
+    @pytest.mark.parametrize("name, is_public, is_content_public", [
+        (f"Math_{uuid.uuid4().hex[:6]}", True, True),
+        (f"PE_{uuid.uuid4().hex[:6]}", True, False),
+        (f"ML_{uuid.uuid4().hex[:6]}", False, False),
+        (f"BD_{uuid.uuid4().hex[:6]}", False, False),
+        (f"Eng_{uuid.uuid4().hex[:6]}", True, True),
+    ])
+    def test_set_and_get_course_icon(professor_client, name, is_public, is_content_public):
+        course = professor_client.post("/api/v1/courses/create-course", json={
+            "name": name,
+            "is_public": is_public,
+            "is_content_public": is_content_public
+        })
+        course_id = course.json()["id"]
+        files = {"icon_file": ("icon.png", b"fakeimage", "image/png")}
+        set_icon = professor_client.post(f"/api/v1/courses/{course_id}/icon", files=files)
+        assert set_icon.status_code == 204
+        get_icon = professor_client.get(f"/api/v1/courses/{course_id}/icon")
+        assert get_icon.status_code == 200
+        assert get_icon.headers["content-type"] == "image/png"

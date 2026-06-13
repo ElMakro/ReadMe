@@ -72,3 +72,51 @@ class TestNotes:
             "content": "c"
         })
         assert result.status_code == 409
+
+class TestNoteOperations:
+    @staticmethod
+    @pytest.mark.integration
+    def test_get_note_for_topic(professor_client, topic_id_for_note):
+        create = professor_client.post("/api/v1/notes/create-note", json={
+            "topic_id": topic_id_for_note,
+            "name": "Note to get",
+            "content": "Content"
+        })
+        assert create.status_code == 201
+        get = professor_client.get(f"/api/v1/notes/get-note-for-topic/{topic_id_for_note}")
+        assert get.status_code == 200
+        assert get.json()["name"] == "Note to get"
+
+    @staticmethod
+    @pytest.mark.integration
+    def test_update_note(professor_client, topic_id_for_note):
+        create = professor_client.post("/api/v1/notes/create-note", json={
+            "topic_id": topic_id_for_note,
+            "name": "Old",
+            "content": "Old content"
+        })
+        note_id = create.json()["id"]
+        update = professor_client.put("/api/v1/notes/update-note", json={
+            "note_id": note_id,
+            "topic_id": topic_id_for_note,
+            "name": "New",
+            "content": "New content"
+        })
+        assert update.status_code == 204
+        get = professor_client.get(f"/api/v1/notes/get-note-for-topic/{topic_id_for_note}")
+        assert get.json()["name"] == "New"
+        assert get.json()["content"] == "New content"
+
+    @staticmethod
+    @pytest.mark.integration
+    def test_delete_note(professor_client, topic_id_for_note):
+        create = professor_client.post("/api/v1/notes/create-note", json={
+            "topic_id": topic_id_for_note,
+            "name": "ToDelete",
+            "content": "Content"
+        })
+        note_id = create.json()["id"]
+        delete = professor_client.delete(f"/api/v1/notes/delete-note/{note_id}")
+        assert delete.status_code == 204
+        get = professor_client.get(f"/api/v1/notes/get-note-for-topic/{topic_id_for_note}")
+        assert get.status_code == 204

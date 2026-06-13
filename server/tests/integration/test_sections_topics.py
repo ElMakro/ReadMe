@@ -22,7 +22,6 @@ class TestSections:
             "order_number": 1
         })
         assert result.status_code == 201
-        return result.json()["id"]
 
     @staticmethod
     @pytest.mark.integration
@@ -35,6 +34,17 @@ class TestSections:
         result = professor_client.get(f"/api/v1/sections/by_course/{course_id}")
         assert result.status_code == 200
         assert len(result.json()) > 0
+
+    @staticmethod
+    @pytest.mark.integration
+    def test_get_section_by_id(professor_client, course_id):
+        section = professor_client.post("/api/v1/sections/create-section", json={
+            "course_id": course_id, "name": "GetMe", "description": "desc", "order_number": 1
+        })
+        section_id = section.json()["id"]
+        get = professor_client.get(f"/api/v1/sections/{section_id}")
+        assert get.status_code == 200
+        assert get.json()["name"] == "GetMe"
 
 
 class TestTopics:
