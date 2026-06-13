@@ -19,6 +19,20 @@
     const currentUserIdInput = document.getElementById('currentUserId');
     const currentNewStatusInput = document.getElementById('currentNewStatus');
 
+    // Вспомогательная функция для извлечения сообщения об ошибке
+    async function extractErrorMessage(response, defaultMsg) {
+        try {
+            const errorData = await response.json();
+            if (typeof errorData.detail === 'string') return errorData.detail;
+            if (Array.isArray(errorData.detail) && errorData.detail[0]?.msg) {
+                return errorData.detail.map(e => e.msg).join(', ');
+            }
+            if (errorData.message) return errorData.message;
+            if (errorData.error) return errorData.error;
+        } catch (e) {}
+        return defaultMsg;
+    }
+
     function getStatusText(status) {
         const map = {
             'pending': 'На рассмотрении',
@@ -69,7 +83,10 @@
             }
             if (!response.ok) {
                 if (response.status === 404) throw new Error('Ресурс не найден.');
-                if (response.status === 422) throw new Error('Ошибка валидации параметров.');
+                if (response.status === 422) {
+                    const msg = await extractErrorMessage(response, 'Ошибка валидации параметров.');
+                    throw new Error(msg);
+                }
                 throw new Error(`HTTP ${response.status}`);
             }
             const applications = await response.json();
@@ -89,6 +106,7 @@
                 </div>
             `;
             pagination.hide();
+            window.showToast(err.message, 'danger');
         } finally {
             isLoading = false;
         }
@@ -178,12 +196,12 @@
                 window.showToast('Несоответствие идентификатора заявки и пользователя.', 'danger');
                 statusModal.hide();
             } else if (response.status === 422) {
-                const errorData = await response.json().catch(() => ({}));
-                window.showToast(errorData.detail || 'Ошибка валидации данных.', 'danger');
+                const errorMsg = await extractErrorMessage(response, 'Ошибка валидации данных.');
+                window.showToast(errorMsg, 'danger');
                 statusModal.hide();
             } else {
-                const errorData = await response.json().catch(() => ({}));
-                window.showToast(errorData.detail || 'Ошибка при изменении статуса.', 'danger');
+                const errorMsg = await extractErrorMessage(response, 'Ошибка при изменении статуса.');
+                window.showToast(errorMsg, 'danger');
             }
         } catch (err) {
             console.error(err);
@@ -192,6 +210,25 @@
             confirmStatusBtn.disabled = false;
             confirmStatusBtn.innerHTML = 'Подтвердить';
         }
+    }
+
+    // Генерация случайной ссылки только из разрешённых символов
+    function generateRandomSecret() {
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_.-';
+        const length = 32; // 32 символа — безопасно и в пределах 5-43
+        let result = '';
+        const randomValues = new Uint8Array(length);
+        crypto.getRandomValues(randomValues);
+        for (let i = 0; i < length; i++) {
+            result += chars[randomValues[i] % chars.length];
+        }
+        return result;
+    }
+
+    // Валидация пользовательской ссылки
+    function isValidSecretPart(part) {
+        const regex = /^[a-zA-Z0-9_.-]{5,43}$/;
+        return regex.test(part);
     }
 
     function addSecretLinkControls() {
@@ -222,10 +259,10 @@
                                     <button id="setDefaultBtn" class="btn btn-outline-accent">Использовать ссылку по умолчанию</button>
                                     <hr>
                                     <div class="d-flex gap-2">
-    <input type="text" id="customLinkInput" class="form-control" placeholder="Введите свою ссылку">
-    <button id="setCustomBtn" class="btn btn-primary">Установить</button>
-</div>
-<div class="form-text text-muted mt-1">Допустимые символы: латиница, цифры, «_», «-», «.»</div>
+                                        <input type="text" id="customLinkInput" class="form-control" placeholder="Введите свою ссылку">
+                                        <button id="setCustomBtn" class="btn btn-primary">Установить</button>
+                                    </div>
+                                    <div class="form-text text-muted mt-1">Допустимые символы: латиница, цифры, «_», «-», «.» (длина от 5 до 43)</div>
                                 </div>
                             </div>
                             <div id="secretLinkResult" class="alert" style="display: none;"></div>
@@ -249,6 +286,15 @@
         const setLink = async (type, content = null) => {
             const payload = {type};
             if (content !== null) payload.content = content;
+
+            // Для типа 'custom' проверим валидность содержимого на клиенте
+            if (type === 'custom' && content && !isValidSecretPart(content)) {
+                resultDiv.className = 'alert alert-danger mt-3';
+                resultDiv.innerHTML = 'Некорректная секретная часть. Допустимая длина от 5 до 43 символов, разрешены: латиница, цифры, _, -, .';
+                resultDiv.style.display = 'block';
+                return;
+            }
+
             try {
                 const response = await fetch(`${window.API_BASE_URL}users/set-application-link`, {
                     method: 'POST',
@@ -286,9 +332,13 @@
                     resultDiv.innerHTML = 'Недостаточно прав для выполнения операции.';
                     resultDiv.style.display = 'block';
                 } else if (response.status === 422) {
-                    const err = await response.json().catch(() => ({}));
+                    const errMsg = await extractErrorMessage(response, 'некорректный формат ссылки');
+                    let userMsg = errMsg;
+                    if (errMsg.toLowerCase().includes('формат') || errMsg.toLowerCase().includes('ссылка')) {
+                        userMsg = 'Некорректная секретная часть. Допустимая длина от 5 до 43 символов, разрешены: латиница, цифры, _, -, .';
+                    }
                     resultDiv.className = 'alert alert-danger mt-3';
-                    resultDiv.innerHTML = `Ошибка: ${err.detail?.[0]?.msg || 'некорректный формат ссылки'}`;
+                    resultDiv.innerHTML = `Ошибка: ${userMsg}`;
                     resultDiv.style.display = 'block';
                 } else {
                     throw new Error(`HTTP ${response.status}`);
@@ -305,12 +355,6 @@
         const customBtn = modal.querySelector('#setCustomBtn');
         const customInput = modal.querySelector('#customLinkInput');
 
-        const generateRandomSecret = () => {
-            const randomBytes = new Uint8Array(32);
-            crypto.getRandomValues(randomBytes);
-            return btoa(String.fromCharCode(...randomBytes)).replace(/[+/=]/g, '').slice(0, 43);
-        };
-
         randomBtn.onclick = () => {
             const randomSecret = generateRandomSecret();
             setLink('random', randomSecret);
@@ -320,6 +364,10 @@
             const customValue = customInput.value.trim();
             if (!customValue) {
                 window.showToast('Введите непустую ссылку', 'danger');
+                return;
+            }
+            if (!isValidSecretPart(customValue)) {
+                window.showToast('Некорректная секретная часть. Длина от 5 до 43, символы: латиница, цифры, _, -, .', 'danger');
                 return;
             }
             setLink('custom', customValue);

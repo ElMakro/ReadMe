@@ -9,6 +9,20 @@
         return div.innerHTML;
     }
 
+    // Унифицированное извлечение сообщения об ошибке из ответа API
+    async function extractErrorMessage(response, defaultMsg) {
+        try {
+            const errorData = await response.json();
+            if (typeof errorData.detail === 'string') return errorData.detail;
+            if (Array.isArray(errorData.detail) && errorData.detail[0]?.msg) {
+                return errorData.detail.map(e => e.msg).join(', ');
+            }
+            if (errorData.message) return errorData.message;
+            if (errorData.error) return errorData.error;
+        } catch (e) {}
+        return defaultMsg;
+    }
+
     async function loadNoteForTopic(topicId) {
         if (!topicId) return null;
         try {
@@ -17,12 +31,22 @@
             });
             if (resp.status === 204) return null;
             if (!resp.ok) {
-                if (resp.status === 401 || resp.status === 403) throw new Error('Для работы с заметками необходимо войти в систему.');
+                if (resp.status === 401 || resp.status === 403) {
+                    throw new Error('Для работы с заметками необходимо войти в систему.');
+                }
+                if (resp.status === 422) {
+                    const msg = await extractErrorMessage(resp, 'Ошибка валидации данных.');
+                    throw new Error(msg);
+                }
                 throw new Error(`HTTP ${resp.status}`);
             }
             return await resp.json();
         } catch (err) {
             console.warn('loadNoteForTopic error:', err);
+            // Показываем пользователю только если это не 204 (нет конспекта)
+            if (err.message !== 'Для работы с заметками необходимо войти в систему.') {
+                window.showToast(err.message, 'danger');
+            }
             return null;
         }
     }
@@ -38,8 +62,16 @@
                     body: JSON.stringify({note_id: noteId, topic_id: topicId, name, content})
                 });
                 if (!resp.ok) {
-                    if (resp.status === 401 || resp.status === 403) throw new Error('Для работы с заметками необходимо войти в систему.');
-                    if (resp.status === 409) throw new Error('Конспект не принадлежит вам или уже изменён');
+                    if (resp.status === 401 || resp.status === 403) {
+                        throw new Error('Для работы с заметками необходимо войти в систему.');
+                    }
+                    if (resp.status === 409) {
+                        throw new Error('Конспект не принадлежит вам или уже изменён.');
+                    }
+                    if (resp.status === 422) {
+                        const msg = await extractErrorMessage(resp, 'Ошибка валидации данных.');
+                        throw new Error(msg);
+                    }
                     throw new Error(`Update failed: ${resp.status}`);
                 }
                 return {success: true, noteId};
@@ -51,9 +83,16 @@
                     body: JSON.stringify({topic_id: topicId, name, content})
                 });
                 if (!resp.ok) {
-                    if (resp.status === 401 || resp.status === 403) throw new Error('Для работы с заметками необходимо войти в систему.');
-                    // FIX: более понятное сообщение для 409
-                    if (resp.status === 409) throw new Error('Конспект для этой темы уже существует');
+                    if (resp.status === 401 || resp.status === 403) {
+                        throw new Error('Для работы с заметками необходимо войти в систему.');
+                    }
+                    if (resp.status === 409) {
+                        throw new Error('Конспект для этой темы уже существует.');
+                    }
+                    if (resp.status === 422) {
+                        const msg = await extractErrorMessage(resp, 'Ошибка валидации данных.');
+                        throw new Error(msg);
+                    }
                     throw new Error(`Create failed: ${resp.status}`);
                 }
                 const data = await resp.json();
@@ -76,6 +115,10 @@
             if (!resp.ok) {
                 if (resp.status === 401 || resp.status === 403) throw new Error('Доступ запрещён');
                 if (resp.status === 404) throw new Error('Конспект не найден');
+                if (resp.status === 422) {
+                    const msg = await extractErrorMessage(resp, 'Ошибка валидации.');
+                    throw new Error(msg);
+                }
                 throw new Error(`Delete failed: ${resp.status}`);
             }
             window.showToast('Конспект удалён');
@@ -91,8 +134,13 @@
         const url = `${API_BASE}notes/my-notes?page=${page}&records_per_page=${perPage}`;
         const resp = await fetch(url, {credentials: 'include'});
         if (!resp.ok) {
-            if (resp.status === 401 || resp.status === 403) throw new Error('Для работы с заметками необходимо войти в систему.');
-            if (resp.status === 422) throw new Error('Ошибка валидации параметров');
+            if (resp.status === 401 || resp.status === 403) {
+                throw new Error('Для работы с заметками необходимо войти в систему.');
+            }
+            if (resp.status === 422) {
+                const msg = await extractErrorMessage(resp, 'Ошибка валидации параметров');
+                throw new Error(msg);
+            }
             throw new Error(`HTTP ${resp.status}`);
         }
         const data = await resp.json();
@@ -139,11 +187,12 @@
                     pagination.setPage(page, true);
                 }
             } catch (err) {
-                if (err.message === 'Доступ запрещён') {
+                if (err.message === 'Для работы с заметками необходимо войти в систему.') {
                     window.showAccessDenied(container, err.message, true, pagination);
                 } else {
                     container.innerHTML = `<div class="text-danger text-center py-4">${err.message}</div>`;
                     if (pagination) pagination.hide();
+                    window.showToast(err.message, 'danger');
                 }
             }
         }
