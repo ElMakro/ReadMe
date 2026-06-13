@@ -68,7 +68,7 @@ def _sync_engine(postgres_container):
     engine.dispose()
 
 @pytest.fixture(scope="session")
-def _sync_sessionmaker(_sync_engine):
+def sync_sessionmaker(_sync_engine):
     return sessionmaker(bind=_sync_engine)
 
 def _register_and_login(client, nickname, password="StrongPassword123!"):
@@ -85,59 +85,72 @@ def _register_and_login(client, nickname, password="StrongPassword123!"):
     assert login_result.status_code == 200, f"Пользователь не смог войти в аккаунт: {login_result.text}"
     return client
 
-@pytest.fixture
-def student_client(api_client):
-    nickname = f"student_{uuid.uuid4().hex[:6]}"
-    return _register_and_login(api_client, nickname)
+@pytest.mark.integration
+def create_student(api_client, nickname="", password=""):
+    api_client.get("/api/v1/auth/logout")
+    api_client.cookies.clear()
+    if len(nickname) == 0:
+        nickname = f"student_{uuid.uuid4().hex[:6]}"
+    if len(password) == 0:
+        password = "StrongPassword123"
+    _register_and_login(api_client, nickname, password)
+    return nickname, password
 
 TEST_SECRET_LINK = "test_custom_link_123"
 
+@pytest.mark.integration
 def _set_application_link(client, secret_part):
     result = client.post("/api/v1/users/set-application-link", json={"type": "custom", "content": secret_part})
     assert result.status_code == 200, f"Не удалось установить ссылку для заявки на преподавателя: {result.text}"
     return secret_part
 
-@pytest.fixture
-def professor_client(api_client, _sync_sessionmaker):
-    admin_nickname = f"admin_{uuid.uuid4().hex[:6]}"
-    admin_password = "StrongPassword123!"
-    admin_reg_result = api_client.post("/api/v1/auth/reg", json={
-        "email": f"{admin_nickname}@test.com",
-        "nickname": admin_nickname,
-        "password": admin_password
-    })
-    assert admin_reg_result.status_code == 201, f"Пользователь не смог зарегистрироваться: {admin_reg_result.text}"
+@pytest.mark.integration
+def create_admin(api_client, sync_sessionmaker, nickname="", password=""):
+    if len(nickname) == 0:
+        nickname = f"admin_{uuid.uuid4().hex[:6]}"
+    if len(password) == 0:
+        password = "StrongPassword123!"
+    api_client.get("/api/v1/auth/logout")
+    api_client.cookies.clear()
+    _register_and_login(api_client, nickname, password)
+
+    profile = api_client.get("/api/v1/users/profile")
+    assert profile.status_code == 200, f"Не удалось получить данные пользователя: {profile.text}"
+    user_id = profile.json()["id"]
+
+    with sync_sessionmaker() as session:
+        session.execute(text("UPDATE users SET role = 'ADMIN' WHERE id = :uid"), {"uid": user_id})
+        session.commit()
+
+    profile = api_client.get("/api/v1/users/profile")
+    assert profile.status_code == 200, f"Не удалось получить данные пользователя: {profile.text}"
+    assert profile.json()["role"] == "admin"
+
+    admin_logout_result = api_client.get("api/v1/auth/logout")
+    assert admin_logout_result.status_code == 200, f"Администратор не смог выйти из аккаунта: {admin_logout_result.text}"
+    api_client.cookies.clear()
+
+    return nickname, password
+
+@pytest.mark.integration
+def create_professor(api_client, sync_sessionmaker, nickname="", password=""):
+    api_client.get("/api/v1/auth/logout")
+    api_client.cookies.clear()
+    admin_nickname, admin_password = create_admin(api_client, sync_sessionmaker)
     admin_login_result = api_client.post("/api/v1/auth/login", json={
         "nickname": admin_nickname,
         "password": admin_password
     })
-    assert admin_login_result.status_code == 200, f"Пользователь не смог войти в аккаунт: {admin_login_result.text}"
-    admin_profile = api_client.get("/api/v1/users/profile")
-    assert admin_profile.status_code == 200, f"Не удалось получить данные пользователя: {admin_profile.text}"
-    admin_id = admin_profile.json()["id"]
-    with _sync_sessionmaker() as session:
-        session.execute(text("UPDATE users SET role = 'ADMIN' WHERE id = :uid"), {"uid": admin_id})
-        session.commit()
-
+    assert admin_login_result.status_code == 200, f"Администратор не смог войти в аккаунт: {admin_login_result.text}"
     secret_link = _set_application_link(api_client, TEST_SECRET_LINK)
-
     admin_logout_result = api_client.get("/api/v1/auth/logout")
     assert admin_logout_result.status_code == 200, f"Администратор не смог выйти из аккаунта: {admin_logout_result.text}"
     api_client.cookies.clear()
-
-    student_nickname = f"student_{uuid.uuid4().hex[:6]}"
-    student_password = "StrongPassword123!"
-    student_reg_result = api_client.post("/api/v1/auth/reg", json={
-        "email": f"{student_nickname}@test.com",
-        "nickname": student_nickname,
-        "password": student_password
-    })
-    assert student_reg_result.status_code == 201, f"Пользователь не смог зарегистрироваться: {student_reg_result.text}"
-    student_login_result = api_client.post("/api/v1/auth/login", json={
-        "nickname": student_nickname,
-        "password": student_password
-    })
-    assert student_login_result.status_code == 200, f"Пользователь не смог войти в аккаунт: {student_login_result.text}"
+    if len(nickname) == 0:
+        nickname = f"student_{uuid.uuid4().hex[:6]}"
+    if len(password) == 0:
+        password = "StrongPassword123!"
+    _register_and_login(api_client, nickname, password)
     student_profile = api_client.get("/api/v1/users/profile")
     assert student_profile.status_code == 200, f"Не удалось получить данные пользователя: {student_profile.text}"
     student_id = student_profile.json()["id"]
@@ -170,40 +183,34 @@ def professor_client(api_client, _sync_sessionmaker):
     api_client.cookies.clear()
 
     professor_auth_result = api_client.post("/api/v1/auth/login", json={
+        "nickname": nickname,
+        "password": password
+    })
+    assert professor_auth_result.status_code == 200, f"Студент не смог войти в аккаунт: {professor_auth_result.text}"
+    professor_profile = api_client.get("/api/v1/users/profile")
+    assert professor_profile.status_code == 200, f"Не удалось получить данные пользователя: {professor_profile.text}"
+    assert professor_profile.json()["role"] == "professor"
+
+    return nickname, password
+
+@pytest.fixture
+def student_client(api_client):
+    student_nickname, student_password = create_student(api_client)
+    api_client.post("/api/v1/auth/login", json={
         "nickname": student_nickname,
         "password": student_password
     })
-    assert professor_auth_result.status_code == 200, f"Студент не смог войти в аккаунт: {professor_auth_result.text}"
-
     return api_client
 
 @pytest.fixture
-def admin_client(api_client, _sync_sessionmaker):
-    nickname = f"admin_{uuid.uuid4().hex[:6]}"
-    password = "StrongPassword123!"
-    reg_result = api_client.post("/api/v1/auth/reg", json={
-        "nickname": nickname,
-        "email": f"{nickname}@test.com",
-        "password": password
-    })
-    assert reg_result.status_code == 201, f"Пользователь не смог зарегистрироваться: {reg_result.text}"
-    login_result = api_client.post("/api/v1/auth/login", json={
-        "nickname": nickname,
-        "password": password
-    })
-    assert login_result.status_code == 200, f"Пользователь не смог войти в аккаунт: {login_result.text}"
-    profile = api_client.get("/api/v1/users/profile")
-    assert profile.status_code == 200, f"Не удалось получить данные пользователя: {profile.text}"
-    user_id = profile.json()["id"]
+def admin_client(api_client, sync_sessionmaker):
+    admin_nickname, admin_password = create_admin(api_client, sync_sessionmaker)
+    api_client.post("/api/v1/auth/login", json={"nickname": admin_nickname, "password": admin_password})
+    return api_client
 
-    with _sync_sessionmaker() as session:
-        session.execute(text("UPDATE users SET role = 'ADMIN' WHERE id = :uid"), {"uid": user_id})
-        session.commit()
-
-    api_client.cookies.clear()
-    login_result = api_client.post("/api/v1/auth/login", json={
-        "nickname": nickname,
-        "password": password
-    })
-    assert login_result.status_code == 200, f"Администратор не смог войти в аккаунт: {login_result.text}"
+@pytest.fixture
+def professor_client(api_client, sync_sessionmaker):
+    professor_nickname, professor_password = create_professor(api_client, sync_sessionmaker)
+    api_client.post(
+        "/api/v1/auth/login", json={"nickname": professor_nickname, "password": professor_password})
     return api_client
