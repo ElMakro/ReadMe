@@ -1,9 +1,10 @@
 // static/admin/admin_users.js
-(function() {
+(function () {
     const PAGE_SIZE = 9;
     let isLoading = false;
     let pagination = null;
-    let currentPage = 1; // добавлено
+    let currentPage = 1;
+    let currentSearchQuery = '';          // добавлено для поиска
 
     const container = document.getElementById('usersList');
     const refreshBtn = document.getElementById('refreshBtn');
@@ -23,7 +24,7 @@
 
     function escapeHtml(str) {
         if (!str) return '';
-        return String(str).replace(/[&<>]/g, function(m) {
+        return String(str).replace(/[&<>]/g, function (m) {
             if (m === '&') return '&amp;';
             if (m === '<') return '&lt;';
             if (m === '>') return '&gt;';
@@ -34,11 +35,12 @@
     async function loadUsers(page = 1) {
         if (isLoading) return;
         isLoading = true;
-        currentPage = page; // сохраняем текущую страницу
+        currentPage = page;
+        currentSearchQuery = '';   // сброс поискового запроса
         container.innerHTML = `<div class="col-12 text-center py-5"><div class="spinner-border text-accent" role="status"></div></div>`;
         try {
             const url = `${window.API_BASE_URL}users/all?page=${page}&records_per_page=${PAGE_SIZE}`;
-            const response = await fetch(url, { credentials: 'include' });
+            const response = await fetch(url, {credentials: 'include'});
             if (response.status === 401 || response.status === 403) {
                 window.showAccessDenied(container, 'Доступ запрещён. Только для администраторов.', true, pagination);
                 isLoading = false;
@@ -83,10 +85,10 @@
             col.innerHTML = `
                 <div class="card h-100" style="background: var(--bg-secondary); border-color: var(--border-color);">
                     <div class="card-body">
-                        <h5 class="card-title">${escapeHtml(user.nickname)}</h5>
+                        <h5 class="card-title" data-searchable>${escapeHtml(user.nickname)}</h5>
                         <p class="card-text text-secondary small">
                             <strong>ID:</strong> ${user.id}<br>
-                            <strong>Email:</strong> ${escapeHtml(user.email || '—')}<br>
+                            <strong>Email:</strong> <span data-searchable>${escapeHtml(user.email || '—')}</span><br>
                             <strong>Роль:</strong> <span class="badge ${getRoleBadgeClass(user.role)}">${getRoleName(user.role)}</span>
                         </p>
                         <div class="d-flex gap-2 mt-3">
@@ -98,23 +100,32 @@
             `;
             container.appendChild(col);
         });
+
+        // Привязка обработчиков кнопок
         document.querySelectorAll('.change-role-btn').forEach(btn =>
             btn.addEventListener('click', () => openRoleModal(btn.dataset.id, btn.dataset.name, btn.dataset.role))
         );
         document.querySelectorAll('.delete-btn').forEach(btn =>
             btn.addEventListener('click', () => openDeleteModal(btn.dataset.id, btn.dataset.name))
         );
+
+        // Подсветка, если есть активный поисковый запрос
+        if (currentSearchQuery && window.Highlight) {
+            window.Highlight.apply(container, currentSearchQuery);
+        } else if (window.Highlight) {
+            window.Highlight.clear(container);
+        }
     }
 
     function getRoleName(role) {
-        const map = { 'student': 'Студент', 'professor': 'Преподаватель', 'admin': 'Администратор' };
+        const map = {'student': 'Студент', 'professor': 'Преподаватель', 'admin': 'Администратор'};
         return map[role] || role;
     }
 
     function getRoleBadgeClass(role) {
-        if (role === 'admin') return 'bg-danger';
-        if (role === 'professor') return 'bg-success';
-        return 'bg-secondary';
+        if (role === 'admin') return 'bg-accent-dark';      // синий для администратора
+        if (role === 'professor') return 'bg-success'; // зелёный для преподавателя
+        return 'bg-secondary';                          // серый для студента
     }
 
     let selectedUserId, selectedUserName, currentRole;
@@ -145,16 +156,16 @@
         confirmRoleBtn.disabled = true;
         confirmRoleBtn.innerHTML = 'Сохранение...';
         try {
-            const payload = { id: selectedUserId, role: newRole };
+            const payload = {id: selectedUserId, role: newRole};
             const response = await fetch(`${window.API_BASE_URL}users/change-role`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {'Content-Type': 'application/json'},
                 credentials: 'include',
                 body: JSON.stringify(payload)
             });
             if (response.status === 204) {
                 window.showToast(`Роль пользователя ${selectedUserName} изменена на ${getRoleName(newRole)}.`);
-                loadUsers(currentPage); // теперь currentPage определена
+                loadUsers(currentPage);
             } else if (response.status === 401 || response.status === 403) {
                 window.showAccessDenied(container);
                 if (roleModal) roleModal.hide();
@@ -208,7 +219,7 @@
             });
             if (response.status === 204) {
                 window.showToast(`Пользователь ${userName} удалён.`);
-                loadUsers(currentPage); // теперь currentPage определена
+                loadUsers(currentPage);
             } else if (response.status === 401 || response.status === 403) {
                 window.showAccessDenied(container);
                 if (deleteModal) deleteModal.hide();
@@ -236,6 +247,33 @@
         }
     }
 
+    async function searchUsers(query) {
+        if (isLoading) return;
+        currentSearchQuery = query;
+        isLoading = true;
+        container.innerHTML = `<div class="col-12 text-center py-5"><div class="spinner-border text-accent" role="status"></div></div>`;
+        try {
+            const url = `${window.API_BASE_URL}users/search?search_pattern=${encodeURIComponent(query)}&page=1&records_per_page=${PAGE_SIZE}`;
+            const response = await fetch(url, {credentials: 'include'});
+            if (response.status === 401 || response.status === 403) {
+                window.showAccessDenied(container, 'Доступ запрещён.', true, pagination);
+                isLoading = false;
+                return;
+            }
+            if (!response.ok) throw new Error('Ошибка поиска');
+            const users = await response.json();
+            if (!Array.isArray(users)) throw new Error('Неверный формат ответа');
+            renderUsers(users);
+            if (pagination) pagination.hide();
+            currentPage = 1;
+        } catch (err) {
+            console.error(err);
+            container.innerHTML = `<div class="col-12 text-center py-5 text-danger">Ошибка поиска: ${err.message}</div>`;
+        } finally {
+            isLoading = false;
+        }
+    }
+
     const paginationContainer = document.getElementById('paginationContainer');
     if (paginationContainer) {
         pagination = new Pagination(paginationContainer, (page) => loadUsers(page), {
@@ -247,4 +285,26 @@
     if (confirmDeleteBtn) confirmDeleteBtn.addEventListener('click', confirmDelete);
 
     loadUsers(1);
+
+    // Поиск пользователей
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+        const searchBox = document.querySelector('.search-box');
+        if (searchBox) searchBox.style.display = 'flex';
+
+        let searchTimeout;
+        searchInput.addEventListener('input', (e) => {
+            clearTimeout(searchTimeout);
+            const query = e.target.value.trim();
+            searchTimeout = setTimeout(() => {
+                if (query) {
+                    searchUsers(query);
+                } else {
+                    currentSearchQuery = '';
+                    if (pagination) pagination.show();
+                    loadUsers(1);
+                }
+            }, 400);
+        });
+    }
 })();

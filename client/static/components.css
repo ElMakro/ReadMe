@@ -919,3 +919,14 @@ input[type="file"]::file-selector-button:hover {
     object-fit: contain;
     display: block;
 }
+.search-highlight {
+    background-color: #ffeb3b;
+    color: #1e293b;
+    font-weight: bold;
+    border-radius: 2px;
+    padding: 0 2px;
+}
+[data-theme="dark"] .search-highlight {
+    background-color: #facc15;
+    color: #0f172a;
+}
