@@ -1,5 +1,5 @@
 // static/script.js
-(function() {
+(function () {
     const coursesGrid = document.getElementById('coursesGrid');
     const searchInput = document.getElementById('searchInput');
     const filtersBtn = document.getElementById('filtersBtn');
@@ -116,12 +116,14 @@
         const select = document.getElementById('filterProfessorSelect');
         if (!select) return;
         const professors = new Map();
-        allCoursesCache.forEach(course => {
-            if (course.professor_id && course.professor_surname) {
-                const fullName = `${course.professor_surname} ${course.professor_name} ${course.professor_patronymic || ''}`.trim();
-                professors.set(course.professor_id, fullName);
-            }
-        });
+        if (Array.isArray(allCoursesCache)) {
+            allCoursesCache.forEach(course => {
+                if (course.professor_id && course.professor_surname) {
+                    const fullName = `${course.professor_surname} ${course.professor_name} ${course.professor_patronymic || ''}`.trim();
+                    professors.set(course.professor_id, fullName);
+                }
+            });
+        }
         const currentVal = select.value;
         select.innerHTML = '<option value="">Все преподаватели</option>';
         for (let [id, name] of professors) {
@@ -144,7 +146,7 @@
                 currentLimit = newLimit;
                 if (pagination) pagination.destroy();
                 if (paginationContainer && window.Pagination) {
-                    pagination = new window.Pagination(paginationContainer, (page) => fetchCourses(page), { pageSize: currentLimit });
+                    pagination = new window.Pagination(paginationContainer, (page) => fetchCourses(page), {pageSize: currentLimit});
                 }
             }
         }
@@ -158,19 +160,23 @@
     async function fetchAllEnrollableCourses() {
         let allCourses = [];
         let page = 1;
-        const perPage = 30; // максимально допустимое значение
+        const perPage = 30;
         let hasMore = true;
         while (hasMore) {
             const url = `${window.API_BASE_URL}courses/search?page=${page}&records_per_page=${perPage}&criteria=name_prefix&value=`;
-            const response = await fetch(url, { credentials: 'include' });
-            if (!response.ok) {
-                throw new Error(`Ошибка загрузки курсов: ${response.status}`);
+            try {
+                const response = await fetch(url, {credentials: 'include'});
+                if (!response.ok) break;
+                const coursesChunk = await response.json();
+                const chunkArray = Array.isArray(coursesChunk) ? coursesChunk : [];
+                allCourses = allCourses.concat(chunkArray);
+                hasMore = chunkArray.length === perPage;
+                page++;
+                if (page > 10) break;
+            } catch (err) {
+                console.warn('Ошибка при загрузке страницы курсов', err);
+                break;
             }
-            const coursesChunk = await response.json();
-            allCourses = allCourses.concat(coursesChunk);
-            hasMore = coursesChunk.length === perPage;
-            page++;
-            if (page > 10) break; // защита от бесконечного цикла (максимум 10 страниц = 300 курсов)
         }
         return allCourses.filter(c => c.state === 'enrollable');
     }
@@ -186,54 +192,54 @@
             let hasNext = false;
 
             if (currentFilterMode === 'enrolled') {
-                const response = await fetch(`${window.API_BASE_URL}courses/followed-courses?page=${page}&records_per_page=${currentLimit}`, { credentials: 'include' });
-                // FIX: обработка 401/403
+                const response = await fetch(`${window.API_BASE_URL}courses/followed-courses?page=${page}&records_per_page=${currentLimit}`, {credentials: 'include'});
                 if (response.status === 401 || response.status === 403) {
                     window.showAccessDenied(coursesGrid, 'Вы не авторизованы или доступ запрещён.', true, pagination);
                     isLoading = false;
                     return;
                 }
                 if (!response.ok) throw new Error('Ошибка загрузки записанных курсов');
-                courses = await response.json();
-                courses = courses.map(c => ({ ...c, state: 'enrolled' }));
+                const data = await response.json();
+                courses = Array.isArray(data) ? data : [];
                 hasNext = courses.length === currentLimit;
                 if (pagination) pagination.show();
-            }
-            else if (currentFilterMode === 'controlled') {
-                const response = await fetch(`${window.API_BASE_URL}courses/controlled-courses?page=${page}&records_per_page=${currentLimit}`, { credentials: 'include' });
-                // FIX: обработка 401/403
+            } else if (currentFilterMode === 'controlled') {
+                const response = await fetch(`${window.API_BASE_URL}courses/controlled-courses?page=${page}&records_per_page=${currentLimit}`, {credentials: 'include'});
                 if (response.status === 401 || response.status === 403) {
                     window.showAccessDenied(coursesGrid, 'Вы не авторизованы или доступ запрещён.', true, pagination);
                     isLoading = false;
                     return;
                 }
                 if (!response.ok) throw new Error('Ошибка загрузки преподаваемых курсов');
-                courses = await response.json();
+                const data = await response.json();
+                courses = Array.isArray(data) ? data : [];
                 hasNext = courses.length === currentLimit;
                 if (pagination) pagination.show();
-            }
-            else if (currentFilterMode === 'enrollable') {
+            } else if (currentFilterMode === 'enrollable') {
                 courses = await fetchAllEnrollableCourses();
                 if (pagination) pagination.hide();
-            }
-            else { // Режим 'all'
+            } else { // Режим 'all'
                 let url;
                 if (currentTagFilter) {
                     url = `${window.API_BASE_URL}courses/search?page=${page}&records_per_page=${currentLimit}&criteria=tag&value=${encodeURIComponent(currentTagFilter)}`;
                 } else {
                     url = `${window.API_BASE_URL}courses/search?page=${page}&records_per_page=${currentLimit}&criteria=name_prefix&value=${encodeURIComponent(currentSearch)}`;
                 }
-                const response = await fetch(url, { credentials: 'include' });
+                const response = await fetch(url, {credentials: 'include'});
                 if (!response.ok) {
+                    // Для неавторизованных или при ошибке бэкенда показываем пустой список
                     if (response.status === 401 || response.status === 403) {
-                        window.showAccessDenied(coursesGrid, 'Для просмотра курсов необходимо войти.', true, pagination);
-                        isLoading = false;
-                        return;
+                        console.warn('Доступ к поиску курсов ограничен, показываем пустой список');
+                        courses = [];
+                        hasNext = false;
+                    } else {
+                        throw new Error(`Ошибка загрузки курсов: ${response.status}`);
                     }
-                    throw new Error('Ошибка загрузки курсов');
+                } else {
+                    const data = await response.json();
+                    courses = Array.isArray(data) ? data : [];
+                    hasNext = courses.length === currentLimit;
                 }
-                courses = await response.json();
-                hasNext = courses.length === currentLimit;
                 if (pagination) pagination.show();
             }
 
@@ -255,6 +261,7 @@
                 currentPage = 1;
             }
         } catch (error) {
+            console.error(error);
             coursesGrid.innerHTML = `<p class="text-center text-danger">${error.message}</p>`;
             if (pagination) pagination.hide();
         } finally {
@@ -262,7 +269,6 @@
         }
     }
 
-    // --- ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ (без изменений) ---
     function formatProfessorFullName(course) {
         const parts = [course.professor_surname, course.professor_name, course.professor_patronymic].filter(p => p);
         return parts.join(' ') || '—';
@@ -270,7 +276,7 @@
 
     function renderCourses(courses) {
         if (!coursesGrid) return;
-        if (courses.length === 0) {
+        if (!Array.isArray(courses) || courses.length === 0) {
             coursesGrid.innerHTML = '<p class="text-center">Курсы не найдены.</p>';
             return;
         }
@@ -313,7 +319,7 @@
     // --- ПАГИНАЦИЯ ---
     const paginationContainer = document.getElementById('paginationContainer');
     if (paginationContainer && window.Pagination) {
-        pagination = new window.Pagination(paginationContainer, (page) => fetchCourses(page), { pageSize: currentLimit });
+        pagination = new window.Pagination(paginationContainer, (page) => fetchCourses(page), {pageSize: currentLimit});
     }
 
     // --- ПОИСК ПО НАЗВАНИЮ ---
@@ -364,5 +370,6 @@
         else document.addEventListener('auth-loaded', updateButtonsByAuthAndRole);
         fetchCourses(1);
     }
+
     init();
 })();

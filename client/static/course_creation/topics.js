@@ -222,7 +222,7 @@
                 credentials: 'include'
             });
             if (res.status === 401 || res.status === 403) {
-                window.showAccessDenied(container, 'Вы не авторизованы или недостаточно прав для редактирования тем.');
+                window.showAccessDenied(container, 'Только преподаватель курса может редактировать темы. Если вы преподаватель, войдите в систему.', true);
                 return;
             }
             if (!res.ok) {

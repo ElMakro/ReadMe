@@ -17,7 +17,7 @@
             });
             if (resp.status === 204) return null;
             if (!resp.ok) {
-                if (resp.status === 401 || resp.status === 403) throw new Error('Доступ запрещён');
+                if (resp.status === 401 || resp.status === 403) throw new Error('Для работы с заметками необходимо войти в систему.');
                 throw new Error(`HTTP ${resp.status}`);
             }
             return await resp.json();
@@ -38,7 +38,7 @@
                     body: JSON.stringify({note_id: noteId, topic_id: topicId, name, content})
                 });
                 if (!resp.ok) {
-                    if (resp.status === 401 || resp.status === 403) throw new Error('Доступ запрещён');
+                    if (resp.status === 401 || resp.status === 403) throw new Error('Для работы с заметками необходимо войти в систему.');
                     if (resp.status === 409) throw new Error('Конспект не принадлежит вам или уже изменён');
                     throw new Error(`Update failed: ${resp.status}`);
                 }
@@ -51,7 +51,7 @@
                     body: JSON.stringify({topic_id: topicId, name, content})
                 });
                 if (!resp.ok) {
-                    if (resp.status === 401 || resp.status === 403) throw new Error('Доступ запрещён');
+                    if (resp.status === 401 || resp.status === 403) throw new Error('Для работы с заметками необходимо войти в систему.');
                     // FIX: более понятное сообщение для 409
                     if (resp.status === 409) throw new Error('Конспект для этой темы уже существует');
                     throw new Error(`Create failed: ${resp.status}`);
@@ -91,7 +91,7 @@
         const url = `${API_BASE}notes/my-notes?page=${page}&records_per_page=${perPage}`;
         const resp = await fetch(url, {credentials: 'include'});
         if (!resp.ok) {
-            if (resp.status === 401 || resp.status === 403) throw new Error('Доступ запрещён');
+            if (resp.status === 401 || resp.status === 403) throw new Error('Для работы с заметками необходимо войти в систему.');
             if (resp.status === 422) throw new Error('Ошибка валидации параметров');
             throw new Error(`HTTP ${resp.status}`);
         }
