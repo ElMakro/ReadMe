@@ -61,7 +61,7 @@
         container.innerHTML = `<div class="col-12 text-center py-5"><div class="spinner-border text-accent" role="status"></div></div>`;
         try {
             const url = `${window.API_BASE_URL}users/get-active-applications?page=${page}&records_per_page=${PAGE_SIZE}`;
-            const response = await fetch(url, { credentials: 'include' });
+            const response = await fetch(url, {credentials: 'include'});
             if (response.status === 401 || response.status === 403) {
                 window.showAccessDenied(container, 'Вы не авторизованы или недостаточно прав.', true, pagination);
                 isLoading = false;
@@ -221,10 +221,11 @@
                                     <button id="genRandomBtn" class="btn btn-accent">Сгенерировать случайную ссылку</button>
                                     <button id="setDefaultBtn" class="btn btn-outline-accent">Использовать ссылку по умолчанию</button>
                                     <hr>
-                                    <div class="input-group">
-                                        <input type="text" id="customLinkInput" class="form-control" placeholder="Введите свою ссылку (латиница, цифры, _, -, .)">
-                                        <button id="setCustomBtn" class="btn btn-primary">Установить свою</button>
-                                    </div>
+                                    <div class="d-flex gap-2">
+    <input type="text" id="customLinkInput" class="form-control" placeholder="Введите свою ссылку">
+    <button id="setCustomBtn" class="btn btn-primary">Установить</button>
+</div>
+<div class="form-text text-muted mt-1">Допустимые символы: латиница, цифры, «_», «-», «.»</div>
                                 </div>
                             </div>
                             <div id="secretLinkResult" class="alert" style="display: none;"></div>

@@ -54,10 +54,10 @@
                     if (isEnrolled) return 'enrolled';
                 }
 
-                const profileResp = await fetch(`${window.API_BASE_URL}users/profile`, { credentials: 'include' });
+                const profileResp = await fetch(`${window.API_BASE_URL}users/profile`, {credentials: 'include'});
                 if (profileResp.ok) {
                     const profile = await profileResp.json();
-                    const courseResp = await fetch(`${window.API_BASE_URL}courses/${window.COURSE_ID}`, { credentials: 'include' });
+                    const courseResp = await fetch(`${window.API_BASE_URL}courses/${window.COURSE_ID}`, {credentials: 'include'});
                     if (courseResp.ok) {
                         const course = await courseResp.json();
                         if (course.professor_id === profile.id) {
@@ -85,7 +85,6 @@
             if (!enrollBtn) return;
             const state = await fetchCourseState();
             currentEnrollmentState = state;
-            console.log(`[Enroll] Course ${window.COURSE_ID} state: ${state}`);
 
             if (!window.Auth || !window.Auth.isAuthenticated()) {
                 enrollBtn.style.display = 'block';
@@ -100,7 +99,6 @@
 
             if (state === 'controlled') {
                 enrollBtn.style.display = 'none';
-                console.log('Кнопка скрыта, так как пользователь – преподаватель курса');
             } else if (state === 'enrolled') {
                 enrollBtn.style.display = 'block';
                 enrollBtn.textContent = 'Отписаться от курса';
@@ -121,6 +119,7 @@
                     method: 'POST',
                     credentials: 'include'
                 });
+                const isAuth = window.Auth && window.Auth.isAuthenticated();
                 if (resp.ok) {
                     window.showToast('Вы успешно записались на курс!');
                     await updateEnrollButton();
@@ -129,9 +128,12 @@
                 } else if (resp.status === 409) {
                     window.showToast('Вы уже записаны на этот курс', 'danger');
                     await updateEnrollButton();
-                } else if (resp.status === 401 || resp.status === 403) {
-                    window.showAccessDenied(topicContent, 'Необходимо войти в систему для записи на курс.', true);
-                    window.showToast('Доступ запрещён. Пожалуйста, войдите заново.', 'danger');
+                } else if (resp.status === 403) {
+                    window.showAccessDenied(topicContent, 'Доступ к этой теме ограничен. Запишитесь на курс, чтобы просматривать материалы.', false);
+                    window.showToast('Вы не записаны на этот курс. Пожалуйста, запишитесь, чтобы просматривать темы.', 'warning');
+                } else if (resp.status === 401 || !isAuth) {
+                    window.showAccessDenied(topicContent, 'Для просмотра этой темы необходимо войти в систему.', true);
+                    window.showToast('Пожалуйста, войдите, чтобы получить доступ к содержимому курса.', 'danger');
                 } else if (resp.status === 404) {
                     window.showToast('Курс не найден', 'danger');
                 } else if (resp.status === 422) {
@@ -155,9 +157,7 @@
                 });
                 if (resp.ok) {
                     window.showToast('Вы отписались от курса');
-                    await updateEnrollButton();
-                    if (currentCourse) showCourseDescription();
-                    await buildSidebar();
+                    setTimeout(() => location.reload(), 1000); // даём время увидеть тост
                 } else if (resp.status === 404) {
                     window.showToast('Курс не найден', 'danger');
                 } else if (resp.status === 422) {
@@ -206,7 +206,14 @@
                 const url = `${window.API_BASE_URL}sections/by_course/${window.COURSE_ID}`;
                 const resp = await fetch(url, {credentials: 'include'});
                 if (!resp.ok) {
-                    if (resp.status === 401 || resp.status === 403) throw new Error('Доступ запрещён');
+                    const isAuth = window.Auth && window.Auth.isAuthenticated();
+                    if (resp.status === 401 || !isAuth) {
+                        window.showAccessDenied(topicContent, 'Для просмотра этой темы необходимо войти в систему.', true);
+                        window.showToast('Пожалуйста, войдите, чтобы получить доступ к содержимому курса.', 'danger');
+                    } else {
+                        window.showAccessDenied(topicContent, 'Доступ к этой теме ограничен. Запишитесь на курс, чтобы просматривать материалы.', false);
+                        window.showToast('Вы не записаны на этот курс. Пожалуйста, запишитесь, чтобы просматривать темы.', 'warning');
+                    }
                     if (resp.status === 404) throw new Error('Курс не найден');
                     throw new Error(`HTTP ${resp.status}`);
                 }
@@ -343,16 +350,15 @@
                 const url = `${window.API_BASE_URL}topics/${topicId}`;
                 const resp = await fetch(url, {credentials: 'include'});
                 if (!resp.ok) {
-                    if (resp.status === 401 || resp.status === 403) {
-                        window.showAccessDenied(topicContent, 'Для просмотра этой темы необходимо войти.', true);
-                        window.showToast('Доступ запрещён. Пожалуйста, войдите заново.', 'danger');
-                        return;
+                    const isAuth = window.Auth && window.Auth.isAuthenticated();
+                    if (resp.status === 401 || !isAuth) {
+                        window.showAccessDenied(topicContent, 'Для просмотра этой темы необходимо войти в систему.', true);
+                        window.showToast('Пожалуйста, войдите, чтобы получить доступ к содержимому курса.', 'danger');
+                    } else {
+                        window.showAccessDenied(topicContent, 'Доступ к этой теме ограничен. Запишитесь на курс, чтобы просматривать материалы.', false);
+                        window.showToast('Вы не записаны на этот курс. Пожалуйста, запишитесь, чтобы просматривать темы.', 'warning');
                     }
-                    if (resp.status === 404) {
-                        topicContent.innerHTML = '<p class="text-danger">Тема не найдена.</p>';
-                        return;
-                    }
-                    throw new Error(`HTTP ${resp.status}`);
+                    return;
                 }
                 const topicData = await resp.json();
                 const renderedContent = topicData.rendered_content || [];
@@ -439,10 +445,13 @@
                 const url = `${window.API_BASE_URL}sections/by_course/${window.COURSE_ID}`;
                 const resp = await fetch(url, {credentials: 'include'});
                 if (!resp.ok) {
-                    if (resp.status === 401 || resp.status === 403) {
-                        sectionList.innerHTML = '<li class="section-item text-muted">Войдите, чтобы увидеть содержимое курса.</li>';
-                        window.showToast('Доступ запрещён. Пожалуйста, войдите заново.', 'danger');
-                        return;
+                    const isAuth = window.Auth && window.Auth.isAuthenticated();
+                    if (resp.status === 401 || !isAuth) {
+                        window.showAccessDenied(topicContent, 'Для просмотра этой темы необходимо войти в систему.', true);
+                        window.showToast('Пожалуйста, войдите, чтобы получить доступ к содержимому курса.', 'danger');
+                    } else {
+                        window.showAccessDenied(topicContent, 'Доступ к этой теме ограничен. Запишитесь на курс, чтобы просматривать материалы.', false);
+                        window.showToast('Вы не записаны на этот курс. Пожалуйста, запишитесь, чтобы просматривать темы.', 'warning');
                     }
                     if (resp.status === 404) {
                         sectionList.innerHTML = '<li class="section-item text-muted">Курс не найден.</li>';
@@ -529,9 +538,12 @@
                 const url = `${window.API_BASE_URL}courses/${window.COURSE_ID}`;
                 const resp = await fetch(url, {credentials: 'include'});
                 if (!resp.ok) {
-                    if (resp.status === 401 || resp.status === 403) throw new Error('Доступ запрещён');
-                    if (resp.status === 404) throw new Error('Курс не найден');
-                    throw new Error(`HTTP ${resp.status}`);
+                    const isAuth = window.Auth && window.Auth.isAuthenticated();
+                    if (resp.status === 401 || !isAuth) {
+                        throw new Error('Для просмотра курса необходимо войти.');
+                    } else {
+                        throw new Error('Вы не записаны на этот курс. Запишитесь, чтобы увидеть содержимое.');
+                    }
                 }
                 currentCourse = await resp.json();
                 courseTitleHeader.textContent = escapeHtml(currentCourse.name);
