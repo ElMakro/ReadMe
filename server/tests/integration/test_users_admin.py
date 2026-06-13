@@ -20,6 +20,44 @@ def _create_admin(api_client, _sync_sessionmaker):
     api_client.cookies.clear()
     return api_client, nickname, password
 
+class TestActiveApplications:
+    @staticmethod
+    @pytest.mark.integration
+    def test_get_active_applications(api_client, _sync_sessionmaker):
+        admin_client, admin_nickname, admin_password = _create_admin(api_client, _sync_sessionmaker)
+        api_client.post("/api/v1/auth/login", json={"nickname": admin_nickname, "password": admin_password})
+        secret_link = f"active_test_link_{uuid.uuid4().hex[:8]}"
+        set_link = api_client.post("/api/v1/users/set-application-link", json={"type": "custom", "content": secret_link})
+        assert set_link.status_code == 200
+        api_client.get("/api/v1/auth/logout")
+        api_client.cookies.clear()
+
+        first_student_nickname = f"stud1_{uuid.uuid4().hex[:6]}"
+        first_student_password = "StrongPassword123!"
+        api_client.post("/api/v1/auth/reg", json={"nickname": first_student_nickname, "email": f"{first_student_nickname}@t.com", "password": first_student_password})
+        api_client.post("/api/v1/auth/login", json={"nickname": first_student_nickname, "password": first_student_password})
+        submit = api_client.post(f"/api/v1/users/submit-professor-application/{secret_link}", json={"name": "Ivan", "surname": "Ivanov"})
+        assert submit.status_code == 201
+        api_client.get("/api/v1/auth/logout")
+        api_client.cookies.clear()
+
+        second_student_nickname = f"stud2_{uuid.uuid4().hex[:6]}"
+        second_student_password = "StrongPassword123!"
+        api_client.post("/api/v1/auth/reg",
+                        json={"nickname": second_student_nickname, "email": f"{second_student_nickname}@t.com",
+                              "password": second_student_password})
+        api_client.post("/api/v1/auth/login",
+                        json={"nickname": second_student_nickname, "password": second_student_password})
+        submit = api_client.post(f"/api/v1/users/submit-professor-application/{secret_link}",
+                                 json={"name": "Petr", "surname": "Petrov"})
+        assert submit.status_code == 201
+        api_client.get("/api/v1/auth/logout")
+        api_client.cookies.clear()
+        api_client.post("/api/v1/auth/login", json={"nickname": admin_nickname, "password": admin_password})
+        active_applications = api_client.get("/api/v1/users/get-active-applications")
+        assert active_applications.status_code == 200
+        assert len(active_applications.json()) == 2
+
 class TestProfessorApplication:
     @staticmethod
     @pytest.mark.integration
@@ -280,7 +318,7 @@ class TestUserProfileUpdate:
         update = student_client.put("/api/v1/users/profile", json={"nickname": new_nickname, "email": f"{new_nickname}@new.com"})
         assert update.status_code == 200
         profile = student_client.get("/api/v1/users/profile").json()
-        assert profile["nickname"] == new_nickname.lower()
+        assert profile["nickname"] == new_nickname
         assert profile["email"] == f"{new_nickname}@new.com"
 
 class TestUserSearch:
@@ -295,44 +333,6 @@ class TestUserSearch:
         assert res.status_code == 200
         users = res.json()
         assert any(u["nickname"] == nickname for u in users)
-
-class TestActiveApplications:
-    @staticmethod
-    @pytest.mark.integration
-    def test_get_active_applications(api_client, _sync_sessionmaker):
-        admin_client, admin_nickname, admin_password = _create_admin(api_client, _sync_sessionmaker)
-        api_client.post("/api/v1/auth/login", json={"nickname": admin_nickname, "password": admin_password})
-        secret_link = f"active_test_link_{uuid.uuid4().hex[:8]}"
-        set_link = api_client.post("/api/v1/users/set-application-link", json={"type": "custom", "content": secret_link})
-        assert set_link.status_code == 200
-        api_client.get("/api/v1/auth/logout")
-        api_client.cookies.clear()
-
-        first_student_nickname = f"stud1_{uuid.uuid4().hex[:6]}"
-        first_student_password = "StrongPassword123!"
-        api_client.post("/api/v1/auth/reg", json={"nickname": first_student_nickname, "email": f"{first_student_nickname}@t.com", "password": first_student_password})
-        api_client.post("/api/v1/auth/login", json={"nickname": first_student_nickname, "password": first_student_password})
-        submit = api_client.post(f"/api/v1/users/submit-professor-application/{secret_link}", json={"name": "Ivan", "surname": "Ivanov"})
-        assert submit.status_code == 201
-        api_client.get("/api/v1/auth/logout")
-        api_client.cookies.clear()
-
-        second_student_nickname = f"stud2_{uuid.uuid4().hex[:6]}"
-        second_student_password = "StrongPassword123!"
-        api_client.post("/api/v1/auth/reg",
-                        json={"nickname": second_student_nickname, "email": f"{second_student_nickname}@t.com",
-                              "password": second_student_password})
-        api_client.post("/api/v1/auth/login",
-                        json={"nickname": second_student_nickname, "password": second_student_password})
-        submit = api_client.post(f"/api/v1/users/submit-professor-application/{secret_link}",
-                                 json={"name": "Иван", "surname": "Иванов"})
-        assert submit.status_code == 201
-        api_client.get("/api/v1/auth/logout")
-        api_client.cookies.clear()
-        api_client.post("/api/v1/auth/login", json={"nickname": admin_nickname, "password": admin_password})
-        active_applications = api_client.get("/api/v1/users/get-active-applications")
-        assert active_applications.status_code == 200
-        assert len(active_applications.json()) == 2
 
 class TestEnrolledUsers:
     @staticmethod
