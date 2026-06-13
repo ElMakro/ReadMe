@@ -2,26 +2,26 @@ FROM python:3.13-alpine3.23
 
 WORKDIR /content
 
-RUN apk add --no-cache curl \
-    && addgroup -S readmeclientgroup \
-    && adduser -S -G readmeclientgroup -h /home/readmeclientuser -s /sbin/nologin readmeclientuser
+RUN addgroup -g 1000 readme_client_group \
+    && adduser -D -u 1000 -G readme_client_group -h /home/readme_client_user -s /sbin/nologin readme_client_user
+
+RUN apk add --no-cache curl
 
 ENV PYTHONBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    PATH="/home/readmeclientuser/.local/bin:$PATH" \
     PYTHONPATH=/content
 
-USER readmeclientuser
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
-COPY --chown=readmeclientuser:readmeclientgroup requirements.txt .
-RUN pip install --no-cache-dir --user -r requirements.txt
+COPY --chown=readme_client_user:readme_client_group . ./client/
 
-COPY --chown=readmeclientuser:readmeclientgroup . ./client/
+USER readme_client_user
+
+WORKDIR /content/client
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:${CLIENT_PORT}/client_healthcheck || exit 1
-
-WORKDIR /content/client
 
 EXPOSE $CLIENT_PORT
 

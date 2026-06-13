@@ -2,30 +2,31 @@ FROM python:3.13-alpine3.23
 
 WORKDIR /content
 
-RUN apk add --no-cache \
-    curl \
-    bash \
-    && addgroup -S readmeservergroup \
-    && adduser -S -G readmeservergroup -h /home/readmeserveruser -s /sbin/nologin readmeserveruser
+RUN addgroup -g 1000 readme_server_group \
+    && adduser -D -u 1000 -G readme_server_group -h /home/readme_server_user -s /sbin/nologin readme_server_user
 
-RUN apk add --no-cache openjdk21-jre \
-    graphviz
+RUN apk add --no-cache curl bash
+
+RUN apk add --no-cache openjdk21-jre graphviz
 
 RUN curl -L -o /opt/plantuml.jar https://github.com/plantuml/plantuml/releases/download/v1.2026.3/plantuml-1.2026.3.jar
 
 ENV PYTHONBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    PATH="/home/readmeserveruser/.local/bin:$PATH" \
     PYTHONPATH=/content \
     PLANTUML_JAR_PATH=/opt/plantuml.jar
 
-USER readmeserveruser
+RUN mkdir -p /content/server/data/courses_resources/resources \
+    && mkdir -p /content/server/data/users_resources/resources
 
-COPY --chown=readmeserveruser:readmeservergroup requirements.txt .
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
-RUN pip install --no-cache-dir --user -r requirements.txt
+COPY --chown=readme_server_user:readme_server_group . ./server/
 
-COPY --chown=readmeserveruser:readmeservergroup . ./server/
+RUN chown -R readme_server_user:readme_server_group /content/server/data
+
+USER readme_server_user
 
 WORKDIR /content/server
 
