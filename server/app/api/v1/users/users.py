@@ -50,7 +50,6 @@ class UserByNickname(
     nickname: Annotated[str, StringConstraints(
         min_length=MIN_USER_NAME_LENGTH,
         max_length=MAX_USER_NAME_LENGTH,
-        to_lower=True,
         pattern=r'^[A-Za-z0-9_\-\.!@#$%^&*()+=?<>]+$',
     )] = Field(
         description="Никнейм пользователя",
