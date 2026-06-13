@@ -26,8 +26,8 @@
 
     const searchBox = document.querySelector('.search-box');
     if (searchBox) {
-        const visiblePaths = ['/'];
-        searchBox.style.display = visiblePaths.includes(window.location.pathname) ? 'flex' : 'none';
+        const visiblePaths = ['/', '/admin/users'];
+searchBox.style.display = visiblePaths.includes(window.location.pathname) ? 'flex' : 'none';
     }
 
     // Кнопки входа/профиля

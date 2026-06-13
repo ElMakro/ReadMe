@@ -21,7 +21,7 @@
             </a>
         </div>
         <div class="search-box position-relative">
-            <input type="text" placeholder="Поиск курсов:" id="searchInput">
+            <input type="text" placeholder="Поиск:" id="searchInput">
         </div>
         <div class="header-buttons d-flex gap-3">
             <button class="btn-login" id="myNotesBtn" style="display: none;">Конспекты</button>
@@ -77,6 +77,7 @@
 <script src="{{ url_for('static', path='toast.js') }}"></script>
 <script src="{{ url_for('static', path='cookie.js') }}"></script>
 <script src="{{ url_for('static', path='pagination.js') }}"></script>
+<script src="{{ url_for('static', path='highlight.js') }}"></script>
 
 {% block scripts %}{% endblock %}
 </body>

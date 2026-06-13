@@ -298,8 +298,8 @@
                          class="course-icon"
                          alt="Иконка курса">
                     <a href="/course/${course.id}" class="stretched-link text-decoration-none">
-                        <h5 class="course-title mt-2">${escapeHtml(course.name)}</h5>
-                        <div class="course-instructor small text-secondary mb-1">Преподаватель: ${escapeHtml(professorFullName)}</div>
+                        <h5 class="course-title mt-2" data-searchable>${escapeHtml(course.name)}</h5>
+                        <div class="course-instructor small" data-searchable>Преподаватель: ${escapeHtml(professorFullName)}</div>
                         <div class="course-state mb-2">${stateText}</div>
                         <p class="course-description">${escapeHtml(shortDesc)}</p>
                     </a>
@@ -307,6 +307,11 @@
             `;
             coursesGrid.appendChild(col);
         });
+        if (currentSearch) {
+            window.Highlight.apply(coursesGrid, currentSearch);
+        } else {
+            window.Highlight.clear(coursesGrid);
+        }
     }
 
     function escapeHtml(str) {
