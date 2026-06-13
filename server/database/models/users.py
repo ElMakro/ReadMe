@@ -1,5 +1,6 @@
 from sqlalchemy import CheckConstraint, String, func
 from sqlalchemy import Enum as PGEnum
+from sqlalchemy.dialects.postgresql import CITEXT
 from sqlalchemy.orm import Mapped, mapped_column, validates
 
 from server.config.constants import MAX_USER_NAME_LENGTH, MIN_USER_NAME_LENGTH
@@ -10,7 +11,7 @@ from server.enums.role import Role
 
 
 class Users(IDMixin, TimestampsMixin, Base):
-    nickname: Mapped[str] = mapped_column(String(32), unique=True, nullable=False)
+    nickname: Mapped[str] = mapped_column(CITEXT(length=32), unique=True, nullable=False)
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
     password: Mapped[str] = mapped_column(String(255), unique=False, nullable=False)
     role: Mapped[Role] = mapped_column(PGEnum(Role, native_enum=True), unique=False, nullable=False)
