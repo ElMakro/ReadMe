@@ -183,7 +183,7 @@ class UsersService:
         limit = size
         return await self.users_manager.get_user_applications(id=id, offset=offset, limit=limit)
 
-    def set_user_icon(
+    async def set_user_icon(
             self,
             user: UserVerification,
             icon_upload_file: UploadFile,
@@ -194,7 +194,7 @@ class UsersService:
             )
 
         try:
-            self.users_resources_manager.set_user_icon(
+            await self.users_resources_manager.set_user_icon(
                 user.id,
                 icon_upload_file,
             )
