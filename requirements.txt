@@ -4,3 +4,4 @@ pytest-asyncio==1.4.0
 pytest-env==1.6.0
 pytest-docker==3.2.5
 pytest-mock==3.15.1
+testcontainers[postgres]==4.12.0
