@@ -111,7 +111,7 @@ class TestSearchUsers:
         await student_factory(nickname="JohnDoe")
         result = await users_manager.search_users("johndoe", offset=0, limit=10)
         assert len(result.root) == 1
-        assert result.root[0].nickname == "johndoe"
+        assert result.root[0].nickname == "JohnDoe"
 
     async def test_search_no_results(self, users_manager):
         result = await users_manager.search_users("nonexistent", 0, 10)

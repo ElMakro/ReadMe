@@ -8,7 +8,7 @@ from uuid import uuid4
 import pytest
 import pytest_asyncio
 from redis.asyncio import ConnectionPool, Redis
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     async_sessionmaker,
@@ -83,6 +83,7 @@ async def db_engine(postgres_service) -> AsyncGenerator[AsyncEngine]:
     engine = create_async_engine(TEST_DB_URL, echo=False)
 
     async with engine.begin() as conn:
+        await conn.execute(text("CREATE EXTENSION IF NOT EXISTS citext"))
         await conn.run_sync(Base.metadata.create_all)
 
     yield engine
