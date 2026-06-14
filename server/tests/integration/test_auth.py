@@ -1,4 +1,5 @@
 import uuid
+
 import pytest
 
 
@@ -27,42 +28,46 @@ class TestAuthPositive:
         login = api_client.post("/api/v1/auth/login", json={"nickname": nickname, "password": password})
         assert login.status_code == 200
         assert "Authorization" in login.cookies
+
     @staticmethod
     @pytest.mark.integration
-    @pytest.mark.parametrize("nickname, password", [
-        (f"user_{uuid.uuid4().hex[:6]}", "12345678"),
-        (f"user_{uuid.uuid4().hex[:6]}", "StrongPassword123!"),
-        (f"user_{uuid.uuid4().hex[:6]}", "Password"),
-        (f"user_{uuid.uuid4().hex[:6]}", "1Pass2w345"),
-        (f"user_{uuid.uuid4().hex[:6]}", "!!!!!!!!"),
-    ])
+    @pytest.mark.parametrize(
+        "nickname, password",
+        [
+            (f"user_{uuid.uuid4().hex[:6]}", "12345678"),
+            (f"user_{uuid.uuid4().hex[:6]}", "StrongPassword123!"),
+            (f"user_{uuid.uuid4().hex[:6]}", "Password"),
+            (f"user_{uuid.uuid4().hex[:6]}", "1Pass2w345"),
+            (f"user_{uuid.uuid4().hex[:6]}", "!!!!!!!!"),
+        ],
+    )
     def test_register_and_login_success(api_client, nickname, password):
-        reg_result = api_client.post("/api/v1/auth/reg", json={
-            "nickname": nickname,
-            "email": f"{nickname}@test.com",
-            "password": password
-        })
+        reg_result = api_client.post(
+            "/api/v1/auth/reg", json={"nickname": nickname, "email": f"{nickname}@test.com", "password": password}
+        )
         assert reg_result.status_code == 201
 
-        login_result = api_client.post("/api/v1/auth/login", json={
-            "nickname": nickname,
-            "password": password
-        })
+        login_result = api_client.post("/api/v1/auth/login", json={"nickname": nickname, "password": password})
         assert login_result.status_code == 200
         assert "Authorization" in login_result.cookies
         assert login_result.cookies["Authorization"].startswith("eyJ")
 
     @staticmethod
     @pytest.mark.integration
-    @pytest.mark.parametrize("nickname, password", [
-        (f"logout_user_{uuid.uuid4().hex[:6]}", "12345678"),
-        (f"logout_user_{uuid.uuid4().hex[:6]}", "StrongPassword123!"),
-        (f"logout_user_{uuid.uuid4().hex[:6]}", "Password"),
-        (f"logout_user_{uuid.uuid4().hex[:6]}", "1Pass2w345"),
-        (f"logout_user_{uuid.uuid4().hex[:6]}", "!!!!!!!!"),
-    ])
+    @pytest.mark.parametrize(
+        "nickname, password",
+        [
+            (f"logout_user_{uuid.uuid4().hex[:6]}", "12345678"),
+            (f"logout_user_{uuid.uuid4().hex[:6]}", "StrongPassword123!"),
+            (f"logout_user_{uuid.uuid4().hex[:6]}", "Password"),
+            (f"logout_user_{uuid.uuid4().hex[:6]}", "1Pass2w345"),
+            (f"logout_user_{uuid.uuid4().hex[:6]}", "!!!!!!!!"),
+        ],
+    )
     def test_logout_clears_cookie(api_client, nickname, password):
-        api_client.post("/api/v1/auth/reg", json={"nickname": nickname, "email": f"{nickname}@t.com", "password": password})
+        api_client.post(
+            "/api/v1/auth/reg", json={"nickname": nickname, "email": f"{nickname}@t.com", "password": password}
+        )
         api_client.post("/api/v1/auth/login", json={"nickname": nickname, "password": password})
         assert "Authorization" in api_client.cookies
 
@@ -99,8 +104,9 @@ class TestAuthNegative:
     )
     def test_register_invalid_email(api_client, email):
         nickname = f"user_{uuid.uuid4().hex[:6]}"
-        result = api_client.post("/api/v1/auth/reg",
-                                 json={"nickname": nickname, "email": email, "password": "Strong123!"})
+        result = api_client.post(
+            "/api/v1/auth/reg", json={"nickname": nickname, "email": email, "password": "Strong123!"}
+        )
         assert result.status_code == 422
 
     @staticmethod
@@ -131,9 +137,10 @@ class TestAuthNegative:
         ],
     )
     def test_register_invalid_nickname(api_client, nickname):
-        result = api_client.post("/api/v1/auth/reg",
-                                 json={"nickname": nickname, "email": f"{uuid.uuid4().hex[:6]}@test.com",
-                                       "password": "Strong123!"})
+        result = api_client.post(
+            "/api/v1/auth/reg",
+            json={"nickname": nickname, "email": f"{uuid.uuid4().hex[:6]}@test.com", "password": "Strong123!"},
+        )
         assert result.status_code == 422
 
     @staticmethod
@@ -151,8 +158,9 @@ class TestAuthNegative:
     )
     def test_register_invalid_password(api_client, password):
         nickname = f"user_{uuid.uuid4().hex[:6]}"
-        result = api_client.post("/api/v1/auth/reg",
-                                 json={"nickname": nickname, "email": f"{nickname}@test.com", "password": password})
+        result = api_client.post(
+            "/api/v1/auth/reg", json={"nickname": nickname, "email": f"{nickname}@test.com", "password": password}
+        )
         assert result.status_code == 422
 
     @staticmethod
@@ -173,34 +181,48 @@ class TestAuthNegative:
         allowed_chars = ".-_!@#$%^&*()+=?<>"
         nickname = f"allowed{allowed_chars}{uuid.uuid4().hex[:4]}"
         nickname = nickname[:32]
-        result = api_client.post("/api/v1/auth/reg",
-                              json={"nickname": nickname, "email": f"{uuid.uuid4().hex[:6]}@test.com",
-                                    "password": "Strong123!"})
+        result = api_client.post(
+            "/api/v1/auth/reg",
+            json={"nickname": nickname, "email": f"{uuid.uuid4().hex[:6]}@test.com", "password": "Strong123!"},
+        )
         assert result.status_code == 201, f"Nickname с разрешёнными символами должен проходить: {nickname}"
+
     @staticmethod
     @pytest.mark.integration
-    @pytest.mark.parametrize("nickname, password", [
-        (f"dup_{uuid.uuid4().hex[:6]}", "12345678"),
-        (f"dup_{uuid.uuid4().hex[:6]}", "StrongPassword123!"),
-        (f"dup_{uuid.uuid4().hex[:6]}", "Password"),
-        (f"dup_{uuid.uuid4().hex[:6]}", "1Pass2w345"),
-        (f"dup_{uuid.uuid4().hex[:6]}", "!!!!!!!!"),
-    ])
+    @pytest.mark.parametrize(
+        "nickname, password",
+        [
+            (f"dup_{uuid.uuid4().hex[:6]}", "12345678"),
+            (f"dup_{uuid.uuid4().hex[:6]}", "StrongPassword123!"),
+            (f"dup_{uuid.uuid4().hex[:6]}", "Password"),
+            (f"dup_{uuid.uuid4().hex[:6]}", "1Pass2w345"),
+            (f"dup_{uuid.uuid4().hex[:6]}", "!!!!!!!!"),
+        ],
+    )
     def test_register_duplicate_nickname(api_client, nickname, password):
-        api_client.post("/api/v1/auth/reg", json={"nickname": nickname, "email": f"{nickname}1@t.com", "password": password})
-        result = api_client.post("/api/v1/auth/reg", json={"nickname": nickname, "email": f"{nickname}2@t.com", "password": password})
+        api_client.post(
+            "/api/v1/auth/reg", json={"nickname": nickname, "email": f"{nickname}1@t.com", "password": password}
+        )
+        result = api_client.post(
+            "/api/v1/auth/reg", json={"nickname": nickname, "email": f"{nickname}2@t.com", "password": password}
+        )
         assert result.status_code == 409
 
     @staticmethod
     @pytest.mark.integration
-    @pytest.mark.parametrize("nickname, password", [
-        (f"wrong_pass_{uuid.uuid4().hex[:6]}", "12345678"),
-        (f"wrong_pass_{uuid.uuid4().hex[:6]}", "StrongPassword123!"),
-        (f"wrong_pass_{uuid.uuid4().hex[:6]}", "Password"),
-        (f"wrong_pass_{uuid.uuid4().hex[:6]}", "1Pass2w345"),
-        (f"wrong_pass_{uuid.uuid4().hex[:6]}", "!!!!!!!!"),
-    ])
+    @pytest.mark.parametrize(
+        "nickname, password",
+        [
+            (f"wrong_pass_{uuid.uuid4().hex[:6]}", "12345678"),
+            (f"wrong_pass_{uuid.uuid4().hex[:6]}", "StrongPassword123!"),
+            (f"wrong_pass_{uuid.uuid4().hex[:6]}", "Password"),
+            (f"wrong_pass_{uuid.uuid4().hex[:6]}", "1Pass2w345"),
+            (f"wrong_pass_{uuid.uuid4().hex[:6]}", "!!!!!!!!"),
+        ],
+    )
     def test_login_wrong_password(api_client, nickname, password):
-        api_client.post("/api/v1/auth/reg", json={"nickname": nickname, "email": f"{nickname}@t.com", "password": password})
+        api_client.post(
+            "/api/v1/auth/reg", json={"nickname": nickname, "email": f"{nickname}@t.com", "password": password}
+        )
         result = api_client.post("/api/v1/auth/login", json={"nickname": nickname, "password": password + "error"})
         assert result.status_code == 401
