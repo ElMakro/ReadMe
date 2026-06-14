@@ -85,15 +85,9 @@ async def user_profile(
             UsersService,
         ),
 ) -> UserProfile:
-    try:
-        return await users_service.get_info_for_user_profile(
-            user,
-        )
-    except UserNotFoundError as error:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(error),
-        )
+    return await users_service.get_info_for_user_profile(
+        user,
+    )
 
 
 @users_router.put(
@@ -126,21 +120,10 @@ async def update_profile(
             UsersService,
         ),
 ) -> UserProfile:
-    try:
-        return await users_service.update_user_profile(
-            user_id=user.id,
-            updated_info=updated_info,
-        )
-    except UserNotFoundError as error:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(error),
-        )
-    except NotUniqueFieldsError as error:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=str(error),
-        )
+    return await users_service.update_user_profile(
+        user_id=user.id,
+        updated_info=updated_info,
+    )
 
 
 @users_router.get(
@@ -237,22 +220,7 @@ async def change_user_role(
             UsersService,
         ),
 ):
-    try:
-        return await users_service.change_role(user=changing_user, current_user_id=current_user.id)
-    except UserNotFoundError as error:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(
-                error,
-            )
-        )
-    except (UserMustBeInProfessorsTableError, CantChangeOwnRoleError) as error:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=str(
-                error,
-            )
-        )
+    return await users_service.change_role(user=changing_user, current_user_id=current_user.id)
 
 
 @users_router.delete(
@@ -284,22 +252,7 @@ async def delete_user(
             UsersService,
         ),
 ):
-    try:
-        return await users_service.delete_user(id=id, current_user_id=user.id)
-    except UserNotFoundError as error:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(
-                error,
-            )
-        )
-    except CantDeleteOwnProfileError as error:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=str(
-                error,
-            )
-        )
+    return await users_service.delete_user(id=id, current_user_id=user.id)
 
 
 @users_router.get(
@@ -325,15 +278,7 @@ async def get_secret_application_link(
         UsersService,
     ),
 ) -> SecretApplicationLink:
-    try:
-        return await users_service.get_secret_application_link()
-    except NotExistingLinkError as error:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=str(
-                error,
-            )
-        )
+    return await users_service.get_secret_application_link()
 
 
 @users_router.post(
@@ -362,15 +307,7 @@ async def set_secret_application_link(
             UsersService,
         ),
 ) -> SecretApplicationLink:
-    try:
-        return await users_service.set_secret_application_link(new_link_content)
-    except UpdatedLinkError as error:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail=str(
-                error,
-            )
-        )
+    return await users_service.set_secret_application_link(new_link_content)
 
 
 @users_router.post(
@@ -409,16 +346,10 @@ async def submit_professor_application(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=WRONG_APPLICATION_LINK_ERROR_TEXT,
         )
-    try:
-        return await users_service.reg_professor_application(
-            id=user.id,
-            application=application,
-        )
-    except ApplicationRefusedError as error:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=str(error)
-        )
+    return await users_service.reg_professor_application(
+        id=user.id,
+        application=application,
+    )
 
 
 @users_router.get(
@@ -471,13 +402,7 @@ async def change_application_status(
             UsersService,
         ),
 ):
-    try:
-        return await users_service.change_application_status(application)
-    except ApplicationFieldsMismatchError as error:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=str(error),
-        )
+    return await users_service.change_application_status(application)
 
 
 @users_router.get(
