@@ -39,15 +39,6 @@ async def registration(
     responses={
         status.HTTP_200_OK: {
             "description": "Успешный вход в систему",
-            "headers"    : {
-                "Set-Cookie": {
-                    "description": "Устанавливает cookie Authorization с зашифрованным JWT токеном",
-                    "schema"     : {
-                        "type"   : "string",
-                        "example": "Authorization=...;",
-                    },
-                },
-            },
         },
     },
 )

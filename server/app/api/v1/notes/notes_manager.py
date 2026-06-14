@@ -7,10 +7,15 @@ from sqlalchemy.exc import IntegrityError
 from server.app.api.v1.common_schemas import (
     NOTE_ALREADY_EXISTS_ERROR_TEXT,
     NOTE_FIELDS_MISMATCH_ERROR_TEXT,
-    NOTE_NOT_FOUND_ERROR_TEXT, TOPIC_NOT_FOUND_ERROR_TEXT,
+    NOTE_NOT_FOUND_ERROR_TEXT,
+    TOPIC_NOT_FOUND_ERROR_TEXT,
 )
-from server.app.api.v1.notes.exceptions import NoteAlreadyExistsError, NoteFieldsMismatchError, NoteNotFoundError, \
-    TopicNotFoundError
+from server.app.api.v1.notes.exceptions import (
+    NoteAlreadyExistsError,
+    NoteFieldsMismatchError,
+    NoteNotFoundError,
+    TopicNotFoundError,
+)
 from server.app.api.v1.notes.notes import NoteById, NotesList, ShortNoteInfo
 from server.config.db_dependency import DBDependency
 from server.database.models import Notes, Topics
