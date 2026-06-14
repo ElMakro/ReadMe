@@ -3,10 +3,11 @@ import uuid
 import pytest
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
+from server.app.api.v1.common_schemas import TOPIC_NOT_FOUND_ERROR_TEXT
 from server.app.api.v1.notes.exceptions import (
     NoteAlreadyExistsError,
     NoteFieldsMismatchError,
-    NoteNotFoundError,
+    NoteNotFoundError, TopicNotFoundError,
 )
 from server.app.api.v1.notes.notes import NoteById, NotesList
 from server.database.models import Notes
@@ -55,6 +56,11 @@ class TestCreateNote:
         await notes_manager.create_note(student.id, topic.id, "Note", "Content")
         with pytest.raises(NoteAlreadyExistsError):
             await notes_manager.create_note(student.id, topic.id, "Note", "Content")
+
+    async def test_create_note_with_not_existing_topic_raises_error(self, notes_manager, student_factory):
+        student = await student_factory()
+        with pytest.raises(TopicNotFoundError, match=TOPIC_NOT_FOUND_ERROR_TEXT):
+            await notes_manager.create_note(student.id, uuid.uuid4(), "Note", "Content")
 
 
 class TestUpdateNote:
