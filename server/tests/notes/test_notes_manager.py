@@ -7,7 +7,8 @@ from server.app.api.v1.common_schemas import TOPIC_NOT_FOUND_ERROR_TEXT
 from server.app.api.v1.notes.exceptions import (
     NoteAlreadyExistsError,
     NoteFieldsMismatchError,
-    NoteNotFoundError, TopicNotFoundError,
+    NoteNotFoundError,
+    TopicNotFoundError,
 )
 from server.app.api.v1.notes.notes import NoteById, NotesList
 from server.database.models import Notes
