@@ -24,16 +24,6 @@ from server.app.api.v1.common_schemas import (
     WRONG_APPLICATION_LINK_ERROR_TEXT,
     PaginationParameters,
 )
-from server.app.api.v1.notes.exceptions import CantChangeOwnRoleError, CantDeleteOwnProfileError
-from server.app.api.v1.users.exceptions import (
-    ApplicationFieldsMismatchError,
-    ApplicationRefusedError,
-    NotExistingLinkError,
-    NotUniqueFieldsError,
-    UpdatedLinkError,
-    UserMustBeInProfessorsTableError,
-    UserNotFoundError,
-)
 from server.app.api.v1.users.users import (
     ApplicationById,
     ApplicationChangeStatus,
@@ -76,6 +66,7 @@ users_router = APIRouter(
             "description": NOT_FOUND_ERROR_TEXT,
         },
     },
+    openapi_extra=openapi_extra_authorization_cookie_required,
 )
 async def user_profile(
         user: Annotated[UserVerification | None, Depends(
@@ -110,6 +101,7 @@ async def user_profile(
             "description": NOT_UNIQUE_FIELDS_ERROR_TEXT,
         },
     },
+    openapi_extra=openapi_extra_authorization_cookie_required,
 )
 async def update_profile(
         user: Annotated[UserVerification | None, Depends(
@@ -140,6 +132,7 @@ async def update_profile(
             "description": "Некорректно переданы параметры",
         },
     },
+    openapi_extra=openapi_extra_authorization_cookie_required,
 )
 async def get_all_users(
         user: Annotated[UserVerification, Depends(
@@ -170,6 +163,7 @@ async def get_all_users(
             "description": "Некорректно переданы параметры",
         },
     },
+    openapi_extra=openapi_extra_authorization_cookie_required,
 )
 async def search_users(
         user: Annotated[UserVerification, Depends(
@@ -210,6 +204,7 @@ async def search_users(
             "description": CANT_CHANGE_OWN_ROLE_ERROR_TEXT,
         }
     },
+    openapi_extra=openapi_extra_authorization_cookie_required,
 )
 async def change_user_role(
         current_user: Annotated[UserVerification, Depends(
@@ -239,6 +234,7 @@ async def change_user_role(
             "description": CANT_DELETE_OWN_PROFILE_ERROR_TEXT,
         }
     },
+    openapi_extra=openapi_extra_authorization_cookie_required,
 )
 async def delete_user(
         user: Annotated[UserVerification, Depends(
@@ -269,6 +265,7 @@ async def delete_user(
             "description": NOT_EXISTING_LINK_ERROR_TEXT,
         },
     },
+    openapi_extra=openapi_extra_authorization_cookie_required,
 )
 async def get_secret_application_link(
     user: Annotated[UserVerification, Depends(
@@ -295,6 +292,7 @@ async def get_secret_application_link(
             "description": UPDATED_LINK_ERROR_TEXT,
         }
     },
+    openapi_extra=openapi_extra_authorization_cookie_required,
 )
 async def set_secret_application_link(
         user: Annotated[UserVerification, Depends(
@@ -327,6 +325,7 @@ async def set_secret_application_link(
             "description": WRONG_APPLICATION_LINK_ERROR_TEXT,
         },
     },
+    openapi_extra=openapi_extra_authorization_cookie_required,
 )
 async def submit_professor_application(
         user: Annotated[UserVerification, Depends(
@@ -363,6 +362,7 @@ async def submit_professor_application(
             "description": FORBIDDEN_ERROR_TEXT,
         },
     },
+    openapi_extra=openapi_extra_authorization_cookie_required,
 )
 async def get_professor_applications(
         user: Annotated[UserVerification, Depends(
@@ -392,6 +392,7 @@ async def get_professor_applications(
             "description": APPLICATION_FIELDS_MISMATCH_ERROR_TEXT,
         },
     },
+    openapi_extra=openapi_extra_authorization_cookie_required,
 )
 async def change_application_status(
         user: Annotated[UserVerification, Depends(
@@ -416,6 +417,7 @@ async def change_application_status(
             "description": UNAUTHORIZED_ERROR_TEXT,
         },
     },
+    openapi_extra=openapi_extra_authorization_cookie_required,
 )
 async def get_my_applications(
         user: Annotated[UserVerification, Depends(

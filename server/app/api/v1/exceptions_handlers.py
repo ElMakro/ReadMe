@@ -8,13 +8,24 @@ from server.app.api.v1.exceptions import (
     ObjectMissingError,
     OperationPermissionError,
 )
-from server.app.api.v1.notes.exceptions import CantChangeOwnRoleError, CantDeleteOwnProfileError, \
-    NoteAlreadyExistsError, NoteFieldsMismatchError, NoteNotFoundError, TopicNotFoundError
-from server.app.api.v1.users.exceptions import UserNotFoundError, NotUniqueFieldsError, \
-    UserMustBeInProfessorsTableError, NotExistingLinkError, UpdatedLinkError, ApplicationRefusedError, \
-    ApplicationFieldsMismatchError
+from server.app.api.v1.notes.exceptions import (
+    CantChangeOwnRoleError,
+    CantDeleteOwnProfileError,
+    NoteAlreadyExistsError,
+    NoteFieldsMismatchError,
+    NoteNotFoundError,
+    TopicNotFoundError,
+)
+from server.app.api.v1.users.exceptions import (
+    ApplicationFieldsMismatchError,
+    ApplicationRefusedError,
+    NotExistingLinkError,
+    NotUniqueFieldsError,
+    UpdatedLinkError,
+    UserMustBeInProfessorsTableError,
+    UserNotFoundError,
+)
 from server.data.courses_resources.compilation_manager import CompilationError
-
 
 ExceptionHandlerMap = dict[type[Exception], int]
 

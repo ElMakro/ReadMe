@@ -1,16 +1,17 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Response, status
+from fastapi import APIRouter, Depends, Path, Response, status
 
+from server.app.api.openapi_docs import openapi_extra_authorization_cookie_required
 from server.app.api.v1.common_schemas import (
     NOTE_ALREADY_EXISTS_ERROR_TEXT,
     NOTE_FIELDS_MISMATCH_ERROR_TEXT,
     NOTE_NOT_FOUND_ERROR_TEXT,
+    TOPIC_NOT_FOUND_ERROR_TEXT,
     UNPROCESSABLE_ENTITY_ERROR_TEXT,
-    PaginationParameters, TOPIC_NOT_FOUND_ERROR_TEXT,
+    PaginationParameters,
 )
-from server.app.api.v1.notes.exceptions import NoteAlreadyExistsError, NoteFieldsMismatchError, NoteNotFoundError
 from server.app.api.v1.notes.notes import CreateNote, NoteById, NotesList, ShortNoteInfo, UpdateNote
 from server.app.api.v1.notes.notes_service import NotesService
 from server.app.api.v1.users.users import UserVerification
@@ -35,7 +36,8 @@ notes_router = APIRouter(
         status.HTTP_204_NO_CONTENT: {
             "description": "Конспект ранее не был сохранён",
         },
-    }
+    },
+    openapi_extra=openapi_extra_authorization_cookie_required,
 )
 async def get_note_for_topic(
     user: Annotated[UserVerification, Depends(
@@ -73,7 +75,8 @@ async def get_note_for_topic(
         status.HTTP_404_NOT_FOUND: {
             "description": TOPIC_NOT_FOUND_ERROR_TEXT,
         }
-    }
+    },
+    openapi_extra=openapi_extra_authorization_cookie_required,
 )
 async def create_note(
     create_params: CreateNote,
@@ -99,7 +102,8 @@ async def create_note(
         status.HTTP_409_CONFLICT: {
             "description": NOTE_FIELDS_MISMATCH_ERROR_TEXT,
         }
-    }
+    },
+    openapi_extra=openapi_extra_authorization_cookie_required,
 )
 async def update_note(
     update_params: UpdateNote,
@@ -124,7 +128,8 @@ async def update_note(
         status.HTTP_404_NOT_FOUND: {
             "description": NOTE_NOT_FOUND_ERROR_TEXT,
         }
-    }
+    },
+    openapi_extra=openapi_extra_authorization_cookie_required,
 )
 async def delete_note(
     user: Annotated[UserVerification, Depends(
@@ -154,7 +159,8 @@ async def delete_note(
         status.HTTP_422_UNPROCESSABLE_CONTENT: {
             "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
         },
-    }
+    },
+    openapi_extra=openapi_extra_authorization_cookie_required,
 )
 async def get_my_notes(
     user: Annotated[UserVerification, Depends(
