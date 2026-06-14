@@ -420,7 +420,7 @@
                 html += `<div class="topic-block topic-block-type-${block.type}">${blockHtml}</div>`;
                 html += '<hr>';
             }
-            html += '<button class="btn btn-accent mt-3" id="checkYourselfBtn">Проверить Себя</button>';
+            html += '<button class="btn btn-accent mt-3" id="checkYourselfBtn" href="https://checkme.ivt.yarsu.ru/">Проверить Себя</button>';
             html += '</div>';
             topicContent.innerHTML = html;
 
@@ -428,7 +428,8 @@
             if (dynamicBtn) {
                 dynamicBtn.addEventListener('click', () => {
                     if (currentTopicId) {
-                        window.showToast(`Функция «Проверить себя» для темы "${currentTopicName}" в разработке.`, 'warning');
+                        // window.showToast(`Функция «Проверить себя» для темы "${currentTopicName}" в разработке.`, 'warning');
+                        window.location.href = 'https://checkme.ivt.yarsu.ru/';
                     } else {
                         window.showToast('Сначала выберите тему.', 'warning');
                     }
