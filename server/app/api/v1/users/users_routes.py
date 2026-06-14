@@ -18,7 +18,7 @@ from server.app.api.v1.common_schemas import (
     UPDATED_LINK_ERROR_TEXT,
     USER_MUST_BE_IN_PROFESSORS_TABLE_ERROR_TEXT,
     WRONG_APPLICATION_LINK_ERROR_TEXT,
-    PaginationParameters,
+    PaginationParameters, NOT_EXISTING_LINK_ERROR_TEXT,
 )
 from server.app.api.v1.notes.exceptions import CantChangeOwnRoleError, CantDeleteOwnProfileError
 from server.app.api.v1.users.exceptions import (
@@ -27,7 +27,7 @@ from server.app.api.v1.users.exceptions import (
     NotUniqueFieldsError,
     UpdatedLinkError,
     UserMustBeInProfessorsTableError,
-    UserNotFoundError,
+    UserNotFoundError, NotExistingLinkError,
 )
 from server.app.api.v1.users.users import (
     ApplicationById,
@@ -289,6 +289,40 @@ async def delete_user(
             )
         )
     except CantDeleteOwnProfileError as error:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(
+                error,
+            )
+        )
+
+
+@users_router.get(
+    path="/get-application-link",
+    summary="Получить секретную ссылку для подачи заявки",
+    status_code=status.HTTP_200_OK,
+    response_model=SecretApplicationLink,
+    response_description="Ссылка получена",
+    responses={
+        status.HTTP_403_FORBIDDEN         : {
+            "description": FORBIDDEN_ERROR_TEXT,
+        },
+        status.HTTP_409_CONFLICT: {
+            "description": NOT_EXISTING_LINK_ERROR_TEXT,
+        },
+    },
+)
+async def get_secret_application_link(
+    user: Annotated[UserVerification, Depends(
+            check_role([Role.ADMIN]),
+    )],
+    users_service: UsersService = Depends(
+        UsersService,
+    ),
+) -> SecretApplicationLink:
+    try:
+        return await users_service.get_secret_application_link()
+    except NotExistingLinkError as error:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=str(
