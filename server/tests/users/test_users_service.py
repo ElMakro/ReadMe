@@ -39,7 +39,6 @@ from server.app.api.v1.users.users import (
 )
 from server.app.api.v1.users.users_service import UsersService
 from server.app.common_dependencies.secret_link_strategies import CustomLinkStrategy
-from server.config.settings import settings
 from server.enums.access_permissions import AccessPermissions
 from server.enums.application_status import ApplicationStatus
 from server.enums.role import Role
