@@ -11,6 +11,7 @@ from server.app.api.v1.common_schemas import (
     CANT_CHANGE_OWN_ROLE_ERROR_TEXT,
     CANT_DELETE_OWN_PROFILE_ERROR_TEXT,
     FORBIDDEN_ERROR_TEXT,
+    NOT_EXISTING_LINK_ERROR_TEXT,
     NOT_FOUND_ERROR_TEXT,
     NOT_UNIQUE_FIELDS_ERROR_TEXT,
     UNAUTHORIZED_ERROR_TEXT,
@@ -18,16 +19,17 @@ from server.app.api.v1.common_schemas import (
     UPDATED_LINK_ERROR_TEXT,
     USER_MUST_BE_IN_PROFESSORS_TABLE_ERROR_TEXT,
     WRONG_APPLICATION_LINK_ERROR_TEXT,
-    PaginationParameters, NOT_EXISTING_LINK_ERROR_TEXT,
+    PaginationParameters,
 )
 from server.app.api.v1.notes.exceptions import CantChangeOwnRoleError, CantDeleteOwnProfileError
 from server.app.api.v1.users.exceptions import (
     ApplicationFieldsMismatchError,
     ApplicationRefusedError,
+    NotExistingLinkError,
     NotUniqueFieldsError,
     UpdatedLinkError,
     UserMustBeInProfessorsTableError,
-    UserNotFoundError, NotExistingLinkError,
+    UserNotFoundError,
 )
 from server.app.api.v1.users.users import (
     ApplicationById,
