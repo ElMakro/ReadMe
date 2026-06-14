@@ -4,7 +4,10 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, File, Path, UploadFile, status
 from fastapi.responses import FileResponse
 
-from server.app.api.openapi_docs import openapi_extra_authorization_cookie
+from server.app.api.openapi_docs import (
+    openapi_extra_authorization_cookie_non_required,
+    openapi_extra_authorization_cookie_required,
+)
 from server.app.api.v1.common_schemas import UNPROCESSABLE_ENTITY_ERROR_TEXT
 from server.app.api.v1.topics.topics import (
     ContentCompilationError,
@@ -51,7 +54,7 @@ topics_router = APIRouter(
             "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
         },
     },
-    openapi_extra=openapi_extra_authorization_cookie,
+    openapi_extra=openapi_extra_authorization_cookie_required,
 )
 async def create_topic(
         user: Annotated[UserVerification, Depends(get_auth_user)],
@@ -92,7 +95,7 @@ async def create_topic(
             "description": "Название файла не совпадает с заявленным в теме",
         },
     },
-    openapi_extra=openapi_extra_authorization_cookie,
+    openapi_extra=openapi_extra_authorization_cookie_required,
 )
 async def upload_resource(
         user: Annotated[UserVerification, Depends(get_auth_user)],
@@ -108,6 +111,7 @@ async def upload_resource(
 @topics_router.get(
     "/get-resource/{topic_id}/{resource_filename}",
     description="Получить ресурс курса",
+    summary="Получить файл ресурса темы",
     status_code=status.HTTP_200_OK,
     responses={
         status.HTTP_403_FORBIDDEN: {
@@ -120,7 +124,7 @@ async def upload_resource(
             "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
         },
     },
-    openapi_extra=openapi_extra_authorization_cookie,
+    openapi_extra=openapi_extra_authorization_cookie_non_required,
 )
 async def get_topic_resource(
         user: Annotated[UserVerification | None, Depends(
@@ -165,7 +169,7 @@ async def get_topic_resource(
             "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
         },
     },
-    openapi_extra=openapi_extra_authorization_cookie,
+    openapi_extra=openapi_extra_authorization_cookie_non_required,
 )
 async def get_topics_by_section(
         user: Annotated[UserVerification | None, Depends(
@@ -205,7 +209,7 @@ async def get_topics_by_section(
             "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
         },
     },
-    openapi_extra=openapi_extra_authorization_cookie,
+    openapi_extra=openapi_extra_authorization_cookie_non_required,
 )
 async def get_topics_by_course(
         user: Annotated[UserVerification | None, Depends(
@@ -245,7 +249,7 @@ async def get_topics_by_course(
             "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
         },
     },
-    openapi_extra=openapi_extra_authorization_cookie,
+    openapi_extra=openapi_extra_authorization_cookie_non_required,
 )
 async def get_topic_by_id(
         user: Annotated[UserVerification | None, Depends(
@@ -289,7 +293,7 @@ async def get_topic_by_id(
             "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
         },
     },
-    openapi_extra=openapi_extra_authorization_cookie,
+    openapi_extra=openapi_extra_authorization_cookie_required,
 )
 async def update_topic(
         user: Annotated[UserVerification, Depends(
@@ -330,7 +334,7 @@ async def update_topic(
             "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
         },
     },
-    openapi_extra=openapi_extra_authorization_cookie,
+    openapi_extra=openapi_extra_authorization_cookie_required,
 )
 async def delete_topic(
         user: Annotated[UserVerification, Depends(

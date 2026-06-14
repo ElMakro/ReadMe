@@ -2,7 +2,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Response, status
 
-from server.app.api.openapi_docs import openapi_extra_authorization_cookie
+from server.app.api.openapi_docs import openapi_extra_authorization_cookie_non_required
 from server.app.api.v1.auth.auth_service import AuthService
 from server.app.api.v1.common_schemas import MessageResponse
 from server.app.api.v1.users.users import CreatedUserInfo, UserAuthentication, UserRegistration, UserVerification
@@ -71,7 +71,7 @@ async def login(
     status_code=status.HTTP_200_OK,
     summary="Выход пользователя из системы",
     response_model=MessageResponse,
-    openapi_extra=openapi_extra_authorization_cookie,
+    openapi_extra=openapi_extra_authorization_cookie_non_required,
 )
 async def logout(
         response: Response,

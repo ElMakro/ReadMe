@@ -2,9 +2,12 @@ from typing import Annotated, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, Path, Query, UploadFile, status
-from starlette.responses import FileResponse
+from fastapi.responses import FileResponse
 
-from server.app.api.openapi_docs import openapi_extra_authorization_cookie
+from server.app.api.openapi_docs import (
+    openapi_extra_authorization_cookie_non_required,
+    openapi_extra_authorization_cookie_required,
+)
 from server.app.api.v1.common_schemas import UNPROCESSABLE_ENTITY_ERROR_TEXT, PaginationParameters
 from server.app.api.v1.courses.courses import (
     CourseChangeProfessor,
@@ -42,7 +45,7 @@ courses_router = APIRouter(
             "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
         },
     },
-    openapi_extra=openapi_extra_authorization_cookie,
+    openapi_extra=openapi_extra_authorization_cookie_required,
 )
 async def create_course(
         user: Annotated[UserVerification, Depends(
@@ -81,7 +84,7 @@ async def create_course(
             "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
         },
     },
-    openapi_extra=openapi_extra_authorization_cookie,
+    openapi_extra=openapi_extra_authorization_cookie_non_required,
 )
 async def search_courses(
         user: Annotated[UserVerification | None, Depends(
@@ -128,6 +131,7 @@ async def search_courses(
             "description": "Некорректно переданы параметры",
         },
     },
+    openapi_extra=openapi_extra_authorization_cookie_required
 )
 async def get_followed_courses(
         user: Annotated[UserVerification, Depends(
@@ -160,7 +164,7 @@ async def get_followed_courses(
             "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
         },
     },
-    openapi_extra=openapi_extra_authorization_cookie,
+    openapi_extra=openapi_extra_authorization_cookie_required,
 )
 async def get_controlled_courses(
         user: Annotated[UserVerification, Depends(
@@ -201,7 +205,7 @@ async def get_controlled_courses(
             "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
         },
     },
-    openapi_extra=openapi_extra_authorization_cookie,
+    openapi_extra=openapi_extra_authorization_cookie_required,
 )
 async def change_course_professor(
         user: Annotated[UserVerification, Depends(
@@ -229,7 +233,8 @@ async def change_course_professor(
 
 @courses_router.post(
     "/{course_id}/icon",
-    description="Установить иконку курса",
+    summary="Установить иконку курса",
+    description="Установить иконку курса с заданным идентификатором",
     status_code=status.HTTP_204_NO_CONTENT,
     responses={
         status.HTTP_403_FORBIDDEN: {
@@ -245,7 +250,7 @@ async def change_course_professor(
             "description": "Отправлен некорректный тип файла"
         }
     },
-    openapi_extra=openapi_extra_authorization_cookie,
+    openapi_extra=openapi_extra_authorization_cookie_required,
 )
 async def set_course_icon(
         user: Annotated[UserVerification, Depends(
@@ -273,7 +278,8 @@ async def set_course_icon(
 
 @courses_router.get(
     "/{course_id}/icon",
-    description="Получить иконку курса",
+    summary="Получить иконку курса",
+    description="Получить иконку курса с заданным идентификатором",
     status_code=status.HTTP_200_OK,
     responses={
         status.HTTP_403_FORBIDDEN: {
@@ -286,7 +292,7 @@ async def set_course_icon(
             "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
         },
     },
-    openapi_extra=openapi_extra_authorization_cookie,
+    openapi_extra=openapi_extra_authorization_cookie_non_required,
 )
 async def get_course_icon(
         user: Annotated[UserVerification | None, Depends(
@@ -326,7 +332,7 @@ async def get_course_icon(
             "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
         },
     },
-    openapi_extra=openapi_extra_authorization_cookie,
+    openapi_extra=openapi_extra_authorization_cookie_non_required,
 )
 async def get_course_by_id(
         user: Annotated[UserVerification | None, Depends(
@@ -366,7 +372,7 @@ async def get_course_by_id(
             "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
         },
     },
-    openapi_extra=openapi_extra_authorization_cookie,
+    openapi_extra=openapi_extra_authorization_cookie_required,
 )
 async def update_course(
         course_update: CourseUpdate,
@@ -409,7 +415,7 @@ async def update_course(
             "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
         },
     },
-    openapi_extra=openapi_extra_authorization_cookie,
+    openapi_extra=openapi_extra_authorization_cookie_required,
 )
 async def delete_course(
         user: Annotated[UserVerification, Depends(

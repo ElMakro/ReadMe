@@ -4,7 +4,10 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, File, HTTPException, Path, Query, UploadFile, status
 from starlette.responses import FileResponse
 
-from server.app.api.openapi_docs import openapi_extra_authorization_cookie
+from server.app.api.openapi_docs import (
+    openapi_extra_authorization_cookie_non_required,
+    openapi_extra_authorization_cookie_required,
+)
 from server.app.api.v1.common_schemas import (
     APPLICATION_FIELDS_MISMATCH_ERROR_TEXT,
     APPLICATION_REFUSED_ERROR_TEXT,
@@ -524,7 +527,7 @@ async def get_my_applications(
             "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
         },
     },
-    openapi_extra=openapi_extra_authorization_cookie,
+    openapi_extra=openapi_extra_authorization_cookie_non_required,
 )
 async def enroll(
         user: Annotated[UserVerification, Depends(
@@ -564,7 +567,7 @@ async def enroll(
             "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
         },
     },
-    openapi_extra=openapi_extra_authorization_cookie,
+    openapi_extra=openapi_extra_authorization_cookie_non_required,
 )
 async def unenroll(
         user: Annotated[UserVerification, Depends(
@@ -608,7 +611,7 @@ async def unenroll(
             "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
         },
     },
-    openapi_extra=openapi_extra_authorization_cookie,
+    openapi_extra=openapi_extra_authorization_cookie_non_required,
 )
 async def get_enrolled_users(
         user: Annotated[UserVerification | None, Depends(
@@ -626,13 +629,14 @@ async def get_enrolled_users(
 @users_router.post(
     "/icon",
     description="Установить иконку текущему пользователю",
+    summary="Установить иконку пользователя",
     status_code=status.HTTP_204_NO_CONTENT,
     responses={
         status.HTTP_415_UNSUPPORTED_MEDIA_TYPE: {
             "description": "Отправлен некорректный тип файла"
         }
     },
-    openapi_extra=openapi_extra_authorization_cookie,
+    openapi_extra=openapi_extra_authorization_cookie_required,
 )
 async def set_user_icon(
         user: Annotated[UserVerification, Depends(
@@ -656,7 +660,8 @@ async def set_user_icon(
         status.HTTP_404_NOT_FOUND: {
             "description": NOT_FOUND_ERROR_TEXT
         }
-    }
+    },
+    openapi_extra=openapi_extra_authorization_cookie_required,
 )
 async def get_user_icon(user_id: uuid.UUID = Path(..., description="Уникальный идентификатор пользователя"),
                         users_resources_manager: UsersResourcesManager = Depends(

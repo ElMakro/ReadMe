@@ -3,7 +3,10 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Path, status
 
-from server.app.api.openapi_docs import openapi_extra_authorization_cookie
+from server.app.api.openapi_docs import (
+    openapi_extra_authorization_cookie_non_required,
+    openapi_extra_authorization_cookie_required,
+)
 from server.app.api.v1.common_schemas import UNPROCESSABLE_ENTITY_ERROR_TEXT, SwapContentOrder
 from server.app.api.v1.sections.sections import (
     SectionCreation,
@@ -42,7 +45,7 @@ sections_router = APIRouter(
             "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
         },
     },
-    openapi_extra=openapi_extra_authorization_cookie,
+    openapi_extra=openapi_extra_authorization_cookie_required,
 )
 async def create_section(
         user: Annotated[UserVerification, Depends(
@@ -84,7 +87,7 @@ async def create_section(
             "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
         },
     },
-    openapi_extra=openapi_extra_authorization_cookie,
+    openapi_extra=openapi_extra_authorization_cookie_non_required,
 )
 async def get_sections_by_course_id(
         user: Annotated[UserVerification | None, Depends(
@@ -127,7 +130,7 @@ async def get_sections_by_course_id(
             "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
         },
     },
-    openapi_extra=openapi_extra_authorization_cookie,
+    openapi_extra=openapi_extra_authorization_cookie_required,
 )
 async def swap_sections(
         user: Annotated[UserVerification, Depends(
@@ -163,7 +166,7 @@ async def swap_sections(
             "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
         },
     },
-    openapi_extra=openapi_extra_authorization_cookie,
+    openapi_extra=openapi_extra_authorization_cookie_non_required,
 )
 async def get_section_by_id(
         user: Annotated[UserVerification | None, Depends(
@@ -200,7 +203,7 @@ async def get_section_by_id(
             "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
         },
     },
-    openapi_extra=openapi_extra_authorization_cookie,
+    openapi_extra=openapi_extra_authorization_cookie_required,
 )
 async def update_section(
         user: Annotated[UserVerification, Depends(
@@ -241,7 +244,7 @@ async def update_section(
             "description": UNPROCESSABLE_ENTITY_ERROR_TEXT,
         },
     },
-    openapi_extra=openapi_extra_authorization_cookie,
+    openapi_extra=openapi_extra_authorization_cookie_required,
 )
 async def delete_section(
         user: Annotated[UserVerification, Depends(
