@@ -335,7 +335,6 @@ class UsersManager:
             )
             result = await session.execute(query)
             link = result.scalar_one_or_none()
-            print(link)
             if link is None:
                 return None
             return SecretApplicationLink.model_validate(link)
