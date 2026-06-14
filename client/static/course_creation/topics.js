@@ -95,9 +95,8 @@
                 fileName = 'UML.svg';
                 break;
             default:
-                fileName = 'Markdown.svg'; // иконка по умолчанию
+                fileName = 'Markdown.svg';
         }
-        // Возвращаем <img> с классом для стилизации
         return `<img src="${ICONS_BASE_PATH}${fileName}" class="block-icon-img" alt="${type} icon">`;
     }
 
@@ -124,18 +123,6 @@
         }
     }
 
-    async function validateLatexWithMathJax(latexString) {
-        if (!window.MathJax) return true;
-        if (!latexString || latexString.trim() === '') return true;
-        try {
-            await window.MathJax.tex2chtmlPromise(latexString, {display: true});
-            return true;
-        } catch (err) {
-            let errorMsg = err.message || err.toString();
-            if (errorMsg.includes('\n')) errorMsg = errorMsg.split('\n')[0];
-            throw new Error(`LaTeX ошибка: ${errorMsg}`);
-        }
-    }
 
     function validatePlantUml(umlCode) {
         if (!umlCode || umlCode.trim() === '') return true;
@@ -470,7 +457,6 @@
                         const saveBtn = blockCard.querySelector('.save-block-edit');
                         const addFileBtn = blockCard.querySelector('.add-file-btn');
 
-                        // Обновление иконки при смене типа
                         typeSelect.addEventListener('change', async (e) => {
                             const newType = e.target.value;
                             const iconSpan = blockCard.querySelector('.block-icon');
@@ -593,7 +579,6 @@
                             setTimeout(() => autosize(contentTextarea, 800), 20);
                         }
 
-                        // Обновление иконки при смене типа
                         typeSelect.addEventListener('change', async (e) => {
                             const newType = e.target.value;
                             const iconSpan = blockCard.querySelector(`#type-icon-${idx}`);
@@ -720,7 +705,6 @@
                         else if (res.status === 409) errorMsg = 'Тема с таким порядковым номером уже существует';
                         else if (res.status === 400) {
                             const errData = await res.json().catch(() => null);
-                            // FIX: преобразуем массив ошибок в читаемую строку
                             if (errData && Array.isArray(errData)) {
                                 errorMsg = errData.map(e => `Блок ${e.block_index}: ${e.error}`).join('; ');
                             } else if (errData?.detail) {
@@ -752,7 +736,6 @@
                         else if (res.status === 409) errorMsg = 'Тема с таким порядковым номером уже существует';
                         else if (res.status === 400) {
                             const errData = await res.json().catch(() => null);
-                            // FIX: преобразуем массив ошибок в читаемую строку
                             if (errData && Array.isArray(errData)) {
                                 errorMsg = errData.map(e => `Блок ${e.block_index}: ${e.error}`).join('; ');
                             } else if (errData?.detail) {
@@ -803,7 +786,6 @@
                         credentials: 'include',
                         body: JSON.stringify({raw_content: finalRawContent})
                     });
-                    // FIX: обновляем локальный topic.raw_content после загрузки файлов
                     topic.raw_content = finalRawContent;
                 } else {
                     topic.raw_content = rawContentForFirstPut;

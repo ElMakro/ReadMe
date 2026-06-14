@@ -103,7 +103,6 @@
         window.AppState.currentUser = null;
         window.dispatchEvent(new CustomEvent('auth-changed', { detail: { user: null } }));
 
-        // Защита от повторного открытия модалки
         if (unauthorizedModalOpen) return;
         unauthorizedModalOpen = true;
 
@@ -128,7 +127,6 @@
         }
     };
 
-    // Глобальный перехват fetch (без изменений, кроме возможного добавления обработки 5xx)
     const originalFetch = window.fetch;
     window.fetch = function(...args) {
         return originalFetch.apply(this, args).then(async response => {
@@ -143,7 +141,6 @@
                     window.handleForbidden();
                 }
             } else if (response.status >= 500 && response.status < 600) {
-                // Необязательно: показывать тост при серверной ошибке
                 if (window.showToast) {
                     window.showToast('Серверная ошибка. Попробуйте позже.', 'danger');
                 }

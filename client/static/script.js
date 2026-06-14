@@ -16,7 +16,6 @@
     let pagination = null;
     let allCoursesCache = [];
 
-    // --- Управление видимостью кнопок ---
     function updateButtonsByAuthAndRole() {
         const isLoggedIn = window.Auth && window.Auth.isAuthenticated();
         if (myCoursesBtn) myCoursesBtn.style.display = isLoggedIn ? '' : 'none';
@@ -28,14 +27,12 @@
         if (manageCoursesBtn) manageCoursesBtn.style.display = showManage ? '' : 'none';
     }
 
-    // --- СОЗДАНИЕ ВЫПАДАЮЩЕГО ОКНА ФИЛЬТРОВ ---
     let filtersDropdown = null;
     let filtersWrapper = null;
 
     function createFiltersDropdown() {
         if (filtersDropdown) return;
 
-        // Оборачиваем кнопку в относительный контейнер
         filtersWrapper = document.createElement('div');
         filtersWrapper.className = 'filters-wrapper';
         filtersWrapper.style.position = 'relative';
@@ -44,7 +41,7 @@
 
         const dropdown = document.createElement('div');
         dropdown.className = 'filters-dropdown';
-        dropdown.style.display = 'none'; // изначально скрыто
+        dropdown.style.display = 'none';
         dropdown.innerHTML = `
             <div class="filter-group mb-3">
                 <label class="form-label fw-bold">Статус участия</label>
@@ -82,14 +79,12 @@
         filtersWrapper.appendChild(dropdown);
         filtersDropdown = dropdown;
 
-        // Закрытие при клике вне
         document.addEventListener('click', (e) => {
             if (!filtersWrapper.contains(e.target)) {
                 dropdown.style.display = 'none';
             }
         });
 
-        // Открытие/закрытие по кнопке
         filtersBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             const isVisible = dropdown.style.display === 'block';
@@ -156,7 +151,6 @@
         filtersDropdown.style.display = 'none';
     }
 
-    // --- Загрузка всех страниц для режима "Только можно записаться" ---
     async function fetchAllEnrollableCourses() {
         let allCourses = [];
         let page = 1;
@@ -181,7 +175,6 @@
         return allCourses.filter(c => c.state === 'enrollable');
     }
 
-    // --- ОСНОВНАЯ ФУНКЦИЯ ЗАГРУЗКИ КУРСОВ ---
     async function fetchCourses(page = 1) {
         if (isLoading) return;
         isLoading = true;
@@ -218,7 +211,7 @@
             } else if (currentFilterMode === 'enrollable') {
                 courses = await fetchAllEnrollableCourses();
                 if (pagination) pagination.hide();
-            } else { // Режим 'all'
+            } else {
                 let url;
                 if (currentTagFilter) {
                     url = `${window.API_BASE_URL}courses/search?page=${page}&records_per_page=${currentLimit}&criteria=tag&value=${encodeURIComponent(currentTagFilter)}`;
@@ -227,7 +220,6 @@
                 }
                 const response = await fetch(url, {credentials: 'include'});
                 if (!response.ok) {
-                    // Для неавторизованных или при ошибке бэкенда показываем пустой список
                     if (response.status === 401 || response.status === 403) {
                         console.warn('Доступ к поиску курсов ограничен, показываем пустой список');
                         courses = [];
@@ -321,13 +313,11 @@
         return div.innerHTML;
     }
 
-    // --- ПАГИНАЦИЯ ---
     const paginationContainer = document.getElementById('paginationContainer');
     if (paginationContainer && window.Pagination) {
         pagination = new window.Pagination(paginationContainer, (page) => fetchCourses(page), {pageSize: currentLimit});
     }
 
-    // --- ПОИСК ПО НАЗВАНИЮ ---
     let searchTimeout;
     if (searchInput) {
         searchInput.addEventListener('input', (e) => {
@@ -352,11 +342,9 @@
         });
     }
 
-    // --- КНОПКИ ---
     if (myCoursesBtn) myCoursesBtn.addEventListener('click', () => window.location.href = '/my-courses');
     if (manageCoursesBtn) manageCoursesBtn.addEventListener('click', () => window.location.href = '/created-courses');
 
-    // --- ПОДПИСКА НА ИЗМЕНЕНИЕ АВТОРИЗАЦИИ ---
     window.addEventListener('auth-changed', () => {
         updateButtonsByAuthAndRole();
         currentFilterMode = 'all';
@@ -368,7 +356,6 @@
         fetchCourses(1);
     });
 
-    // --- ИНИЦИАЛИЗАЦИЯ ---
     function init() {
         createFiltersDropdown();
         if (window.Auth && window.Auth.isAuthenticated !== undefined) updateButtonsByAuthAndRole();

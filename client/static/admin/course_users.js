@@ -352,7 +352,6 @@
             return;
         }
 
-        // FIX: индикатор загрузки
         const originalText = action === 'enroll' ? enrollSelectedBtn?.innerHTML : unenrollSelectedBtn?.innerHTML;
         if (action === 'enroll' && enrollSelectedBtn) {
             enrollSelectedBtn.disabled = true;
@@ -383,7 +382,6 @@
         window.showToast(`Выполнено: ${successCount} из ${userIds.length}`, successCount === userIds.length ? 'success' : 'warning');
         if (successCount > 0) await loadDataAndRender();
 
-        // Восстанавливаем кнопки
         if (action === 'enroll' && enrollSelectedBtn) {
             enrollSelectedBtn.disabled = false;
             enrollSelectedBtn.innerHTML = originalText;

@@ -13,7 +13,6 @@
         }
     }
 
-    // ----- Основные геттеры -----
     window.getCourseName = async (courseId) => {
         if (!courseId) return null;
         const course = await fetchJson(`${API_BASE_URL}courses/${courseId}`);
@@ -32,7 +31,6 @@
         return topic?.name || null;
     };
 
-    // ----- Функции для обновления хлебных крошек (опционально, на основе геттеров) -----
     window.updateCourseBreadcrumb = async (courseId) => {
         const name = await window.getCourseName(courseId);
         const el = document.getElementById('courseTitleBreadcrumb');
