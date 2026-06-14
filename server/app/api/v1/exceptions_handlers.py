@@ -8,7 +8,12 @@ from server.app.api.v1.exceptions import (
     ObjectMissingError,
     OperationPermissionError,
 )
+from server.app.api.v1.notes.exceptions import CantChangeOwnRoleError, CantDeleteOwnProfileError
+from server.app.api.v1.users.exceptions import UserNotFoundError, NotUniqueFieldsError, \
+    UserMustBeInProfessorsTableError, NotExistingLinkError, UpdatedLinkError, ApplicationRefusedError, \
+    ApplicationFieldsMismatchError
 from server.data.courses_resources.compilation_manager import CompilationError
+
 
 ExceptionHandlerMap = dict[type[Exception], int]
 
@@ -19,6 +24,15 @@ COMMON_HANDLERS: ExceptionHandlerMap = {
     ObjectMissingError: status.HTTP_404_NOT_FOUND,
     ConflictError: status.HTTP_409_CONFLICT,
     MediaTypeError: status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+    UserNotFoundError: status.HTTP_404_NOT_FOUND,
+    NotUniqueFieldsError: status.HTTP_409_CONFLICT,
+    UserMustBeInProfessorsTableError: status.HTTP_409_CONFLICT,
+    CantChangeOwnRoleError: status.HTTP_409_CONFLICT,
+    CantDeleteOwnProfileError: status.HTTP_409_CONFLICT,
+    NotExistingLinkError: status.HTTP_409_CONFLICT,
+    UpdatedLinkError: status.HTTP_422_UNPROCESSABLE_CONTENT,
+    ApplicationRefusedError: status.HTTP_409_CONFLICT,
+    ApplicationFieldsMismatchError: status.HTTP_409_CONFLICT,
 }
 
 
