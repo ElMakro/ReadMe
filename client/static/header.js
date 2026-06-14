@@ -1,5 +1,4 @@
 (function() {
-    // Тема (оставляем как было)
     const themeToggle = document.getElementById('themeToggle');
     const themeText = document.getElementById('themeText');
     const htmlElement = document.documentElement;
@@ -30,7 +29,6 @@
 searchBox.style.display = visiblePaths.includes(window.location.pathname) ? 'flex' : 'none';
     }
 
-    // Кнопки входа/профиля
     const loginBtn = document.getElementById('loginBtn');
     const profileBtn = document.getElementById('profileBtn');
     const myNotesBtn = document.getElementById('myNotesBtn');

@@ -150,7 +150,7 @@
             const total = hasNext ? page + 1 : page;
             if (pagination) {
                 pagination.setTotalPages(total);
-                pagination.setPage(page, true); // silent mode — не вызывать onPageChange повторно
+                pagination.setPage(page, true);
             }
         } catch (err) {
             window.showAccessDenied(container, err.message, true, pagination);

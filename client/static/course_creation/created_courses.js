@@ -2,7 +2,7 @@
 (function() {
     const container = document.getElementById('coursesList');
     const addBtn = document.getElementById('addCourseBtn');
-    const PAGE_SIZE = 9; // количество курсов на страницу
+    const PAGE_SIZE = 9;
 
     let courses = [];
     let originalCourses = [];
@@ -519,7 +519,6 @@
         }, 50);
     }
 
-    // Инициализация пагинации
     const paginationContainer = document.getElementById('paginationContainer');
     if (paginationContainer) {
         pagination = new Pagination(paginationContainer, (page) => loadCourses(page), {
@@ -530,5 +529,5 @@
 
     addBtn.addEventListener('click', addCourse);
     loadCourses(1);
-    setupNavigationGuard(); // функция из исходного кода
+    setupNavigationGuard();
 })();

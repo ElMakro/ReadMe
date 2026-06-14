@@ -157,7 +157,7 @@
                 });
                 if (resp.ok) {
                     window.showToast('Вы отписались от курса');
-                    setTimeout(() => location.reload(), 1000); // даём время увидеть тост
+                    setTimeout(() => location.reload(), 1000);
                 } else if (resp.status === 404) {
                     window.showToast('Курс не найден', 'danger');
                 } else if (resp.status === 422) {
@@ -604,7 +604,7 @@
     });
 })();
 
-// Плавающее окно конспекта (без изменений)
+// Плавающее окно конспекта
 (function () {
     document.addEventListener('DOMContentLoaded', function () {
         const win = document.getElementById('floatingWindow');

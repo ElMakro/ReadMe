@@ -205,9 +205,7 @@ class UsersService:
         if (link := await self.users_manager.get_secret_application_link()) is None:
             raise NotExistingLinkError(NOT_EXISTING_LINK_ERROR_TEXT)
         return SecretApplicationLink(
-            secret_part=f""
-                        f"{settings.client_settings.professor_application_base_url}/"
-                        f"{self.secret_link_handler.get_decoded_link(link.secret_part)}"
+            secret_part=self.secret_link_handler.get_decoded_link(link.secret_part)
         )
 
     async def set_secret_application_link(self, link_strategy: UpdatedLinkStrategy) -> SecretApplicationLink:

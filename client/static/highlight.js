@@ -1,16 +1,13 @@
 // static/highlight.js
 (function() {
-    // Экранирование для безопасного вставления в HTML
     function escapeRegex(str) {
         return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     }
 
-    // Функция для подсветки текста в одном элементе
     function highlightElement(element, query) {
         if (!element || !query) return;
         const original = element.getAttribute('data-original-text');
         if (!original) {
-            // Сохраняем исходный текст в атрибут (только один раз)
             element.setAttribute('data-original-text', element.textContent);
         }
         const text = element.getAttribute('data-original-text') || element.textContent;
@@ -19,7 +16,6 @@
         element.innerHTML = html;
     }
 
-    // Очистить подсветку во всех элементах контейнера
     function clearHighlight(container) {
         const searchables = container.querySelectorAll('[data-searchable]');
         searchables.forEach(el => {
@@ -31,7 +27,6 @@
         });
     }
 
-    // Применить подсветку ко всем элементам с data-searchable внутри контейнера
     function applyHighlight(container, query) {
         if (!container || !query) return;
         const searchables = container.querySelectorAll('[data-searchable]');

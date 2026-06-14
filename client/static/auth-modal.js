@@ -2,7 +2,6 @@
 (function () {
     const PREFIX = 'auth-modal-';
 
-    // Вспомогательная функция для извлечения понятного сообщения об ошибке
     function getErrorMessage(data, defaultMsg) {
         if (!data) return defaultMsg;
         if (typeof data.detail === 'string') return data.detail;
@@ -204,7 +203,7 @@
         regEmail.required = true;
         regPassword.required = true;
         regConfirm.required = true;
-        regConsent.required = true;   // чекбокс обязателен при регистрации
+        regConsent.required = true;
         regNickname.disabled = false;
         regEmail.disabled = false;
         regPassword.disabled = false;
@@ -298,7 +297,6 @@
                 const confirm = regConfirm.value;
                 const consent = regConsent.checked;
 
-                // Валидация
                 const nicknameErr = validateNickname(nickname);
                 if (nicknameErr) throw new Error(nicknameErr);
                 const emailErr = validateEmail(email);

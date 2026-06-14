@@ -374,7 +374,6 @@
         if (currentEditingSectionId && hasUnsavedChanges) {
             if (!confirm('Есть несохранённые изменения. Закрыть без сохранения?')) return;
         }
-        // FIX: правильный расчёт order_number
         const maxOrder = sections.reduce((max, s) => Math.max(max, s.order_number), 0);
         const newOrder = maxOrder + 1;
         const newSection = {

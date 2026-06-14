@@ -52,13 +52,11 @@
             let newTag = this.inputField.value.trim();
             if (newTag === '') return;
 
-            // FIX: ограничение длины тега
             if (newTag.length > 30) {
                 window.showToast('Тег не может быть длиннее 30 символов', 'warning');
                 return;
             }
 
-            // FIX: проверка на уникальность (регистронезависимо)
             const lowerNewTag = newTag.toLowerCase();
             if (this.tags.some(tag => tag.toLowerCase() === lowerNewTag)) {
                 window.showToast('Такой тег уже существует', 'warning');

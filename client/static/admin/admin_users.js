@@ -4,7 +4,7 @@
     let isLoading = false;
     let pagination = null;
     let currentPage = 1;
-    let currentSearchQuery = '';          // добавлено для поиска
+    let currentSearchQuery = '';
 
     const container = document.getElementById('usersList');
     const refreshBtn = document.getElementById('refreshBtn');
@@ -101,7 +101,6 @@
             container.appendChild(col);
         });
 
-        // Привязка обработчиков кнопок
         document.querySelectorAll('.change-role-btn').forEach(btn =>
             btn.addEventListener('click', () => openRoleModal(btn.dataset.id, btn.dataset.name, btn.dataset.role))
         );
@@ -109,7 +108,6 @@
             btn.addEventListener('click', () => openDeleteModal(btn.dataset.id, btn.dataset.name))
         );
 
-        // Подсветка, если есть активный поисковый запрос
         if (currentSearchQuery && window.Highlight) {
             window.Highlight.apply(container, currentSearchQuery);
         } else if (window.Highlight) {
@@ -123,9 +121,9 @@
     }
 
     function getRoleBadgeClass(role) {
-        if (role === 'admin') return 'bg-accent-dark';      // синий для администратора
-        if (role === 'professor') return 'bg-success'; // зелёный для преподавателя
-        return 'bg-secondary';                          // серый для студента
+        if (role === 'admin') return 'bg-accent-dark';
+        if (role === 'professor') return 'bg-success';
+        return 'bg-secondary';
     }
 
     let selectedUserId, selectedUserName, currentRole;

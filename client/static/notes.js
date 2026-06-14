@@ -43,7 +43,6 @@
             return await resp.json();
         } catch (err) {
             console.warn('loadNoteForTopic error:', err);
-            // Показываем пользователю только если это не 204 (нет конспекта)
             if (err.message !== 'Для работы с заметками необходимо войти в систему.') {
                 window.showToast(err.message, 'danger');
             }
@@ -65,6 +64,9 @@
                     if (resp.status === 401 || resp.status === 403) {
                         throw new Error('Для работы с заметками необходимо войти в систему.');
                     }
+                    if (resp.status === 404) {
+                        throw new Error('Темы не существует.');
+                    }
                     if (resp.status === 409) {
                         throw new Error('Конспект не принадлежит вам или уже изменён.');
                     }
@@ -85,6 +87,9 @@
                 if (!resp.ok) {
                     if (resp.status === 401 || resp.status === 403) {
                         throw new Error('Для работы с заметками необходимо войти в систему.');
+                    }
+                    if (resp.status === 404) {
+                        throw new Error('Темы не существует.');
                     }
                     if (resp.status === 409) {
                         throw new Error('Конспект для этой темы уже существует.');

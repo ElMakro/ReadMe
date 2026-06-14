@@ -19,7 +19,6 @@
     const currentUserIdInput = document.getElementById('currentUserId');
     const currentNewStatusInput = document.getElementById('currentNewStatus');
 
-    // Вспомогательная функция для извлечения сообщения об ошибке
     async function extractErrorMessage(response, defaultMsg) {
         try {
             const errorData = await response.json();
@@ -212,23 +211,58 @@
         }
     }
 
-    // Генерация случайной ссылки только из разрешённых символов
-    function generateRandomSecret() {
-        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_.-';
-        const length = 32; // 32 символа — безопасно и в пределах 5-43
-        let result = '';
-        const randomValues = new Uint8Array(length);
-        crypto.getRandomValues(randomValues);
-        for (let i = 0; i < length; i++) {
-            result += chars[randomValues[i] % chars.length];
-        }
-        return result;
-    }
-
-    // Валидация пользовательской ссылки
     function isValidSecretPart(part) {
         const regex = /^[a-zA-Z0-9_.-]{5,43}$/;
         return regex.test(part);
+    }
+
+    async function loadCurrentSecretLink(resultDiv) {
+        try {
+            const response = await fetch(`${window.API_BASE_URL}users/get-application-link`, {
+                credentials: 'include'
+            });
+            if (response.ok) {
+                const data = await response.json();
+                console.log(data);
+                const fullLink = `${window.location.origin}/submit_professor_application/${data.secret_part}`;
+                resultDiv.className = 'alert alert-info mt-3';
+                resultDiv.innerHTML = `
+                    <strong>Текущая ссылка для подачи заявок:</strong><br>
+                    <div class="d-flex gap-2 mt-2">
+                        <input type="text" id="currentLinkInput" class="form-control flex-grow-1" value="${escapeHtml(fullLink)}" readonly>
+                        <button class="btn btn-outline-secondary" id="copyCurrentLinkBtn" type="button">Копировать</button>
+                    </div>
+                    <small class="text-muted mt-2 d-block">Секретная часть: ${escapeHtml(data.secret_part)}</small>
+                `;
+                resultDiv.style.display = 'block';
+                const copyBtn = document.getElementById('copyCurrentLinkBtn');
+                if (copyBtn) {
+                    copyBtn.addEventListener('click', async () => {
+                        const input = document.getElementById('currentLinkInput');
+                        if (input) {
+                            await navigator.clipboard.writeText(input.value);
+                            window.showToast('Ссылка скопирована в буфер обмена');
+                        }
+                    });
+                }
+            } else if (response.status === 401 || response.status === 403) {
+                resultDiv.className = 'alert alert-danger mt-3';
+                resultDiv.innerHTML = 'Недостаточно прав для просмотра ссылки.';
+                resultDiv.style.display = 'block';
+            } else if (response.status === 409) {
+                resultDiv.className = 'alert alert-warning mt-3';
+                resultDiv.innerHTML = 'Секретная ссылка ещё не задана. Используйте действия выше для её создания.';
+                resultDiv.style.display = 'block';
+            } else {
+                resultDiv.className = 'alert alert-danger mt-3';
+                resultDiv.innerHTML = 'Ошибка при загрузке текущей ссылки.';
+                resultDiv.style.display = 'block';
+            }
+        } catch (err) {
+            resultDiv.className = 'alert alert-danger mt-3';
+            resultDiv.innerHTML = `Ошибка сети: ${err.message}`;
+            resultDiv.style.display = 'block';
+        }
     }
 
     function addSecretLinkControls() {
@@ -278,16 +312,16 @@
 
         const modalObj = new bootstrap.Modal(modal);
         const resultDiv = modal.querySelector('#secretLinkResult');
-        const clearResult = () => {
-            resultDiv.style.display = 'none';
-            resultDiv.innerHTML = '';
-        };
+
+        // Загружаем текущую ссылку при открытии модалки
+        loadCurrentSecretLink(resultDiv);
 
         const setLink = async (type, content = null) => {
             const payload = {type};
-            if (content !== null) payload.content = content;
+            if (type !== 'random' && content !== null) {
+                payload.content = content;
+            }
 
-            // Для типа 'custom' проверим валидность содержимого на клиенте
             if (type === 'custom' && content && !isValidSecretPart(content)) {
                 resultDiv.className = 'alert alert-danger mt-3';
                 resultDiv.innerHTML = 'Некорректная секретная часть. Допустимая длина от 5 до 43 символов, разрешены: латиница, цифры, _, -, .';
@@ -308,8 +342,8 @@
                     resultDiv.className = 'alert alert-success mt-3';
                     resultDiv.innerHTML = `
                         <strong>Ссылка установлена:</strong><br>
-                        <div class="input-group mt-2">
-                            <input type="text" id="copiedLinkInput" class="form-control" value="${escapeHtml(fullLink)}" readonly>
+                        <div class="d-flex gap-2 mt-2">
+                            <input type="text" id="copiedLinkInput" class="form-control flex-grow-1" value="${escapeHtml(fullLink)}" readonly>
                             <button class="btn btn-outline-secondary" id="copyLinkBtn" type="button">Копировать</button>
                         </div>
                         <small class="text-muted mt-2 d-block">Секретная часть: ${escapeHtml(data.secret_part)}</small>
@@ -355,10 +389,7 @@
         const customBtn = modal.querySelector('#setCustomBtn');
         const customInput = modal.querySelector('#customLinkInput');
 
-        randomBtn.onclick = () => {
-            const randomSecret = generateRandomSecret();
-            setLink('random', randomSecret);
-        };
+        randomBtn.onclick = () => setLink('random');
         defaultBtn.onclick = () => setLink('default');
         customBtn.onclick = () => {
             const customValue = customInput.value.trim();

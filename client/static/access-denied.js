@@ -17,11 +17,9 @@
     window.showAccessDenied = function(container, message = 'Доступ запрещён.', showLoginLink = true, paginationInstance = null) {
         if (!container) return;
 
-        // Скрываем пагинацию, если передана
         if (paginationInstance && typeof paginationInstance.hide === 'function') {
             paginationInstance.hide();
         } else {
-            // fallback для старых страниц: пытаемся найти стандартные кнопки
             const paginationDiv = document.querySelector('.pagination');
             if (paginationDiv) paginationDiv.style.display = 'none';
             const refreshBtn = document.getElementById('refreshBtn');
@@ -54,7 +52,6 @@
         }
     };
 
-    // Дополнительная функция для восстановления пагинации (если нужно)
     window.restorePagination = function(paginationInstance) {
         if (paginationInstance && typeof paginationInstance.show === 'function') {
             paginationInstance.show();

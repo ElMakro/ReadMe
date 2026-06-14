@@ -55,7 +55,6 @@ class Pagination {
         }
     }
 
-    // silent = true — не вызывать onPageChange (используется при внутренней синхронизации)
     setPage(page, silent = false) {
         if (page < 1 || page > this.totalPages) return;
         if (this.currentPage === page) return;
