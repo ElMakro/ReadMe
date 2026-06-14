@@ -8,7 +8,8 @@ from server.app.api.v1.exceptions import (
     ObjectMissingError,
     OperationPermissionError,
 )
-from server.app.api.v1.notes.exceptions import CantChangeOwnRoleError, CantDeleteOwnProfileError
+from server.app.api.v1.notes.exceptions import CantChangeOwnRoleError, CantDeleteOwnProfileError, \
+    NoteAlreadyExistsError, NoteFieldsMismatchError, NoteNotFoundError, TopicNotFoundError
 from server.app.api.v1.users.exceptions import UserNotFoundError, NotUniqueFieldsError, \
     UserMustBeInProfessorsTableError, NotExistingLinkError, UpdatedLinkError, ApplicationRefusedError, \
     ApplicationFieldsMismatchError
@@ -33,6 +34,10 @@ COMMON_HANDLERS: ExceptionHandlerMap = {
     UpdatedLinkError: status.HTTP_422_UNPROCESSABLE_CONTENT,
     ApplicationRefusedError: status.HTTP_409_CONFLICT,
     ApplicationFieldsMismatchError: status.HTTP_409_CONFLICT,
+    NoteAlreadyExistsError: status.HTTP_409_CONFLICT,
+    NoteFieldsMismatchError: status.HTTP_409_CONFLICT,
+    NoteNotFoundError: status.HTTP_404_NOT_FOUND,
+    TopicNotFoundError: status.HTTP_404_NOT_FOUND,
 }
 
 
