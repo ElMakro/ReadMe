@@ -10,15 +10,6 @@ from server.app.api.v1.exceptions import (
 )
 from server.data.courses_resources.compilation_manager import CompilationError
 
-HANDLED_EXCEPTIONS = (
-    BadRequestError,
-    CompilationError,
-    OperationPermissionError,
-    ObjectMissingError,
-    ConflictError,
-    MediaTypeError,
-)
-
 ExceptionHandlerMap = dict[type[Exception], int]
 
 COMMON_HANDLERS: ExceptionHandlerMap = {
