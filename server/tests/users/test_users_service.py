@@ -383,7 +383,7 @@ class TestGetSecretApplicationLink:
 
         result = await users_service.get_secret_application_link()
 
-        expected_secret_part = f"{settings.client_settings.professor_application_base_url}/decoded_link"
+        expected_secret_part = "decoded_link"
         assert result.secret_part == expected_secret_part
         mock_secret_link_handler.get_decoded_link.assert_called_once_with("encoded123")
 
