@@ -8,7 +8,7 @@ from server.app.api.v1.common_schemas import (
     NOTE_FIELDS_MISMATCH_ERROR_TEXT,
     NOTE_NOT_FOUND_ERROR_TEXT,
     UNPROCESSABLE_ENTITY_ERROR_TEXT,
-    PaginationParameters,
+    PaginationParameters, TOPIC_NOT_FOUND_ERROR_TEXT,
 )
 from server.app.api.v1.notes.exceptions import NoteAlreadyExistsError, NoteFieldsMismatchError, NoteNotFoundError
 from server.app.api.v1.notes.notes import CreateNote, NoteById, NotesList, ShortNoteInfo, UpdateNote
@@ -69,6 +69,9 @@ async def get_note_for_topic(
         },
         status.HTTP_409_CONFLICT: {
             "description": NOTE_ALREADY_EXISTS_ERROR_TEXT,
+        },
+        status.HTTP_404_NOT_FOUND: {
+            "description": TOPIC_NOT_FOUND_ERROR_TEXT,
         }
     }
 )
@@ -81,15 +84,7 @@ async def create_note(
             NotesService,
         ),
 ) -> NoteById:
-    try:
-        return await notes_service.create_note(user.id, create_params)
-    except NoteAlreadyExistsError as error:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=str(
-                error,
-            ),
-        )
+    return await notes_service.create_note(user.id, create_params)
 
 
 @notes_router.put(
@@ -115,15 +110,7 @@ async def update_note(
             NotesService,
         ),
 ):
-    try:
-        return await notes_service.update_note(user.id, update_params)
-    except NoteFieldsMismatchError as error:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=str(
-                error,
-            ),
-        )
+    return await notes_service.update_note(user.id, update_params)
 
 @notes_router.delete(
     path="/delete-note/{note_id}",
@@ -151,15 +138,7 @@ async def delete_note(
             description="Уникальный идентификатор конспекта",
         ),
 ):
-    try:
-        return await notes_service.delete_note(note_id=note_id, user_id=user.id)
-    except NoteNotFoundError as error:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(
-                error,
-            )
-        )
+    return await notes_service.delete_note(note_id=note_id, user_id=user.id)
 
 
 @notes_router.get(

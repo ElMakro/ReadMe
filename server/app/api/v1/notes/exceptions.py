@@ -25,6 +25,15 @@ class NoteNotFoundError(
     pass
 
 
+class TopicNotFoundError(
+    ValueError,
+):
+    """
+    Исключение, связанное с отсутствием темы для конспекта.
+    """
+    pass
+
+
 class CantChangeOwnRoleError(
     ValueError,
 ):

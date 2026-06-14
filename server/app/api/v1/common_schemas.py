@@ -16,6 +16,7 @@ NOT_UNIQUE_FIELDS_ERROR_TEXT = "Пользователь с таким никн�
 NOTE_ALREADY_EXISTS_ERROR_TEXT = "Конспект к этой теме уже существует"
 NOTE_FIELDS_MISMATCH_ERROR_TEXT = "Поле note_id не соответствует сочетанию полей student_id и topic_id"
 NOTE_NOT_FOUND_ERROR_TEXT = "Конспект не найден или принадлежит другому пользователю"
+TOPIC_NOT_FOUND_ERROR_TEXT = "Тема, указанная для конспекта, не найдена"
 USER_MUST_BE_IN_PROFESSORS_TABLE_ERROR_TEXT = ("Невозможно присвоить роль преподавателя: информации о пользователе "
                                                "нет в таблице преподавателей")
 CANT_CHANGE_OWN_ROLE_ERROR_TEXT = "Запрещено изменять собственную роль. Обратитесь к другому администратору"
