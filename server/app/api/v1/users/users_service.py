@@ -39,7 +39,6 @@ from server.app.api.v1.users.users import (
 from server.app.api.v1.users.users_manager import UsersManager
 from server.app.common_dependencies.secret_link_strategies import UpdatedLinkStrategy
 from server.config.constants import ALLOWED_LINK_CHARACTERS
-from server.config.settings import settings
 from server.data.users_resources.users_resources_manager import UsersResourcesManager
 from server.enums.access_permissions import AccessPermissions
 from server.enums.role import Role
