@@ -173,7 +173,8 @@ class CoursesService:
             )
 
         if (course.name == result_name and course.description == result_description and
-                course.is_public == result_is_public and course.is_content_public == result_is_content_public):
+                course.is_public == result_is_public and course.is_content_public == result_is_content_public
+                and course.tags == result_tags):
             return
 
         await self.courses_manager.update_course(
