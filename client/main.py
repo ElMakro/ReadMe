@@ -12,7 +12,7 @@ templates = Jinja2Templates(directory="templates")
 
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8080/api/v1/")
 
-@client_app.get("/client_healthcheck")
+@client_app.get("/healthcheck")
 async def healthcheck() -> Response:
     return Response(status_code=status.HTTP_200_OK)
 

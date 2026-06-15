@@ -21,7 +21,7 @@ USER readme_client_user
 WORKDIR /content/client
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:${CLIENT_PORT}/client_healthcheck || exit 1
+    CMD curl -f http://localhost:${CLIENT_PORT}/healthcheck || exit 1
 
 EXPOSE $CLIENT_PORT
 

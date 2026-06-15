@@ -57,7 +57,7 @@ class CourseBase(
     tags: list[str] = Field(
         [],
         description="Теги объекта",
-        examples=["Тег1"]
+        examples=[["Тег1"]]
     )
 
 
@@ -106,7 +106,7 @@ class CourseUpdate(
     tags: list[str] = Field(
         None,
         description="Теги объекта",
-        examples=["Тег1"]
+        examples=[["Тег1"]]
     )
 
 

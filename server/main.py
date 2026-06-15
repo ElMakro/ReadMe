@@ -1,5 +1,5 @@
 import uvicorn
-from fastapi import FastAPI, Response, status
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from server.app.api import api_router
@@ -29,14 +29,4 @@ def run():
         app="main:app",
         port=settings.uvicorn_settings.server_port,
         reload=True,
-    )
-
-
-@app.get(
-    "/server_healthcheck",
-    summary="Проверка работоспособности сервера",
-)
-async def healthcheck():
-    return Response(
-        status_code=status.HTTP_200_OK,
     )
