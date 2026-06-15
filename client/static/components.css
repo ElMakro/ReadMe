@@ -748,6 +748,15 @@
     border: var(--border-width) solid rgba(var(--accent-rgb), 0.3);
     border-radius: var(--radius-full);
     font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    vertical-align: middle;
+    line-height: 1;
+    padding: 4px 10px;
+    cursor: pointer;
+    transition: all 0.2s ease;
 }
 .list-group-item .small.text-muted.mt-1 {
     font-size: 0.7rem;
