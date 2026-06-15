@@ -45,21 +45,21 @@ services:
             - readme-network
         healthcheck:
             test: [ "CMD-SHELL", "pg_isready -U readmepguser -d readmedb" ]
-            interval: 10s
-            timeout: 5s
-            retries: 5
-            start_period: 10s
+            interval: "10s"
+            timeout: "5s"
+            retries: "5"
+            start_period: "10s"
         restart: unless-stopped
         deploy:
             resources:
                 limits:
-                    cpus: 1
-                    memory: 1G
+                    cpus: "1"
+                    memory: "1G"
         logging:
             driver: json-file
             options:
-                max-size: 10m
-                max-file: 3
+                max-size: "10m"
+                max-file: "3"
 
     redis-database:
         image: redis:7.4.8-alpine3.21
@@ -74,21 +74,21 @@ services:
             - readme-network
         healthcheck:
             test: [ "CMD", "redis-cli", "--pass", "${REDIS_PASSWORD}", "ping" ]
-            interval: 10s
-            timeout: 5s
-            retries: 5
-            start_period: 10s
+            interval: "10s"
+            timeout: "5s"
+            retries: "5"
+            start_period: "10s"
         restart: unless-stopped
         deploy:
             resources:
                 limits:
-                    cpus: 0.5
-                    memory: 512M
+                    cpus: "0.5"
+                    memory: "512M"
         logging:
             driver: json-file
             options:
-                max-size: 10m
-                max-file: 3
+                max-size: "10m"
+                max-file: "3"
 
     database-manager:
         build:
@@ -139,13 +139,13 @@ services:
         deploy:
             resources:
                 limits:
-                    cpus: 0.5
-                    memory: 256M
+                    cpus: "0.5"
+                    memory: "256M"
         logging:
             driver: json-file
             options:
-                max-size: 10m
-                max-file: 3
+                max-size: "10m"
+                max-file: "3"
 
     auto-migrations:
         build:
@@ -185,13 +185,13 @@ services:
         deploy:
             resources:
                 limits:
-                    cpus: 0.5
-                    memory: 256M
+                    cpus: "0.5"
+                    memory: "256M"
         logging:
             driver: json-file
             options:
-                max-size: 10m
-                max-file: 3
+                max-size: "10m"
+                max-file: "3"
 
     client:
         build:
@@ -214,13 +214,13 @@ services:
         deploy:
             resources:
                 limits:
-                    cpus: 1
-                    memory: 512M
+                    cpus: "1"
+                    memory: "512M"
         logging:
             driver: json-file
             options:
-                max-size: 10m
-                max-file: 3
+                max-size: "10m"
+                max-file: "3"
 
     server:
         build:
@@ -265,13 +265,13 @@ services:
         deploy:
             resources:
                 limits:
-                    cpus: 1
-                    memory: 512M
+                    cpus: "1"
+                    memory: "512M"
         logging:
             driver: json-file
             options:
-                max-size: 10m
-                max-file: 3
+                max-size: "10m"
+                max-file: "3"
 
 
 networks:
