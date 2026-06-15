@@ -70,6 +70,11 @@
             const description = course.description || 'Описание отсутствует';
             const shortDesc = description.length > 100 ? description.substring(0, 100) + '…' : description;
             const professorFullName = formatProfessorFullName(course);
+            const tagsHtml = course.tags && course.tags.length
+                ? `<div class="course-tags mt-2">
+                    ${course.tags.map(tag => `<span class="badge tag" data-tag="${escapeHtml(tag)}" data-searchable>${escapeHtml(tag)}</span>`).join(' ')}
+                   </div>`
+                : '';
 
             col.innerHTML = `
                 <div class="course-card position-relative d-flex flex-column h-100">
@@ -83,6 +88,7 @@
                             <span class="badge bg-success">Записан</span>
                         </div>
                         <p class="course-description">${escapeHtml(shortDesc)}</p>
+                        ${tagsHtml}
                     </a>
                 </div>
             `;

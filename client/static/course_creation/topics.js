@@ -4,7 +4,6 @@
     const sectionId = window.SECTION_ID;
     const container = document.getElementById('topicsList');
     const addBtn = document.getElementById('addTopicBtn');
-    const saveAllBtn = document.getElementById('saveAllBtn');
 
     const ICONS_BASE_PATH = '/static/images/';
 
@@ -230,7 +229,6 @@
             originalTopics = JSON.parse(JSON.stringify(topics));
             renderTopics();
             if (addBtn) addBtn.disabled = false;
-            if (saveAllBtn) saveAllBtn.disabled = false;
         } catch (err) {
             console.error(err);
             container.innerHTML = `<div class="text-danger">Ошибка загрузки тем: ${err.message}</div>`;
@@ -238,7 +236,6 @@
             originalTopics = [];
             renderTopics();
             if (addBtn) addBtn.disabled = true;
-            if (saveAllBtn) saveAllBtn.disabled = true;
         }
     }
 
@@ -897,7 +894,6 @@
     }
 
     addBtn.addEventListener('click', addTopic);
-    if (saveAllBtn) saveAllBtn.style.display = 'none';
     loadTopics();
     setupNavigationGuard();
 
