@@ -53,7 +53,7 @@ class SectionBase(
     tags: list[str] = Field(
         [],
         description="Теги объекта",
-        examples=["Тег1"]
+        examples=[["Тег1"]]
     )
 
 
@@ -96,7 +96,7 @@ class SectionUpdate(
     tags: list[str] = Field(
         None,
         description="Теги объекта",
-        examples=["Тег1"]
+        examples=[["Тег1"]]
     )
 
 
