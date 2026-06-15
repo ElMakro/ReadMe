@@ -107,6 +107,18 @@
         document.getElementById('applyFiltersBtn').addEventListener('click', applyFiltersAndFetch);
     }
 
+    function highlightActiveTag() {
+        if (!currentTagFilter) return;
+        const tags = document.querySelectorAll('.course-tags .tag');
+        tags.forEach(tag => {
+            if (tag.dataset.tag === currentTagFilter) {
+                tag.classList.add('search-highlight');
+            } else {
+                tag.classList.remove('search-highlight');
+            }
+        });
+    }
+
     function updateProfessorFilterList() {
         const select = document.getElementById('filterProfessorSelect');
         if (!select) return;
@@ -283,6 +295,11 @@
             const description = course.description || 'Описание отсутствует';
             const shortDesc = description.length > 100 ? description.substring(0, 100) + '…' : description;
             const professorFullName = formatProfessorFullName(course);
+            const tagsHtml = course.tags && course.tags.length
+                ? `<div class="course-tags mt-2">
+                    ${course.tags.map(tag => `<span class="badge tag" data-tag="${escapeHtml(tag)}" data-searchable>${escapeHtml(tag)}</span>`).join(' ')}
+                   </div>`
+                : '';
 
             col.innerHTML = `
                 <div class="course-card position-relative d-flex flex-column h-100">
@@ -294,6 +311,7 @@
                         <div class="course-instructor small" data-searchable>Преподаватель: ${escapeHtml(professorFullName)}</div>
                         <div class="course-state mb-2">${stateText}</div>
                         <p class="course-description">${escapeHtml(shortDesc)}</p>
+                        ${tagsHtml}
                     </a>
                 </div>
             `;
@@ -304,6 +322,7 @@
         } else {
             window.Highlight.clear(coursesGrid);
         }
+        highlightActiveTag();
     }
 
     function escapeHtml(str) {
