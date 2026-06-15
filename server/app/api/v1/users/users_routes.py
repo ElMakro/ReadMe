@@ -136,7 +136,7 @@ async def update_profile(
 )
 async def get_all_users(
         user: Annotated[UserVerification, Depends(
-            check_role([Role.ADMIN]),
+            check_role([Role.ADMIN, Role.PROFESSOR]),
         )],
         pagination_parameters: PaginationParameters = Depends(),
         users_service: UsersService = Depends(

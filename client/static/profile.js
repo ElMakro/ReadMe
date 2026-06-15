@@ -104,7 +104,12 @@
                                     <a href="/admin/users" class="btn btn-outline-accent">Управление пользователями</a>
                                     <a href="/admin/courses" class="btn btn-outline-accent">Управление записью</a>
                                 </div>
-                            ` : ''}
+                            ` : (user.role === 'professor' ? `
+                                <hr class="my-4">
+                                <div class="d-flex flex-wrap gap-2">
+                                    <a href="/admin/courses" class="btn btn-outline-accent">Управление курсами</a>
+                                </div>
+                            ` : '')}
                         </div>
                     </div>
                 </div>
