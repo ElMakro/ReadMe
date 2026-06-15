@@ -171,6 +171,13 @@
             }
         }
 
+        function renderTags(tags) {
+            if (!tags || !tags.length) return '';
+            return `<div class="topic-tags mt-1 mb-2">
+                ${tags.map(tag => `<span class="badge tag me-1">${escapeHtml(tag)}</span>`).join(' ')}
+            </div>`;
+        }
+
         let sidebarVisible = true;
 
         function applySidebarState() {
@@ -264,12 +271,13 @@
                     const sectionId = section.id;
                     const sectionName = escapeHtml(section.name);
                     const sectionDesc = escapeHtml(section.description || '');
+                    const sectionTagsHtml = renderTags(section.tags);
                     let topicsHtml = '';
                     if (section.topics && section.topics.length) {
                         topicsHtml = '<ul class="topics-list-simple list-unstyled mt-2 mb-0">';
                         for (const topic of section.topics) {
                             topicsHtml += `
-                                <li>
+                                <li class="mb-2">
                                     <a href="#" class="topic-link-main" data-topic-id="${topic.id}">
                                         ${escapeHtml(topic.name)}
                                     </a>
@@ -288,6 +296,7 @@
                                 <h3 class="section-title mb-0">${sectionName}</h3>
                             </div>
                             <div class="section-body">
+                                ${sectionTagsHtml}
                                 <div class="section-description">${sectionDesc || '<em class="text-secondary">Описание отсутствует</em>'}</div>
                                 <div class="section-topics-wrapper">
                                     ${topicsHtml}
@@ -362,16 +371,19 @@
                 }
                 const topicData = await resp.json();
                 const renderedContent = topicData.rendered_content || [];
-                renderedCache.set(topicId, renderedContent);
-                await renderTopicContent(renderedContent);
+                const tags = topicData.tags || [];
+                await renderTopicContent(renderedContent, tags);
             } catch (err) {
                 console.error('Ошибка загрузки темы:', err);
                 topicContent.innerHTML = '<p class="text-muted">Содержимое темы недоступно.</p>';
             }
         }
 
-        async function renderTopicContent(blocks) {
+        async function renderTopicContent(blocks, tags) {
             let html = '<div class="topic-blocks">';
+            if (tags && tags.length) {
+                html += `<div class="topic-tags mb-3">${tags.map(tag => `<span class="badge tag me-1">${escapeHtml(tag)}</span>`).join(' ')}</div>`;
+            }
             for (const block of blocks) {
                 let blockHtml = '';
                 try {
@@ -749,7 +761,6 @@
                 currentNoteId = result.noteId;
                 window.showToast('Конспект сохранён');
             } catch (err) {
-                // ошибка уже обработана в Notes.saveNote
             }
         }
 
@@ -764,8 +775,8 @@
                 textarea.value = '';
                 currentNoteId = null;
             } catch (err) {
-                // ошибка уже обработана
             }
+            // ошибка уже обработана
         }
 
         function openWin() {
