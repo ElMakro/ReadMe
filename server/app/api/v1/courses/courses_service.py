@@ -260,7 +260,11 @@ class CoursesService:
             search_course = course.model_dump()
             search_course["state"] = state
 
-            if state is not None:
+            if state is None and user is not None:
+                if user.role == Role.ADMIN:
+                    search_course["state"] = CourseState.ENROLLABLE
+
+            if search_course["state"] is not None:
                 stated_courses.append(
                     CourseSearchResponse.model_validate(
                         search_course,
