@@ -297,7 +297,7 @@
             const professorFullName = formatProfessorFullName(course);
             const tagsHtml = course.tags && course.tags.length
                 ? `<div class="course-tags mt-2">
-                    ${course.tags.map(tag => `<span class="badge tag" data-tag="${escapeHtml(tag)}" data-searchable>${escapeHtml(tag)}</span>`).join(' ')}
+                    ${course.tags.map(tag => `<span class="badge tag" data-tag="${escapeHtml(tag)}">${escapeHtml(tag)}</span>`).join(' ')}
                    </div>`
                 : '';
 
