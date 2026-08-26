@@ -9,8 +9,7 @@ client_app = FastAPI()
 client_app.mount("/static", StaticFiles(directory=STATIC_PATH), name="static")
 templates = Jinja2Templates(directory="templates")
 
-
-BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8080/api/v1/")
+SERVER_URL = os.getenv("SERVER_URL")
 
 @client_app.get("/healthcheck")
 async def healthcheck() -> Response:
@@ -20,7 +19,7 @@ async def healthcheck() -> Response:
 async def main_page(request: Request):
     return templates.TemplateResponse(request, "index.html", {
         "request": request,
-        "api_base_url": BACKEND_URL
+        "api_base_url": SERVER_URL
     })
 
 @client_app.get("/course/{course_id}")
@@ -28,28 +27,28 @@ async def course_page(request: Request, course_id: str):
     return templates.TemplateResponse(request, "course.html", {
         "request": request,
         "course_id": course_id,
-        "api_base_url": BACKEND_URL
+        "api_base_url": SERVER_URL
     })
 
 @client_app.get("/me")
 async def profile_page(request: Request):
     return templates.TemplateResponse(request, "profile.html", {
         "request": request,
-        "api_base_url": BACKEND_URL
+        "api_base_url": SERVER_URL
     })
 
 @client_app.get("/my-courses")
 async def my_courses_page(request: Request):
     return templates.TemplateResponse(request, "my_courses.html", {
         "request": request,
-        "api_base_url": BACKEND_URL
+        "api_base_url": SERVER_URL
     })
 
 @client_app.get("/created-courses")
 async def created_courses_page(request: Request):
     return templates.TemplateResponse(request, "course_creation/created_courses.html", {
         "request": request,
-        "api_base_url": BACKEND_URL
+        "api_base_url": SERVER_URL
     })
 
 @client_app.get("/course/{course_id}/sections")
@@ -57,7 +56,7 @@ async def edit_sections(request: Request, course_id: str):
     return templates.TemplateResponse(request, "course_creation/sections.html", {
         "request": request,
         "course_id": course_id,
-        "api_base_url": BACKEND_URL
+        "api_base_url": SERVER_URL
     })
 
 @client_app.get("/course/{course_id}/section/{section_id}/topics")
@@ -66,14 +65,14 @@ async def edit_topics(request: Request, course_id: str, section_id: str):
         "request": request,
         "course_id": course_id,
         "section_id": section_id,
-        "api_base_url": BACKEND_URL
+        "api_base_url": SERVER_URL
     })
 
 @client_app.get("/my-notes")
 async def my_notes_page(request: Request):
     return templates.TemplateResponse(request, "my_notes.html", {
         "request": request,
-        "api_base_url": BACKEND_URL
+        "api_base_url": SERVER_URL
     })
 
 @client_app.get("/submit_professor_application/{secret_link}")
@@ -83,7 +82,7 @@ async def submit_professor_application_form(request: Request, secret_link: str):
         "admin/submit_application.html",
         {
             "request": request,
-            "api_base_url": BACKEND_URL,
+            "api_base_url": SERVER_URL,
             "secret_link": secret_link
         }
     )
@@ -95,7 +94,7 @@ async def admin_applications_page(request: Request):
         "admin/admin_applications.html",
         {
             "request": request,
-            "api_base_url": BACKEND_URL
+            "api_base_url": SERVER_URL
         }
     )
 
@@ -107,7 +106,7 @@ async def my_applications_page(request: Request):
         "admin/my_applications.html",
         {
             "request": request,
-            "api_base_url": BACKEND_URL
+            "api_base_url": SERVER_URL
         }
     )
 
@@ -119,7 +118,7 @@ async def admin_users_page(request: Request):
         "admin/admin_users.html",
         {
             "request": request,
-            "api_base_url": BACKEND_URL
+            "api_base_url": SERVER_URL
         }
     )
 
@@ -127,7 +126,7 @@ async def admin_users_page(request: Request):
 async def admin_courses_page(request: Request):
     return templates.TemplateResponse(request, "admin/courses.html", {
         "request": request,
-        "api_base_url": BACKEND_URL
+        "api_base_url": SERVER_URL
     })
 
 @client_app.get("/admin/course/{course_id}/users")
@@ -135,12 +134,12 @@ async def admin_course_users_page(request: Request, course_id: str):
     return templates.TemplateResponse(request, "admin/course_users.html", {
         "request": request,
         "course_id": course_id,
-        "api_base_url": BACKEND_URL
+        "api_base_url": SERVER_URL
     })
 
 @client_app.get("/policy")
 async def policy_page(request: Request):
     return templates.TemplateResponse(request, "policy.html", {
         "request": request,
-        "api_base_url": BACKEND_URL
+        "api_base_url": SERVER_URL
     })
