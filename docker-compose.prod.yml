@@ -221,6 +221,7 @@ services:
         environment:
             - CLIENT_HOST=${CLIENT_HOST}
             - CLIENT_PORT=${CLIENT_PORT}
+            - SERVER_URL=${SERVER_URL_PROD}
         networks:
             - readme-network
         restart: unless-stopped
